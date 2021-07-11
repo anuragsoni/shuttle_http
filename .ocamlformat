@@ -1,0 +1,6 @@
+version=0.18.0
+profile=janestreet
+parse-docstrings=true
+wrap-comments=true
+module-item-spacing = compact
+break-infix = fit-or-vertical

@@ -1,0 +1,5 @@
+(executable
+ (name main)
+ (preprocess
+  (pps ppx_jane))
+ (libraries core async shuttle httpaf))
