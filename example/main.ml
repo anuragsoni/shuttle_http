@@ -43,10 +43,9 @@ module Server = struct
       | `Write iovecs ->
         let result = write_iovecs writer iovecs in
         Writer.flush writer;
-        Writer.flushed writer
-        >>> fun () ->
-        Server_connection.report_write_result conn result;
-        writer_thread ()
+        Writer.flushed writer (fun () ->
+            Server_connection.report_write_result conn result;
+            writer_thread ())
       | `Close _ -> Ivar.fill write_complete ()
       | `Yield -> Server_connection.yield_writer conn writer_thread
     in

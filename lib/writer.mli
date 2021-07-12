@@ -26,5 +26,5 @@ val schedule_bigstring : t -> ?pos:int -> ?len:int -> Bigstring.t -> unit
 val write_string : t -> ?pos:int -> ?len:int -> string -> unit
 val close : t -> unit Deferred.t
 val flush : t -> unit
-val flushed : t -> unit Deferred.t
+val flushed : t -> (unit -> unit) -> unit
 val schedule_iovecs : t -> Bigstring.t Faraday.iovec list -> int

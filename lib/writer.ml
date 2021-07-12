@@ -107,9 +107,7 @@ let write_iovecs t iovecs =
   | exception exn -> raise exn
 ;;
 
-let flushed t =
-  Deferred.create (fun ivar -> Faraday.flush t.buf (fun () -> Ivar.fill ivar ()))
-;;
+let flushed t f = Faraday.flush t.buf f
 
 let close t =
   (match t.close_state with
@@ -117,7 +115,10 @@ let close t =
   | `Open ->
     t.close_state <- `Start_close;
     Ivar.fill t.close_started ();
-    Deferred.any_unit [ after (Time.Span.of_sec 5.); flushed t ]
+    Deferred.any_unit
+      [ after (Time.Span.of_sec 5.)
+      ; Deferred.create (fun ivar -> flushed t (fun () -> Ivar.fill ivar ()))
+      ]
     >>> fun () ->
     t.close_state <- `Closed;
     Fd.close t.fd >>> fun () -> Ivar.fill t.close_finished ());
