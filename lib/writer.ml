@@ -30,14 +30,8 @@ module Config = struct
       ?(write_timeout = default_write_timeout)
       ()
     =
-    validate
-      { initial_buffer_size
-      ; max_buffer_size
-      ; write_timeout
-      }
+    validate { initial_buffer_size; max_buffer_size; write_timeout }
   ;;
-
-  let default = create ()
 end
 
 type t =
@@ -52,7 +46,8 @@ type t =
   }
 [@@deriving sexp_of, fields]
 
-let create fd config =
+let create ?initial_buffer_size ?max_buffer_size ?write_timeout fd =
+  let config = Config.create ?initial_buffer_size ?max_buffer_size ?write_timeout () in
   set_nonblock fd;
   { fd
   ; config
@@ -195,16 +190,6 @@ let ensure_can_write t =
 let schedule_bigstring t ?pos ?len buf =
   ensure_can_write t;
   Faraday.schedule_bigstring t.buf buf ?off:pos ?len
-;;
-
-let schedule_iovecs t iovecs =
-  ensure_can_write t;
-  let num =
-    List.fold ~init:0 iovecs ~f:(fun acc { Faraday.buffer; off; len } ->
-        schedule_bigstring t buffer ~pos:off ~len;
-        acc + len)
-  in
-  num
 ;;
 
 let write_string t ?pos ?len buf =

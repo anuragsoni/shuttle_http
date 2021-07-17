@@ -11,7 +11,7 @@ module Codec = struct
 
   let create fd =
     let reader = Reader.create fd in
-    let writer = Writer.create fd Writer.Config.default in
+    let writer = Writer.create fd in
     { writer; reader }
   ;;
 

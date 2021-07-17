@@ -6,7 +6,14 @@ open Shuttle
 let write_iovecs writer iovecs =
   match Writer.is_closed writer with
   | true -> `Closed
-  | false -> `Ok (Writer.schedule_iovecs writer iovecs)
+  | false ->
+    let rec aux acc = function
+      | [] -> `Ok acc
+      | { Faraday.buffer; off; len } :: xs ->
+        Writer.schedule_bigstring writer buffer ~pos:off ~len;
+        aux (acc + len) xs
+    in
+    aux 0 iovecs
 ;;
 
 module Server = struct
@@ -130,7 +137,7 @@ let main port max_accepts_per_batch () =
       (fun addr sock ->
         let fd = Socket.fd sock in
         let reader = Reader.create fd in
-        let writer = Writer.create fd Writer.Config.default in
+        let writer = Writer.create fd in
         Server.create_connection_handler
           addr
           ~request_handler
