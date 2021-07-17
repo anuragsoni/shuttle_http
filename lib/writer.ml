@@ -8,20 +8,17 @@ module Config = struct
   let default_write_timeout = Time_ns.Span.of_min 2.
   let default_max_buffer_size = Int.max_value
   let default_initial_buffer_size = 64 * 1024
-  let default_buffering_threshold_in_bytes = 32 * 1024
 
   type t =
     { initial_buffer_size : int
     ; max_buffer_size : int
     ; write_timeout : Time_ns.Span.t
-    ; buffering_threshold_in_bytes : int
     }
   [@@deriving sexp_of]
 
   let validate t =
     if t.initial_buffer_size <= 0
        || t.initial_buffer_size > t.max_buffer_size
-       || t.buffering_threshold_in_bytes < 0
        || Time_ns.Span.( <= ) t.write_timeout Time_ns.Span.zero
     then raise_s [%sexp "Shuttle.Config.validate: invalid config", { t : t }];
     t
@@ -31,14 +28,12 @@ module Config = struct
       ?(initial_buffer_size = default_initial_buffer_size)
       ?(max_buffer_size = default_max_buffer_size)
       ?(write_timeout = default_write_timeout)
-      ?(buffering_threshold_in_bytes = default_buffering_threshold_in_bytes)
       ()
     =
     validate
       { initial_buffer_size
       ; max_buffer_size
       ; write_timeout
-      ; buffering_threshold_in_bytes
       }
   ;;
 

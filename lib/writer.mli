@@ -8,7 +8,6 @@ module Config : sig
     :  ?initial_buffer_size:int
     -> ?max_buffer_size:int
     -> ?write_timeout:Time_ns.Span.t
-    -> ?buffering_threshold_in_bytes:int
     -> unit
     -> t
 
