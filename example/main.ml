@@ -106,6 +106,12 @@ let benchmark =
     Body.close_reader request_body;
     match target with
     | "/" -> Reqd.respond_with_bigstring reqd (Response.create ~headers `OK) text
+    | "/yield" ->
+      Scheduler.yield ()
+      >>> fun () -> Reqd.respond_with_bigstring reqd (Response.create ~headers `OK) text
+    | "/delay" ->
+      after Time.Span.millisecond
+      >>> fun () -> Reqd.respond_with_bigstring reqd (Response.create ~headers `OK) text
     | _ -> Reqd.respond_with_string reqd (Response.create `Not_found) "Route not found"
   in
   handler
