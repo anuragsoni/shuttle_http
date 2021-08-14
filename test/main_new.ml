@@ -24,7 +24,7 @@ module Codec = struct
           then Shuttle.Writer.schedule_bigstring t.writer buf'
         done;
         Writer.flush t.writer;
-        Reader.Read_chunk_result.Continue)
+        `Continue)
     >>| function
     | Error `Eof -> ()
     | Error `Closed -> raise_s [%message "Attempting to read from a closed fd"]

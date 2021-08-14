@@ -3,13 +3,12 @@ open Async
 
 let set_nonblock fd = Fd.with_file_descr_exn fd ignore ~nonblocking:true
 
-module Read_chunk_result = struct
-  type 'a t =
-    | Stop of 'a
-    | Continue
-    | Consumed of int
-  [@@deriving sexp_of]
-end
+type 'a handle_chunk_result =
+  [ `Stop of 'a
+  | `Continue
+  | `Consumed of int
+  ]
+[@@deriving sexp_of]
 
 type t =
   { fd : Fd.t
@@ -97,7 +96,7 @@ module Driver = struct
 
   type nonrec 'a t =
     { reader : t
-    ; on_chunk : Bigstring.t -> pos:int -> len:int -> 'a Read_chunk_result.t
+    ; on_chunk : Bigstring.t -> pos:int -> len:int -> 'a handle_chunk_result
     ; interrupt : unit Ivar.t
     ; mutable state : 'a state
     }
@@ -123,9 +122,9 @@ module Driver = struct
       if len > 0
       then (
         match t.on_chunk t.reader.buf ~pos:t.reader.pos ~len with
-        | Stop x -> interrupt t (Stopped_by_user x)
-        | Continue -> t.reader.pos <- t.reader.pos + len
-        | Consumed d ->
+        | `Stop x -> interrupt t (Stopped_by_user x)
+        | `Continue -> t.reader.pos <- t.reader.pos + len
+        | `Consumed d ->
           if d > len || d < 0
           then
             raise_s

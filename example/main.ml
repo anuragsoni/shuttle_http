@@ -36,7 +36,7 @@ module Server = struct
       | `Read ->
         Reader.read_one_chunk_at_a_time reader ~on_chunk:(fun buf ~pos ~len ->
             let consumed = Server_connection.read conn buf ~off:pos ~len in
-            Reader.Read_chunk_result.Consumed consumed)
+            `Consumed consumed)
         >>> (function
         | Ok _ -> reader_thread ()
         | Error `Closed -> raise_s [%message "Attempting to read from a closed fd"]

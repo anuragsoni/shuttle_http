@@ -5,18 +5,15 @@
 open! Core
 open! Async
 
-module Read_chunk_result : sig
-  type 'a t =
-    | Stop of 'a
-        (** [Stop a] indicates that the read loop's handler consumed 0 bytes and that the
-            read loop should stop. *)
-    | Continue
-        (** [Continue] indicates that the read loop's handler consumed all bytes. *)
-    | Consumed of int
-        (** [Consumed count] indicates that the read loop's handler consumed [count]
-            bytes. *)
-  [@@deriving sexp_of]
-end
+type 'a handle_chunk_result =
+  [ `Stop of 'a
+    (** [Stop a] indicates that the read loop's handler consumed 0 bytes and that the read
+        loop should stop. *)
+  | `Continue (** [Continue] indicates that the read loop's handler consumed all bytes. *)
+  | `Consumed of int
+    (** [Consumed count] indicates that the read loop's handler consumed [count] bytes. *)
+  ]
+[@@deriving sexp_of]
 
 type t [@@deriving sexp_of]
 
@@ -28,5 +25,5 @@ val close : t -> unit Deferred.t
     and calls [on_chunk] whenever there is data available. *)
 val read_one_chunk_at_a_time
   :  t
-  -> on_chunk:(Bigstring.t -> pos:int -> len:int -> 'a Read_chunk_result.t)
+  -> on_chunk:(Bigstring.t -> pos:int -> len:int -> 'a handle_chunk_result)
   -> ('a, [> `Eof | `Closed ]) Deferred.Result.t
