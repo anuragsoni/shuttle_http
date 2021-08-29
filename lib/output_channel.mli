@@ -38,6 +38,5 @@ val close : t -> unit Deferred.t
 (** [flush] will schedule a write system call if one is needed. *)
 val flush : t -> unit
 
-(** [flushed t f] registers the callback f that will get called when all prior writes have
-    finished. *)
-val flushed : t -> (unit -> unit) -> unit
+(** [flushed t f] deferred that will get resolved when all prior writes have finished. *)
+val flushed : t -> unit Deferred.t

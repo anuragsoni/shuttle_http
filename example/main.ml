@@ -50,7 +50,7 @@ module Server = struct
       | `Write iovecs ->
         let result = write_iovecs writer iovecs in
         Output_channel.flush writer;
-        Output_channel.flushed writer (fun () ->
+        Output_channel.flushed writer >>> (fun () ->
             Server_connection.report_write_result conn result;
             writer_thread ())
       | `Close _ -> Ivar.fill write_complete ()
