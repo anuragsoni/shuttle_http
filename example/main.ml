@@ -4,13 +4,13 @@ open Httpaf
 open Shuttle
 
 let write_iovecs writer iovecs =
-  match Writer.is_closed writer with
+  match Output_channel.is_closed writer with
   | true -> `Closed
   | false ->
     let rec aux acc = function
       | [] -> `Ok acc
       | { Faraday.buffer; off; len } :: xs ->
-        Writer.schedule_bigstring writer buffer ~pos:off ~len;
+        Output_channel.schedule_bigstring writer buffer ~pos:off ~len;
         aux (acc + len) xs
     in
     aux 0 iovecs
@@ -34,7 +34,7 @@ module Server = struct
       | `Close -> Ivar.fill read_complete ()
       | `Yield -> Server_connection.yield_reader conn reader_thread
       | `Read ->
-        Reader.read_one_chunk_at_a_time reader ~on_chunk:(fun buf ~pos ~len ->
+        Input_channel.read_one_chunk_at_a_time reader ~on_chunk:(fun buf ~pos ~len ->
             let consumed = Server_connection.read conn buf ~off:pos ~len in
             `Consumed consumed)
         >>> (function
@@ -49,8 +49,8 @@ module Server = struct
       match Server_connection.next_write_operation conn with
       | `Write iovecs ->
         let result = write_iovecs writer iovecs in
-        Writer.flush writer;
-        Writer.flushed writer (fun () ->
+        Output_channel.flush writer;
+        Output_channel.flushed writer (fun () ->
             Server_connection.report_write_result conn result;
             writer_thread ())
       | `Close _ -> Ivar.fill write_complete ()
@@ -142,15 +142,15 @@ let main port max_accepts_per_batch () =
         where_to_listen)
       (fun addr sock ->
         let fd = Socket.fd sock in
-        let reader = Reader.create fd in
-        let writer = Writer.create fd in
+        let reader = Input_channel.create fd in
+        let writer = Output_channel.create fd in
         Server.create_connection_handler
           addr
           ~request_handler
           ~error_handler
           reader
           writer
-        >>= fun () -> Writer.close writer >>= fun () -> Reader.close reader)
+        >>= fun () -> Output_channel.close writer >>= fun () -> Input_channel.close reader)
   in
   Deferred.forever () (fun () ->
       Clock.after Time.Span.(of_sec 0.5)

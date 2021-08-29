@@ -5,25 +5,25 @@ module Codec = struct
   open Shuttle
 
   type t =
-    { writer : Writer.t
-    ; reader : Reader.t
+    { writer : Output_channel.t
+    ; reader : Input_channel.t
     }
 
   let create fd =
-    let reader = Reader.create fd in
-    let writer = Writer.create fd in
+    let reader = Input_channel.create fd in
+    let writer = Output_channel.create fd in
     { writer; reader }
   ;;
 
   let buf' = Bigstring.of_string "+PONG\r\n"
 
   let run_loop t =
-    Reader.read_one_chunk_at_a_time t.reader ~on_chunk:(fun buf ~pos ~len ->
+    Input_channel.read_one_chunk_at_a_time t.reader ~on_chunk:(fun buf ~pos ~len ->
         for i = pos to len - 1 do
           if Char.(Bigstring.get buf i = '\n')
-          then Shuttle.Writer.schedule_bigstring t.writer buf'
+          then Output_channel.schedule_bigstring t.writer buf'
         done;
-        Writer.flush t.writer;
+        Output_channel.flush t.writer;
         `Continue)
     >>| function
     | Error `Eof -> ()
