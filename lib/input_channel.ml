@@ -6,7 +6,6 @@ let set_nonblock fd = Fd.with_file_descr_exn fd ignore ~nonblocking:true
 type 'a handle_chunk_result =
   [ `Stop of 'a
   | `Continue
-  | `Consumed of int
   ]
 [@@deriving sexp_of]
 
@@ -15,9 +14,7 @@ type t =
   ; mutable reading : bool
   ; mutable is_closed : bool
   ; closed : unit Ivar.t
-  ; mutable buf : (Bigstring.t[@sexp.opaque])
-  ; mutable pos : int
-  ; mutable max : int
+  ; buf : Bytebuffer.t
   }
 [@@deriving sexp_of]
 
@@ -33,9 +30,7 @@ let create ?(buf_len = 64 * 1024) fd =
   ; reading = false
   ; is_closed = false
   ; closed = Ivar.create ()
-  ; buf = Bigstring.create buf_len
-  ; pos = 0
-  ; max = 0
+  ; buf = Bytebuffer.create buf_len
   }
 ;;
 
@@ -50,31 +45,15 @@ let close t =
   closed t
 ;;
 
-let shift t =
-  if t.pos > 0
-  then (
-    let len = t.max - t.pos in
-    if len > 0 then Bigstring.blit ~src:t.buf ~dst:t.buf ~src_pos:t.pos ~dst_pos:0 ~len;
-    t.pos <- 0;
-    t.max <- len)
-;;
-
 let refill t =
-  shift t;
-  let result =
-    Bigstring_unix.read_assume_fd_is_nonblocking
-      (Fd.file_descr_exn t.fd)
-      t.buf
-      ~pos:t.max
-      ~len:(Bigstring.length t.buf - t.max)
-  in
+  Bytebuffer.compact t.buf;
+  let result = Bytebuffer.read_assume_fd_is_nonblocking (Fd.file_descr_exn t.fd) t.buf in
   if Unix.Syscall_result.Int.is_ok result
   then (
     match Unix.Syscall_result.Int.ok_exn result with
     | 0 -> `Eof
     | n ->
       assert (n > 0);
-      t.max <- t.max + n;
       `Read_some)
   else (
     match Unix.Syscall_result.Int.error_exn result with
@@ -96,7 +75,7 @@ module Driver = struct
 
   type nonrec 'a t =
     { reader : t
-    ; on_chunk : Bigstring.t -> pos:int -> len:int -> 'a handle_chunk_result
+    ; on_chunk : Bytebuffer.t -> 'a handle_chunk_result
     ; interrupt : unit Ivar.t
     ; mutable state : 'a state
     }
@@ -113,27 +92,21 @@ module Driver = struct
     Ivar.fill t.interrupt ()
   ;;
 
-  let can_process_chunk t = (not t.reader.is_closed) && is_running t
+  let can_process_chunk t =
+    (not t.reader.is_closed)
+    && is_running t
+    && Bytebuffer.available_to_write t.reader.buf > 0
+  ;;
 
-  let rec process_chunks t =
+  let process_chunks t =
     if can_process_chunk t
     then (
-      let len = t.reader.max - t.reader.pos in
+      let len = Bytebuffer.length t.reader.buf in
       if len > 0
       then (
-        match t.on_chunk t.reader.buf ~pos:t.reader.pos ~len with
+        match t.on_chunk t.reader.buf with
         | `Stop x -> interrupt t (Stopped_by_user x)
-        | `Continue -> t.reader.pos <- t.reader.pos + len
-        | `Consumed d ->
-          if d > len || d < 0
-          then
-            raise_s
-              [%message
-                "on_chunk returned an invalid value for consumed bytes"
-                  (len : int)
-                  ~consumed:(d : int)];
-          t.reader.pos <- t.reader.pos + d;
-          process_chunks t))
+        | `Continue -> ()))
   ;;
 
   let process_incoming t =

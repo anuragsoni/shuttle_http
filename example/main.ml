@@ -34,9 +34,10 @@ module Server = struct
       | `Close -> Ivar.fill read_complete ()
       | `Yield -> Server_connection.yield_reader conn reader_thread
       | `Read ->
-        Input_channel.read_one_chunk_at_a_time reader ~on_chunk:(fun buf ~pos ~len ->
-            let consumed = Server_connection.read conn buf ~off:pos ~len in
-            `Consumed consumed)
+        Input_channel.read_one_chunk_at_a_time reader ~on_chunk:(fun buf ->
+            Bytebuffer.Consume.unsafe_bigstring buf ~f:(fun buf ~pos ~len ->
+                Server_connection.read conn buf ~off:pos ~len);
+            `Continue)
         >>> (function
         | Ok _ -> reader_thread ()
         | Error `Closed -> raise_s [%message "Attempting to read from a closed fd"]
@@ -50,9 +51,10 @@ module Server = struct
       | `Write iovecs ->
         let result = write_iovecs writer iovecs in
         Output_channel.flush writer;
-        Output_channel.flushed writer >>> (fun () ->
-            Server_connection.report_write_result conn result;
-            writer_thread ())
+        Output_channel.flushed writer
+        >>> fun () ->
+        Server_connection.report_write_result conn result;
+        writer_thread ()
       | `Close _ -> Ivar.fill write_complete ()
       | `Yield -> Server_connection.yield_writer conn writer_thread
     in
