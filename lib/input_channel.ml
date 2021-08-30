@@ -95,7 +95,8 @@ module Driver = struct
   let can_process_chunk t =
     (not t.reader.is_closed)
     && is_running t
-    && Bytebuffer.available_to_write t.reader.buf > 0
+    && (Bytebuffer.can_reclaim_space t.reader.buf
+       || Bytebuffer.available_to_write t.reader.buf > 0)
   ;;
 
   let process_chunks t =

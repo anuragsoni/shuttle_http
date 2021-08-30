@@ -3,6 +3,7 @@ open! Core
 type t [@@deriving sexp_of]
 
 val create : int -> t
+val can_reclaim_space : t -> bool
 val capacity : t -> int
 val available_to_write : t -> int
 val compact : t -> unit

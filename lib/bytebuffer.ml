@@ -40,6 +40,7 @@ let compact t =
 ;;
 
 let length t = t.pos_fill - t.pos_read
+let can_reclaim_space t = t.pos_read > 0
 let capacity t = Bigstring.length t.buf
 let available_to_write t = Bigstring.length t.buf - t.pos_fill
 
