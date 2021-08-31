@@ -126,6 +126,18 @@ module Driver = struct
         Monitor.send_exn parent exn)
   ;;
 
+  let eof_to_response t =
+    let len = Bytebuffer.length t.reader.buf in
+    if len = 0
+    then return `Eof
+    else (
+      let b = Bigstring.create len in
+      Bytebuffer.Consume.unsafe_bigstring t.reader.buf ~f:(fun buf ~pos ~len ->
+          Bigstring.blito ~src:buf ~dst:b ~src_pos:pos ();
+          len);
+      return (`Eof_with_unconsumed b))
+  ;;
+
   let run reader ~on_chunk =
     let t = { reader; interrupt = Ivar.create (); state = Running; on_chunk } in
     let monitor =
@@ -146,10 +158,10 @@ module Driver = struct
       (match t.state with
       | Running ->
         assert (Fd.is_closed t.reader.fd || t.reader.is_closed);
-        return (Error `Closed)
-      | Stopped (Stopped_by_user x) -> return (Ok x)
+        eof_to_response t
+      | Stopped (Stopped_by_user x) -> return (`Stopped x)
       | Stopped Handler_raised -> Deferred.never ()
-      | Stopped Eof_reached -> return (Error `Eof))
+      | Stopped Eof_reached -> eof_to_response t)
   ;;
 end
 

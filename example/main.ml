@@ -39,9 +39,12 @@ module Server = struct
                 Server_connection.read conn buf ~off:pos ~len);
             `Continue)
         >>> (function
-        | Ok _ -> reader_thread ()
-        | Error `Closed -> raise_s [%message "Attempting to read from a closed fd"]
-        | Error `Eof ->
+        | `Stopped _ -> reader_thread ()
+        | `Eof_with_unconsumed buf ->
+          ignore
+            (Server_connection.read_eof conn buf ~off:0 ~len:(Bigstring.length buf) : int);
+          reader_thread ()
+        | `Eof ->
           ignore (Server_connection.read_eof conn Bigstringaf.empty ~off:0 ~len:0 : int);
           reader_thread ())
     in

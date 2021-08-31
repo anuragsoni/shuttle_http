@@ -26,4 +26,4 @@ val close : t -> unit Deferred.t
 val read_one_chunk_at_a_time
   :  t
   -> on_chunk:(Bytebuffer.t -> 'a handle_chunk_result)
-  -> ('a, [> `Eof | `Closed ]) Deferred.Result.t
+  -> [ `Stopped of 'a | `Eof | `Eof_with_unconsumed of Bigstring.t ] Deferred.t

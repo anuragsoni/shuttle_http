@@ -28,9 +28,9 @@ module Codec = struct
         Output_channel.flush t.writer;
         `Continue)
     >>| function
-    | Error `Eof -> ()
-    | Error `Closed -> raise_s [%message "Attempting to read from a closed fd"]
-    | Ok _ -> ()
+    | `Eof -> ()
+    | `Eof_with_unconsumed _ -> assert false
+    | `Stopped _ -> ()
   ;;
 end
 
