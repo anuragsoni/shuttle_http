@@ -1,5 +1,4 @@
 open! Core
-open! Async
 
 (*  Bytebuffer is split into three regions using two separate indices that are used
     to support read and write operations.

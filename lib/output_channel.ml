@@ -34,15 +34,23 @@ module Config = struct
   ;;
 end
 
+type flush =
+  { pos : Int63.t
+  ; ivar : unit Ivar.t
+  }
+[@@deriving sexp_of]
+
 type t =
   { fd : Fd.t
   ; config : Config.t
-  ; mutable buf : (Faraday.t[@sexp.opaque])
+  ; buf : Bytebuffer.t
   ; monitor : Monitor.t
+  ; flushes : flush Queue.t
   ; mutable close_state : [ `Open | `Start_close | `Closed ]
   ; close_started : unit Ivar.t
   ; close_finished : unit Ivar.t
   ; mutable writer_state : [ `Active | `Stopped | `Inactive ]
+  ; mutable bytes_written : Int63.t
   }
 [@@deriving sexp_of, fields]
 
@@ -51,12 +59,14 @@ let create ?initial_buffer_size ?max_buffer_size ?write_timeout fd =
   set_nonblock fd;
   { fd
   ; config
+  ; flushes = Queue.create ()
   ; writer_state = `Inactive
-  ; buf = Faraday.create config.initial_buffer_size
+  ; buf = Bytebuffer.create config.initial_buffer_size
   ; monitor = Monitor.create ()
   ; close_state = `Open
   ; close_started = Ivar.create ()
   ; close_finished = Ivar.create ()
+  ; bytes_written = Int63.zero
   }
 ;;
 
@@ -70,17 +80,37 @@ let close_started t = Ivar.read t.close_started
 let close_finished t = Ivar.read t.close_finished
 let is_open = Fn.non is_closed
 
-let mk_iovecs iovecs =
-  Array.of_list_map iovecs ~f:(fun { Faraday.buffer; off; len } ->
-      Unix.IOVec.of_bigstring buffer ~pos:off ~len)
+let flushed t =
+  if Bytebuffer.length t.buf = 0
+  then Deferred.unit
+  else if is_closed t
+  then Deferred.never ()
+  else (
+    let flush =
+      { pos = Int63.( + ) t.bytes_written (Int63.of_int (Bytebuffer.length t.buf))
+      ; ivar = Ivar.create ()
+      }
+    in
+    Queue.enqueue t.flushes flush;
+    Ivar.read flush.ivar)
 ;;
 
-let write_iovecs t iovecs =
-  match
-    Bigstring_unix.writev_assume_fd_is_nonblocking (Fd.file_descr_exn t.fd) iovecs
-  with
+let dequeue_flushes t =
+  while
+    (not (Queue.is_empty t.flushes))
+    && Int63.( <= ) (Queue.peek_exn t.flushes).pos t.bytes_written
+  do
+    Ivar.fill (Queue.dequeue_exn t.flushes).ivar ()
+  done
+;;
+
+let write t =
+  match Bytebuffer.write_assume_fd_is_nonblocking (Fd.file_descr_exn t.fd) t.buf with
   | n ->
-    Faraday.shift t.buf n;
+    assert (n >= 0);
+    Bytebuffer.compact t.buf;
+    t.bytes_written <- Int63.( + ) t.bytes_written (Int63.of_int n);
+    dequeue_flushes t;
     `Ok
   | exception Unix.Unix_error ((EWOULDBLOCK | EAGAIN | EINTR), _, _) -> `Ok
   | exception
@@ -97,10 +127,6 @@ let write_iovecs t iovecs =
   | exception exn -> raise exn
 ;;
 
-let flushed t =
-  Deferred.create (fun ivar -> Faraday.flush t.buf (fun () -> Ivar.fill ivar ()))
-;;
-
 let close t =
   (match t.close_state with
   | `Closed | `Start_close -> ()
@@ -114,10 +140,7 @@ let close t =
   close_finished t
 ;;
 
-let stop_writer t =
-  t.writer_state <- `Stopped;
-  ignore (Faraday.drain t.buf : int)
-;;
+let stop_writer t = t.writer_state <- `Stopped
 
 module Single_write_result = struct
   type t =
@@ -126,20 +149,20 @@ module Single_write_result = struct
 end
 
 let single_write t =
-  match Faraday.operation t.buf with
-  | `Yield -> Single_write_result.Continue
-  | `Close -> Stop
-  | `Writev iovecs ->
-    (match write_iovecs t (mk_iovecs iovecs) with
-    | `Ok -> Continue
+  (* match Faraday.operation t.buf with *)
+  if Bytebuffer.length t.buf > 0
+  then (
+    match write t with
+    | `Ok -> Single_write_result.Continue
     | `Eof -> Stop)
+  else Continue
 ;;
 
 let rec write_everything t =
   match single_write t with
   | Stop -> stop_writer t
   | Continue ->
-    if not (Faraday.has_pending_output t.buf)
+    if not (Bytebuffer.length t.buf > 0)
     then (
       t.writer_state <- `Inactive;
       if is_closed t then stop_writer t)
@@ -174,7 +197,7 @@ let is_writing t =
 ;;
 
 let flush t =
-  if (not (is_writing t)) && Faraday.has_pending_output t.buf
+  if (not (is_writing t)) && Bytebuffer.length t.buf > 0
   then (
     t.writer_state <- `Active;
     Scheduler.within ~monitor:t.monitor (fun () -> write_everything t))
@@ -188,10 +211,10 @@ let ensure_can_write t =
 
 let schedule_bigstring t ?pos ?len buf =
   ensure_can_write t;
-  Faraday.schedule_bigstring t.buf buf ?off:pos ?len
+  Bytebuffer.Fill.bigstring t.buf buf ?pos ?len
 ;;
 
 let write_string t ?pos ?len buf =
   ensure_can_write t;
-  Faraday.write_string t.buf buf ?off:pos ?len
+  Bytebuffer.Fill.string t.buf buf ?pos ?len
 ;;

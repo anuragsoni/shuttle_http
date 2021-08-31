@@ -21,5 +21,4 @@
    (>= 4.11.0))
   core
   async
-  faraday
   ppx_jane))
