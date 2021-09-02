@@ -1,5 +1,6 @@
 open! Core
-open! Async
+open! Async_kernel
+open Async_unix
 open Import
 module Unix = Core.Unix
 

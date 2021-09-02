@@ -3,7 +3,8 @@
     Async_unix.Writer}, based on the low latency transport in async_rpc. *)
 
 open! Core
-open! Async
+open! Async_kernel
+open Async_unix
 
 type t [@@deriving sexp_of]
 

@@ -3,7 +3,8 @@
     Async_unix.Reader}, based on the low latency transport in async_rpc. *)
 
 open! Core
-open! Async
+open! Async_kernel
+open Async_unix
 
 type 'a handle_chunk_result =
   [ `Stop of 'a

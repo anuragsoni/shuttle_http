@@ -8,6 +8,7 @@
  (github anuragsoni/shuttle))
 
 (maintainers "Anurag Soni <anurag@sonianurag.com>")
+(authors "Anurag Soni")
 
 (license MIT)
 
@@ -15,10 +16,23 @@
  (name shuttle)
  (tags
   (async reader writer))
- (synopsis "Buffered reader/writer for async")
+ (synopsis "Reasonably performant non-blocking channels for async")
  (depends
   (ocaml
    (>= 4.11.0))
-  core
-  async
-  ppx_jane))
+  (async_kernel
+   (and
+    (>= v0.14)
+    (< v0.15)))
+  (async_unix
+   (and
+    (>= v0.14)
+    (< v0.15)))
+  (core
+   (and
+    (>= v0.14)
+    (< v0.15)))
+  (ppx_jane
+   (and
+    (>= v0.14)
+    (< v0.15)))))
