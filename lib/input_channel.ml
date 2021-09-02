@@ -166,4 +166,18 @@ module Driver = struct
   ;;
 end
 
-let read_one_chunk_at_a_time t ~on_chunk = Driver.run t ~on_chunk
+let read_one_chunk_at_a_time t ~on_chunk =
+  if t.is_closed
+  then
+    raise_s [%message "Shuttle.Input_channel: attempting to read from a closed channel"];
+  if t.reading
+  then raise_s [%message "Shuttle.Input_channel: already reading from input channel"];
+  t.reading <- true;
+  Monitor.protect
+    ~run:`Now
+    ~here:[%here]
+    ~finally:(fun () ->
+      t.reading <- false;
+      Deferred.unit)
+    (fun () -> Driver.run t ~on_chunk)
+;;
