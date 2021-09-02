@@ -41,19 +41,31 @@ type flush =
   }
 [@@deriving sexp_of]
 
+type close_state =
+  | Open
+  | Start_close
+  | Closed
+[@@deriving sexp_of]
+
+type writer_state =
+  | Active
+  | Stopped
+  | Inactive
+[@@deriving sexp_of]
+
 type t =
   { fd : Fd.t
   ; config : Config.t
   ; buf : Bytebuffer.t
   ; monitor : Monitor.t
   ; flushes : flush Queue.t
-  ; mutable close_state : [ `Open | `Start_close | `Closed ]
+  ; mutable close_state : close_state
   ; close_started : unit Ivar.t
   ; close_finished : unit Ivar.t
-  ; mutable writer_state : [ `Active | `Stopped | `Inactive ]
+  ; mutable writer_state : writer_state
   ; mutable bytes_written : Int63.t
   }
-[@@deriving sexp_of, fields]
+[@@deriving sexp_of]
 
 let create ?initial_buffer_size ?max_buffer_size ?write_timeout fd =
   let config = Config.create ?initial_buffer_size ?max_buffer_size ?write_timeout () in
@@ -61,10 +73,10 @@ let create ?initial_buffer_size ?max_buffer_size ?write_timeout fd =
   { fd
   ; config
   ; flushes = Queue.create ()
-  ; writer_state = `Inactive
+  ; writer_state = Inactive
   ; buf = Bytebuffer.create config.initial_buffer_size
   ; monitor = Monitor.create ()
-  ; close_state = `Open
+  ; close_state = Open
   ; close_started = Ivar.create ()
   ; close_finished = Ivar.create ()
   ; bytes_written = Int63.zero
@@ -73,8 +85,8 @@ let create ?initial_buffer_size ?max_buffer_size ?write_timeout fd =
 
 let is_closed t =
   match t.close_state with
-  | `Open -> false
-  | `Closed | `Start_close -> true
+  | Open -> false
+  | Closed | Start_close -> true
 ;;
 
 let close_started t = Ivar.read t.close_started
@@ -130,18 +142,18 @@ let write t =
 
 let close t =
   (match t.close_state with
-  | `Closed | `Start_close -> ()
-  | `Open ->
-    t.close_state <- `Start_close;
+  | Closed | Start_close -> ()
+  | Open ->
+    t.close_state <- Start_close;
     Ivar.fill t.close_started ();
     Deferred.any_unit [ after (Time.Span.of_sec 5.); flushed t ]
     >>> fun () ->
-    t.close_state <- `Closed;
+    t.close_state <- Closed;
     Fd.close t.fd >>> fun () -> Ivar.fill t.close_finished ());
   close_finished t
 ;;
 
-let stop_writer t = t.writer_state <- `Stopped
+let stop_writer t = t.writer_state <- Stopped
 
 module Single_write_result = struct
   type t =
@@ -165,7 +177,7 @@ let rec write_everything t =
   | Continue ->
     if not (Bytebuffer.length t.buf > 0)
     then (
-      t.writer_state <- `Inactive;
+      t.writer_state <- Inactive;
       if is_closed t then stop_writer t)
     else wait_and_write_everything t
 
@@ -178,7 +190,7 @@ and wait_and_write_everything t =
     Log.Global.sexp
       ~level:`Error
       [%message
-        "Async_transport.Writer timed out waiting to write on file descriptor. Closing \
+        "Shuttle.Output_channel timed out waiting to write on file descriptor. Closing \
          the writer."
           ~timeout:(t.config.write_timeout : Time_ns.Span.t)
           (t : t)];
@@ -186,28 +198,28 @@ and wait_and_write_everything t =
   | `Result ((`Bad_fd | `Closed) as result) ->
     raise_s
       [%sexp
-        "Async_transport.Writer: fd changed"
+        "Shuttle.Output_channel: fd changed"
         , { t : t; ready_to_result = (result : [ `Bad_fd | `Closed ]) }]
 ;;
 
 let is_writing t =
   match t.writer_state with
-  | `Active -> true
-  | `Inactive -> false
-  | `Stopped -> false
+  | Active -> true
+  | Inactive -> false
+  | Stopped -> false
 ;;
 
 let flush t =
   if (not (is_writing t)) && Bytebuffer.length t.buf > 0
   then (
-    t.writer_state <- `Active;
+    t.writer_state <- Active;
     Scheduler.within ~monitor:t.monitor (fun () -> write_everything t))
 ;;
 
 let ensure_can_write t =
   match t.writer_state with
-  | `Inactive | `Active -> ()
-  | `Stopped -> raise_s [%sexp "Attempting to write to a closed writer", { t : t }]
+  | Inactive | Active -> ()
+  | Stopped -> raise_s [%sexp "Attempting to write to a closed writer", { t : t }]
 ;;
 
 let schedule_bigstring t ?pos ?len buf =

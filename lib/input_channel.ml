@@ -142,7 +142,7 @@ module Driver = struct
   let run reader ~on_chunk =
     let t = { reader; interrupt = Ivar.create (); state = Running; on_chunk } in
     let monitor =
-      Monitor.create ~here:[%here] ~name:"Async_transport.Reader.Driver.run" ()
+      Monitor.create ~here:[%here] ~name:"Shuttle.Input_channel.Driver.run" ()
     in
     stop_watching_on_error t ~monitor;
     match%bind
@@ -153,7 +153,7 @@ module Driver = struct
     | `Bad_fd | `Unsupported ->
       raise_s
         [%message
-          "Async_transport.Reader.run: fd doesn't support watching"
+          "Shuttle.Input_channel.run: fd doesn't support watching"
             ~fd:(t.reader.fd : Fd.t)]
     | `Closed | `Interrupted ->
       (match t.state with
