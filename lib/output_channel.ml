@@ -7,31 +7,26 @@ module Unix = Core.Unix
 module Config = struct
   (* Same as the default value of [buffer_age_limit] for [Async_unix.Writer] *)
   let default_write_timeout = Time_ns.Span.of_min 2.
-  let default_max_buffer_size = Int.max_value
   let default_initial_buffer_size = 64 * 1024
 
   type t =
     { initial_buffer_size : int
-    ; max_buffer_size : int
     ; write_timeout : Time_ns.Span.t
     }
   [@@deriving sexp_of]
 
   let validate t =
-    if t.initial_buffer_size <= 0
-       || t.initial_buffer_size > t.max_buffer_size
-       || Time_ns.Span.( <= ) t.write_timeout Time_ns.Span.zero
+    if t.initial_buffer_size <= 0 || Time_ns.Span.( <= ) t.write_timeout Time_ns.Span.zero
     then raise_s [%sexp "Shuttle.Config.validate: invalid config", { t : t }];
     t
   ;;
 
   let create
       ?(initial_buffer_size = default_initial_buffer_size)
-      ?(max_buffer_size = default_max_buffer_size)
       ?(write_timeout = default_write_timeout)
       ()
     =
-    validate { initial_buffer_size; max_buffer_size; write_timeout }
+    validate { initial_buffer_size; write_timeout }
   ;;
 end
 
@@ -67,8 +62,8 @@ type t =
   }
 [@@deriving sexp_of]
 
-let create ?initial_buffer_size ?max_buffer_size ?write_timeout fd =
-  let config = Config.create ?initial_buffer_size ?max_buffer_size ?write_timeout () in
+let create ?initial_buffer_size ?write_timeout fd =
+  let config = Config.create ?initial_buffer_size ?write_timeout () in
   set_nonblock fd;
   { fd
   ; config

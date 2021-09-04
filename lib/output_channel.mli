@@ -12,12 +12,7 @@ type t [@@deriving sexp_of]
 
     The writer doesn't flush automatically and the user is responsible for calling
     [flush], which triggers a write system call if needed. *)
-val create
-  :  ?initial_buffer_size:int
-  -> ?max_buffer_size:int
-  -> ?write_timeout:Time_ns.Span.t
-  -> Fd.t
-  -> t
+val create : ?initial_buffer_size:int -> ?write_timeout:Time_ns.Span.t -> Fd.t -> t
 
 val is_closed : t -> bool
 val is_open : t -> bool
