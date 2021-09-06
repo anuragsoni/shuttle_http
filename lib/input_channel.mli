@@ -13,6 +13,10 @@ type 'a handle_chunk_result =
   | `Continue
     (** [Continue] indicates that the read loop's handler consumed some bytes, and would
         like to keep reading. *)
+  | `Wait of unit Deferred.t
+    (** [Wait promise] should be used when the user's handler needs to process the
+        reader's buffer asynchronously. This will ensure that future calls to the handler
+        will only be made after the deferred returned by the user is resolved. *)
   ]
 [@@deriving sexp_of]
 
