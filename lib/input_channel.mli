@@ -32,3 +32,6 @@ val read_one_chunk_at_a_time
   :  t
   -> on_chunk:(Bytebuffer.t -> 'a handle_chunk_result)
   -> [ `Stopped of 'a | `Eof | `Eof_with_unconsumed of Bigstring.t ] Deferred.t
+
+(** [drain t] reads chunks of data from the reader and discards them. *)
+val drain : t -> unit Deferred.t

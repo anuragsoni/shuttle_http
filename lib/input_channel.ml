@@ -187,3 +187,12 @@ let read_one_chunk_at_a_time t ~on_chunk =
       Deferred.unit)
     (fun () -> Driver.run t ~on_chunk)
 ;;
+
+let drain t =
+  read_one_chunk_at_a_time t ~on_chunk:(fun buf ->
+      Bytebuffer.Consume.unsafe_bigstring buf ~f:(fun _buf ~pos:_ ~len -> len);
+      `Continue)
+  >>| function
+  | `Eof -> ()
+  | `Eof_with_unconsumed _ | `Stopped _ -> assert false
+;;
