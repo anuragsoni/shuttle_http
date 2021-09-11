@@ -217,7 +217,7 @@ let ensure_can_write t =
   | Stopped -> raise_s [%sexp "Attempting to write to a closed writer", { t : t }]
 ;;
 
-let schedule_bigstring t ?pos ?len buf =
+let write_bigstring t ?pos ?len buf =
   ensure_can_write t;
   Bytebuffer.Fill.bigstring t.buf buf ?pos ?len
 ;;
@@ -225,4 +225,9 @@ let schedule_bigstring t ?pos ?len buf =
 let write_string t ?pos ?len buf =
   ensure_can_write t;
   Bytebuffer.Fill.string t.buf buf ?pos ?len
+;;
+
+let write_char t ch =
+  ensure_can_write t;
+  Bytebuffer.Fill.char t.buf ch
 ;;

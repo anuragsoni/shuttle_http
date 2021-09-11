@@ -10,7 +10,7 @@ let write_iovecs writer iovecs =
     let rec aux acc = function
       | [] -> `Ok acc
       | { Faraday.buffer; off; len } :: xs ->
-        Output_channel.schedule_bigstring writer buffer ~pos:off ~len;
+        Output_channel.write_bigstring writer buffer ~pos:off ~len;
         aux (acc + len) xs
     in
     aux 0 iovecs

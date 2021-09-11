@@ -19,13 +19,15 @@ val is_open : t -> bool
 val close_started : t -> unit Deferred.t
 val close_finished : t -> unit Deferred.t
 
-(** [schedule_bigstring] schedules a bigstring to be written on the next flush. It is not
-    safe to modify this bigstring until the writer has been flushed, or closed. *)
-val schedule_bigstring : t -> ?pos:int -> ?len:int -> Bigstring.t -> unit
+(** [write_bigstring] copies the bigstring into the channel's internal buffer. It is safe
+    to modify the bigstring once [write_bigstring] returns. *)
+val write_bigstring : t -> ?pos:int -> ?len:int -> Bigstring.t -> unit
 
-(** [write_string] copies the string into the writer's internal buffer. The string will
+(** [write_string] copies the string into the channel's internal buffer. The string will
     surface the next time the writer schedules a write. *)
 val write_string : t -> ?pos:int -> ?len:int -> string -> unit
+
+val write_char : t -> char -> unit
 
 (** [close] will close the underlying file descriptor after waiting for the writer to be
     flushed. *)

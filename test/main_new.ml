@@ -22,7 +22,7 @@ module Codec = struct
         Bytebuffer.Consume.unsafe_bigstring buf ~f:(fun buf ~pos ~len ->
             for i = pos to len - 1 do
               if Char.(Bigstring.get buf i = '\n')
-              then Output_channel.schedule_bigstring t.writer buf'
+              then Output_channel.write_bigstring t.writer buf'
             done;
             len);
         Output_channel.flush t.writer;
