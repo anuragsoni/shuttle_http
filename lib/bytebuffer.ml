@@ -174,18 +174,6 @@ module Fill = struct
   ;;
 
   let bytebuffer t buf = bigstring t ~pos:buf.pos_read ~len:(length buf) buf.buf
-
-  let int16_be_exn t v =
-    if available_to_write t < 2 then invalid_arg "Index out of bounds";
-    Bigstring.set_int16_be_exn t.buf ~pos:t.pos_fill v;
-    t.pos_fill <- t.pos_fill + 2
-  ;;
-
-  let int32_be_exn t v =
-    if available_to_write t < 4 then invalid_arg "Index out of bounds";
-    Bigstring.set_int32_be_exn t.buf ~pos:t.pos_fill v;
-    t.pos_fill <- t.pos_fill + 4
-  ;;
 end
 
 module Consume = struct
@@ -193,20 +181,6 @@ module Consume = struct
     let res = To_string.subo ?pos ?len t in
     drop t (String.length res);
     res
-  ;;
-
-  let int16_be t =
-    if length t < 2 then invalid_arg "Index out of bounds";
-    let v = Bigstring.get_int16_be t.buf ~pos:t.pos_read in
-    t.pos_read <- t.pos_read + 2;
-    v
-  ;;
-
-  let int32_be t =
-    if length t < 4 then invalid_arg "Index out of bounds";
-    let v = Bigstring.get_int32_be t.buf ~pos:t.pos_read in
-    t.pos_read <- t.pos_read + 4;
-    v
   ;;
 
   let unsafe_bigstring t ~f =

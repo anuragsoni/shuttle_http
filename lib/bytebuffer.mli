@@ -29,13 +29,9 @@ module Fill : sig
   val bytes : t -> ?pos:int -> ?len:int -> bytes -> unit
   val bigstring : t -> ?pos:int -> ?len:int -> Bigstring.t -> unit
   val bytebuffer : t -> t -> unit
-  val int16_be_exn : t -> int -> unit
-  val int32_be_exn : t -> int -> unit
 end
 
 module Consume : sig
   val stringo : (t, string) Blit.subo
-  val int16_be : t -> int
-  val int32_be : t -> int
   val unsafe_bigstring : t -> f:(Bigstring.t -> pos:int -> len:int -> int) -> unit
 end
