@@ -185,7 +185,7 @@ module Consume = struct
     drop t (String.length res);
     res
   ;;
-(*
+  (*
   let unsafe_bigstring t ~f =
     let len = length t in
     let count = f t.buf ~pos:t.pos_read ~len in

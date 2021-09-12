@@ -49,20 +49,25 @@ let close t =
 
 let refill t =
   Bytebuffer.compact t.buf;
-  let result = Bytebuffer.read_assume_fd_is_nonblocking (Fd.file_descr_exn t.fd) t.buf in
-  if Unix.Syscall_result.Int.is_ok result
-  then (
-    match Unix.Syscall_result.Int.ok_exn result with
-    | 0 -> `Eof
-    | n ->
-      assert (n > 0);
-      `Read_some)
+  if Bytebuffer.available_to_write t.buf = 0
+  then `Buffer_is_full
   else (
-    match Unix.Syscall_result.Int.error_exn result with
-    | EAGAIN | EWOULDBLOCK | EINTR -> `Nothing_available
-    | EPIPE | ECONNRESET | EHOSTUNREACH | ENETDOWN | ENETRESET | ENETUNREACH | ETIMEDOUT
-      -> `Eof
-    | error -> raise (Unix.Unix_error (error, "read", "")))
+    let result =
+      Bytebuffer.read_assume_fd_is_nonblocking (Fd.file_descr_exn t.fd) t.buf
+    in
+    if Unix.Syscall_result.Int.is_ok result
+    then (
+      match Unix.Syscall_result.Int.ok_exn result with
+      | 0 -> `Eof
+      | n ->
+        assert (n > 0);
+        `Read_some)
+    else (
+      match Unix.Syscall_result.Int.error_exn result with
+      | EAGAIN | EWOULDBLOCK | EINTR -> `Nothing_available
+      | EPIPE | ECONNRESET | EHOSTUNREACH | ENETDOWN | ENETRESET | ENETUNREACH | ETIMEDOUT
+        -> `Eof
+      | error -> raise (Unix.Unix_error (error, "read", ""))))
 ;;
 
 module Driver = struct
@@ -95,12 +100,7 @@ module Driver = struct
     Ivar.fill t.interrupt ()
   ;;
 
-  let can_process_chunk t =
-    (not t.reader.is_closed)
-    && is_running t
-    && (Bytebuffer.can_reclaim_space t.reader.buf
-       || Bytebuffer.available_to_write t.reader.buf > 0)
-  ;;
+  let can_process_chunk t = (not t.reader.is_closed) && is_running t
 
   let process_chunks t =
     if can_process_chunk t
@@ -122,6 +122,7 @@ module Driver = struct
     then (
       match refill t.reader with
       | `Eof -> interrupt t Eof_reached
+      | `Buffer_is_full -> ()
       | `Nothing_available -> ()
       | `Read_some -> process_chunks t)
   ;;

@@ -4,7 +4,6 @@ type t [@@deriving sexp_of]
 
 val unsafe_buf : t -> Bigstring.t
 val pos : t -> int
-
 val create : int -> t
 val can_reclaim_space : t -> bool
 val capacity : t -> int
