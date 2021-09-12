@@ -29,6 +29,9 @@ let create size =
   { buf; pos_read = 0; pos_fill = 0 }
 ;;
 
+let unsafe_buf t = t.buf
+let pos t = t.pos_read
+
 let compact t =
   if t.pos_read > 0
   then (
@@ -62,7 +65,7 @@ let resize t size =
 ;;
 
 let drop t len =
-  if len > length t then invalid_arg "Index out of bounds";
+  if len < 0 || len > length t then invalid_arg "Bytebuffer.drop: Index out of bounds";
   t.pos_read <- t.pos_read + len
 ;;
 
@@ -182,12 +185,12 @@ module Consume = struct
     drop t (String.length res);
     res
   ;;
-
+(*
   let unsafe_bigstring t ~f =
     let len = length t in
     let count = f t.buf ~pos:t.pos_read ~len in
     if count < 0 || count > len
     then invalid_argf "Bytebuffer.consume: Invalid value for consumed count - %d" count ();
     t.pos_read <- t.pos_read + count
-  ;;
+  ;; *)
 end

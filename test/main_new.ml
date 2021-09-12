@@ -18,15 +18,13 @@ module Codec = struct
   let buf' = Bigstring.of_string "+PONG\r\n"
 
   let run_loop t =
-    Input_channel.read_one_chunk_at_a_time t.reader ~on_chunk:(fun buf ->
-        Bytebuffer.Consume.unsafe_bigstring buf ~f:(fun buf ~pos ~len ->
-            for i = pos to len - 1 do
-              if Char.(Bigstring.get buf i = '\n')
-              then Output_channel.write_bigstring t.writer buf'
-            done;
-            len);
+    Input_channel.read_one_chunk_at_a_time t.reader ~on_chunk:(fun buf ~pos ~len ->
+        for i = pos to len - 1 do
+          if Char.(Bigstring.get buf i = '\n')
+          then Output_channel.write_bigstring t.writer buf'
+        done;
         Output_channel.flush t.writer;
-        `Continue)
+        `Continue len)
     >>| function
     | `Eof -> ()
     | `Eof_with_unconsumed _ -> assert false
