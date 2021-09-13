@@ -34,9 +34,10 @@ module Server = struct
       | `Close -> Ivar.fill read_complete ()
       | `Yield -> Server_connection.yield_reader conn reader_thread
       | `Read ->
-        Input_channel.read_one_chunk_at_a_time reader ~on_chunk:(fun buf ~pos ~len ->
-            let count = Server_connection.read conn buf ~off:pos ~len in
-            `Continue count)
+        Input_channel.read_one_chunk_at_a_time reader ~on_chunk:(fun buf ->
+            Bytebuffer.Consume.unsafe_bigstring buf ~f:(fun buf ~pos ~len ->
+                Server_connection.read conn buf ~off:pos ~len);
+            `Continue)
         >>> (function
         | `Stopped _ -> reader_thread ()
         | `Eof_with_unconsumed buf ->

@@ -10,8 +10,8 @@ type 'a handle_chunk_result =
   [ `Stop of 'a
     (** [Stop a] indicates that the read loop's handler consumed 0 bytes and that the read
         loop should stop. *)
-  | `Continue of int
-    (** [Continue] indicates that the read loop's handler consumed [n] bytes, and would
+  | `Continue
+    (** [Continue] indicates that the read loop's handler consumed some bytes, and would
         like to keep reading. *)
   | `Wait of unit Deferred.t
     (** [Wait promise] should be used when the user's handler needs to process the
@@ -30,7 +30,7 @@ val close : t -> unit Deferred.t
     and calls [on_chunk] whenever there is data available. *)
 val read_one_chunk_at_a_time
   :  t
-  -> on_chunk:(Bigstring.t -> pos:int -> len:int -> 'a handle_chunk_result)
+  -> on_chunk:(Bytebuffer.t -> 'a handle_chunk_result)
   -> [ `Stopped of 'a | `Eof | `Eof_with_unconsumed of Bigstring.t ] Deferred.t
 
 (** [drain t] reads chunks of data from the reader and discards them. *)

@@ -2,8 +2,6 @@ open! Core
 
 type t [@@deriving sexp_of]
 
-val unsafe_buf : t -> Bigstring.t
-val pos : t -> int
 val create : int -> t
 val can_reclaim_space : t -> bool
 val capacity : t -> int
@@ -35,4 +33,5 @@ end
 
 module Consume : sig
   val stringo : (t, string) Blit.subo
+  val unsafe_bigstring : t -> f:(Bigstring.t -> pos:int -> len:int -> int) -> unit
 end
