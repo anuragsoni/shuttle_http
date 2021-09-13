@@ -200,12 +200,21 @@ let drain t =
 
 let pipe t =
   Pipe.create_reader ~close_on_exception:false (fun writer ->
-      read_one_chunk_at_a_time t ~on_chunk:(fun buf ->
-          let payload = Bytebuffer.Consume.stringo buf in
-          `Wait (Pipe.write writer payload))
-      >>= function
-      | `Eof -> close t
-      | `Eof_with_unconsumed b ->
-        Pipe.write writer (Bigstring.to_string b) >>= fun () -> close t
-      | `Stopped _ -> assert false)
+      let finished = Ivar.create () in
+      let rec loop () =
+        match refill t with
+        | `Eof -> close t >>> fun () -> Ivar.fill finished ()
+        | `Buffer_is_full | `Read_some ->
+          let payload = Bytebuffer.Consume.stringo t.buf in
+          Pipe.write writer payload >>> fun () -> loop ()
+        | `Nothing_available ->
+          Fd.ready_to t.fd `Read
+          >>> (function
+          | `Ready -> loop ()
+          | `Bad_fd ->
+            raise_s [%message "Input_channel.pipe: Bad file descriptor" (t : t)]
+          | `Closed -> close t >>> fun () -> Ivar.fill finished ())
+      in
+      loop ();
+      Ivar.read finished)
 ;;
