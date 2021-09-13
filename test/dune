@@ -1,5 +1,0 @@
-(executables
- (names main main_new)
- (preprocess
-  (pps ppx_jane))
- (libraries core async shuttle))
