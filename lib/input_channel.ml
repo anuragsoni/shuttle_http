@@ -197,3 +197,15 @@ let drain t =
   | `Eof -> ()
   | `Eof_with_unconsumed _ | `Stopped _ -> assert false
 ;;
+
+let pipe t =
+  Pipe.create_reader ~close_on_exception:false (fun writer ->
+      read_one_chunk_at_a_time t ~on_chunk:(fun buf ->
+          let payload = Bytebuffer.Consume.stringo buf in
+          `Wait (Pipe.write writer payload))
+      >>= function
+      | `Eof -> close t
+      | `Eof_with_unconsumed b ->
+        Pipe.write writer (Bigstring.to_string b) >>= fun () -> close t
+      | `Stopped _ -> assert false)
+;;

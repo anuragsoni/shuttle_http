@@ -35,3 +35,7 @@ val read_one_chunk_at_a_time
 
 (** [drain t] reads chunks of data from the reader and discards them. *)
 val drain : t -> unit Deferred.t
+
+(** [pipe] returns a reader pipe that contains the results of reading chunks from an
+    input_channel. *)
+val pipe : t -> string Pipe.Reader.t

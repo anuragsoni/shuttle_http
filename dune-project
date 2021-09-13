@@ -20,11 +20,7 @@
  (depends
   (ocaml
    (>= 4.11.0))
-  (async_kernel
-   (and
-    (>= v0.14)
-    (< v0.15)))
-  (async_unix
+  (async
    (and
     (>= v0.14)
     (< v0.15)))
