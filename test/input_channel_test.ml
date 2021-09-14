@@ -35,3 +35,24 @@ let%expect_test "create a pipe from an input_channel" =
   Writer.writef stdout "Input_channel closed? %b" (Input_channel.is_closed rd);
   [%expect {| Input_channel closed? true |}]
 ;;
+
+let%expect_test "create a pipe from an output channel" =
+  Unix.pipe (Info.of_string "test input_channel")
+  >>= fun (`Reader reader, `Writer writer) ->
+  let rd = Input_channel.create reader in
+  let wr = Output_channel.create writer in
+  let pipe_w = Output_channel.pipe wr in
+  let pipe_r = Input_channel.pipe rd in
+  don't_wait_for
+    (Deferred.List.iter
+       ~how:`Sequential
+       [ "Hello!!"; " This is another chunk.\n"; "Pushing to writer\n" ]
+       ~f:(fun msg -> Pipe.write pipe_w msg)
+    >>= fun () -> Output_channel.close wr);
+  let%bind () =
+    Pipe.iter_without_pushback pipe_r ~f:(fun msg -> Writer.write stdout msg)
+  in
+  [%expect {|
+    Hello!! This is another chunk.
+    Pushing to writer |}]
+;;

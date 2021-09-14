@@ -217,6 +217,12 @@ let ensure_can_write t =
   | Stopped -> raise_s [%sexp "Attempting to write to a closed writer", { t : t }]
 ;;
 
+let can_write t =
+  match t.writer_state with
+  | Inactive | Active -> true
+  | Stopped -> false
+;;
+
 let write_bigstring t ?pos ?len buf =
   ensure_can_write t;
   Bytebuffer.Fill.bigstring t.buf buf ?pos ?len
@@ -230,4 +236,44 @@ let write_string t ?pos ?len buf =
 let write_char t ch =
   ensure_can_write t;
   Bytebuffer.Fill.char t.buf ch
+;;
+
+let write_from_pipe reader t =
+  let finished = Ivar.create () in
+  let consumer =
+    (* Add a consumer so the pipe will take the output_channel into account when it checks if
+       the reader contents have been flushed. *)
+    Pipe.add_consumer reader ~downstream_flushed:(fun () ->
+        let%map () = flushed t in
+        `Ok)
+  in
+  let rec loop () =
+    if can_write t && is_open t
+    then (
+      (* use [read_now'] as [iter] doesn't allow working on chunks of values at a time. *)
+      match Pipe.read_now' ~consumer reader with
+      | `Eof -> Ivar.fill finished ()
+      | `Nothing_available -> Pipe.values_available reader >>> fun _ -> loop ()
+      | `Ok bufs ->
+        Queue.iter bufs ~f:(fun buf -> write_string t buf);
+        flush t;
+        flushed t >>> loop)
+  in
+  loop ();
+  choose
+    [ choice (Ivar.read finished) (fun () -> `Finished)
+    ; choice (close_finished t) (fun () -> `Closed)
+    ]
+  >>| function
+  | `Finished -> ()
+  | `Closed ->
+      (* Close the pipe (both read and write ends) since the channel is closed.
+         This is desirable so all future calls to [Pipe.write] fail. *)
+      Pipe.close_read reader
+;;
+
+let pipe t =
+  let reader, writer = Pipe.create () in
+  don't_wait_for (write_from_pipe reader t);
+  writer
 ;;

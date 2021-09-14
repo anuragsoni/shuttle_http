@@ -38,3 +38,5 @@ val flush : t -> unit
 
 (** [flushed t f] deferred that will get resolved when all prior writes have finished. *)
 val flushed : t -> unit Deferred.t
+
+val pipe : t -> string Pipe.Writer.t
