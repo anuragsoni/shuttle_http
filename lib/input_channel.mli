@@ -39,3 +39,5 @@ val drain : t -> unit Deferred.t
 (** [pipe] returns a reader pipe that contains the results of reading chunks from an
     input_channel. *)
 val pipe : t -> string Pipe.Reader.t
+
+val of_pipe : Info.t -> string Pipe.Reader.t -> t Deferred.t

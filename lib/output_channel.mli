@@ -40,3 +40,4 @@ val flush : t -> unit
 val flushed : t -> unit Deferred.t
 
 val pipe : t -> string Pipe.Writer.t
+val of_pipe : Info.t -> string Pipe.Writer.t -> (t * unit Deferred.t) Deferred.t

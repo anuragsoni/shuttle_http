@@ -1,7 +1,7 @@
 open! Core
 open! Async
 open! Shuttle
-open! Expect_test_config
+open! Expect_test_config_with_unit_expect
 
 let stdout = Lazy.force Writer.stdout
 
@@ -55,4 +55,33 @@ let%expect_test "create a pipe from an output channel" =
   [%expect {|
     Hello!! This is another chunk.
     Pushing to writer |}]
+;;
+
+let%expect_test "create input_channel from pipe" =
+  let p = Pipe.of_list [ "hello!"; " this is a chunk.\n"; "Another line!\n" ] in
+  Input_channel.of_pipe (Info.of_string "testing") p
+  >>= fun rd ->
+  let pipe_r = Input_channel.pipe rd in
+  let%bind () =
+    Pipe.iter_without_pushback pipe_r ~f:(fun msg -> Writer.write stdout msg)
+  in
+  [%expect {|
+    hello! this is a chunk.
+    Another line! |}]
+;;
+
+let%expect_test "create output_channel from pipe" =
+  let rd, wr = Pipe.create () in
+  let%bind t, _flushed = Output_channel.of_pipe (Info.of_string "testing") wr in
+  Output_channel.write_string t "Hello";
+  Output_channel.flush t;
+  Output_channel.write_string t " World!\n";
+  Output_channel.flush t;
+  Output_channel.write_string t "Another line\n";
+  Output_channel.flush t;
+  don't_wait_for (Output_channel.flushed t >>= fun () -> Output_channel.close t);
+  let%bind () = Pipe.iter_without_pushback rd ~f:(fun msg -> Writer.write stdout msg) in
+  [%expect {|
+    Hello World!
+    Another line |}]
 ;;
