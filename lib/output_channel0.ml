@@ -257,6 +257,7 @@ let write_from_pipe t reader =
       | `Ok bufs ->
         Queue.iter bufs ~f:(fun buf -> write_string t buf);
         flush t;
+        Pipe.Consumer.values_sent_downstream consumer;
         flushed t >>> loop)
   in
   loop ();
