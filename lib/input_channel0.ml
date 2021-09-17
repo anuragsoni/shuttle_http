@@ -200,9 +200,10 @@ let drain t =
 
 let write_to_pipe t writer =
   let finished = Ivar.create () in
+  upon (Pipe.closed writer) (fun () -> Ivar.fill_if_empty finished ());
   let rec loop () =
     match refill t with
-    | `Eof -> Ivar.fill finished ()
+    | `Eof -> Ivar.fill_if_empty finished ()
     | `Buffer_is_full | `Read_some ->
       let payload = Bytebuffer.Consume.stringo t.buf in
       Pipe.write writer payload >>> fun () -> loop ()
