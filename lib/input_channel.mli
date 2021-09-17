@@ -24,6 +24,7 @@ type t [@@deriving sexp_of]
 
 val create : ?buf_len:int -> Fd.t -> t
 val is_closed : t -> bool
+val closed : t -> unit Deferred.t
 val close : t -> unit Deferred.t
 
 (** [read_one_chunk_at_a_time ~on_chunk] reads bytes into the reader's internal buffer,
@@ -39,5 +40,12 @@ val drain : t -> unit Deferred.t
 (** [pipe] returns a reader pipe that contains the results of reading chunks from an
     input_channel. *)
 val pipe : t -> string Pipe.Reader.t
+
+(** [transfer] will read chunks from an input channel and write them to the provided
+    writer end of an async pipe. The deferred returned by the function will be determined
+    on EOF or if the writer is closed. Use [transfer] in scenarios where [pipe] is needed,
+    but if there is a need to not close the channel automatically once the transfer is
+    finished. *)
+val transfer : t -> string Pipe.Writer.t -> unit Deferred.t
 
 val of_pipe : Info.t -> string Pipe.Reader.t -> t Deferred.t

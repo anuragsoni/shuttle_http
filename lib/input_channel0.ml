@@ -198,7 +198,7 @@ let drain t =
   | `Eof_with_unconsumed _ | `Stopped _ -> assert false
 ;;
 
-let write_to_pipe t writer =
+let transfer t writer =
   let finished = Ivar.create () in
   upon (Pipe.closed writer) (fun () -> Ivar.fill_if_empty finished ());
   let rec loop () =
@@ -220,6 +220,6 @@ let write_to_pipe t writer =
 
 let pipe t =
   let reader, writer = Pipe.create () in
-  (write_to_pipe t writer >>> fun () -> close t >>> fun () -> Pipe.close writer);
+  (transfer t writer >>> fun () -> close t >>> fun () -> Pipe.close writer);
   reader
 ;;
