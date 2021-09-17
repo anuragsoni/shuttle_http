@@ -8,9 +8,29 @@
  (github anuragsoni/shuttle))
 
 (maintainers "Anurag Soni <anurag@sonianurag.com>")
+
 (authors "Anurag Soni")
 
 (license MIT)
+
+(package
+ (name shuttle_ssl)
+ (tags
+  (async reader writer))
+ (synopsis "Async_ssl support for shuttle")
+ (depends
+  (ocaml
+   (>= 4.11.0))
+  (shuttle
+   (= :version))
+  (ppx_jane
+   (and
+    (>= v0.14)
+    (< v0.15)))
+  (async_ssl
+   (and
+    (>= v0.14)
+    (< v0.15)))))
 
 (package
  (name shuttle)
