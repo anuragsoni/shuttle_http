@@ -3,18 +3,12 @@ open! Async
 open! Async_ssl
 open! Shuttle
 
-type ssl_handle =
-  { input_channel : Input_channel.t
-  ; output_channel : Output_channel.t
-  ; shutdown : unit -> unit Deferred.t
-  }
-
 let close_channels input_channel output_channel =
   let%bind () = Output_channel.close output_channel in
   Input_channel.close input_channel
 ;;
 
-let server
+let upgrade_server_connection
     ?version
     ?options
     ?name
@@ -24,6 +18,7 @@ let server
     ?verify_modes
     ~crt_file
     ~key_file
+    ~f
     input_channel
     output_channel'
   =
@@ -58,7 +53,9 @@ let server
       ~app_to_ssl
       ()
   with
-  | Error _ as e -> return e
+  | Error e ->
+    let%map () = close_channels input_channel output_channel' in
+    Error.raise e
   | Ok conn ->
     let%bind input_channel =
       Input_channel.of_pipe (Info.of_string "shuttle_ssl.ssl_reader") app_reader
@@ -82,5 +79,49 @@ let server
         ; Output_channel.close_finished output_channel'
         ]
     in
-    return (Ok { input_channel; output_channel; shutdown })
+    Monitor.protect ~run:`Now ~finally:shutdown (fun () -> f input_channel output_channel)
+;;
+
+let listen
+    ?version
+    ?options
+    ?name
+    ?allowed_ciphers
+    ?ca_file
+    ?ca_path
+    ?verify_modes
+    ?max_connections
+    ?max_accepts_per_batch
+    ?backlog
+    ?socket
+    ~crt_file
+    ~key_file
+    ~on_handler_error
+    where_to_listen
+    ~f:handler
+  =
+  Tcp.Server.create_sock
+    ?max_connections
+    ?max_accepts_per_batch
+    ?backlog
+    ?socket
+    ~on_handler_error
+    where_to_listen
+    (fun addr socket ->
+      let fd = Socket.fd socket in
+      let input_channel = Input_channel.create fd in
+      let output_channel = Output_channel.create fd in
+      upgrade_server_connection
+        ?version
+        ?options
+        ?name
+        ?allowed_ciphers
+        ?ca_file
+        ?ca_path
+        ?verify_modes
+        ~crt_file
+        ~key_file
+        input_channel
+        output_channel
+        ~f:(handler addr))
 ;;
