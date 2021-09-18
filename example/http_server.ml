@@ -135,25 +135,20 @@ let main port max_accepts_per_batch () =
   let where_to_listen = Tcp.Where_to_listen.of_port port in
   let request_handler _ = benchmark in
   let error_handler _ = error_handler in
-  let server =
-    Tcp.(
-      Server.create_sock_inet
-        ~on_handler_error:`Ignore
-        ~backlog:11_000
-        ~max_connections:10_000
-        ~max_accepts_per_batch
-        where_to_listen)
-      (fun addr sock ->
-        let fd = Socket.fd sock in
-        let reader = Input_channel.create fd in
-        let writer = Output_channel.create fd in
+  let%bind server =
+    Connection.listen
+      ~on_handler_error:`Ignore
+      ~backlog:11_000
+      ~max_connections:10_000
+      ~max_accepts_per_batch
+      where_to_listen
+      (fun addr reader writer ->
         Server.create_connection_handler
           addr
           ~request_handler
           ~error_handler
           reader
-          writer
-        >>= fun () -> Output_channel.close writer >>= fun () -> Input_channel.close reader)
+          writer)
   in
   Deferred.forever () (fun () ->
       Clock.after Time.Span.(of_sec 0.5)
