@@ -142,7 +142,7 @@ let main port max_accepts_per_batch () =
       ~max_connections:10_000
       ~max_accepts_per_batch
       where_to_listen
-      (fun addr reader writer ->
+      ~f:(fun addr reader writer ->
         Server.create_connection_handler
           addr
           ~request_handler
