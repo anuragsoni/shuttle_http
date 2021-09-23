@@ -1,6 +1,7 @@
 # 0.3.0
 * Support creating a reader pipe from `Input_channel`.
 * Support creating a writer pipe from `Output_channel`.
+* Support encrypted channels using `async_ssl`.
 
 # 0.2.0
 

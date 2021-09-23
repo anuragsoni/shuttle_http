@@ -212,7 +212,7 @@ let transfer t writer =
       >>> (function
       | `Ready -> loop ()
       | `Bad_fd -> raise_s [%message "Input_channel.pipe: Bad file descriptor" (t : t)]
-      | `Closed -> Ivar.fill finished ())
+      | `Closed -> Ivar.fill_if_empty finished ())
   in
   loop ();
   Ivar.read finished

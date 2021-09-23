@@ -1,3 +1,4 @@
+open Core
 open Async
 open Shuttle
 
@@ -40,3 +41,48 @@ val listen
   -> ('address, 'listening_on) Tcp.Where_to_listen.t
   -> f:('address -> Input_channel.t -> Output_channel.t -> unit Deferred.t)
   -> ('address, 'listening_on) Tcp.Server.t Deferred.t
+
+val upgrade_client_connection
+  :  ?version:Async_ssl.Version.t
+  -> ?options:Async_ssl.Opt.t list
+  -> ?name:string
+  -> ?hostname:string
+  -> ?allowed_ciphers:[ `Only of string list | `Openssl_default | `Secure ]
+  -> ?ca_file:string
+  -> ?ca_path:string
+  -> ?crt_file:string
+  -> ?key_file:string
+  -> ?verify_modes:Async_ssl.Verify_mode.t list
+  -> ?session:Async_ssl.Ssl.Session.t
+  -> f:
+       (Async_ssl.Ssl.Connection.t
+        -> Input_channel.t
+        -> Output_channel.t
+        -> 'a Deferred.t)
+  -> Input_channel.t
+  -> Output_channel.t
+  -> 'a Deferred.t
+
+val with_connection
+  :  ?version:Async_ssl.Version.t
+  -> ?options:Async_ssl.Opt.t list
+  -> ?name:string
+  -> ?hostname:string
+  -> ?allowed_ciphers:[ `Only of string list | `Openssl_default | `Secure ]
+  -> ?ca_file:string
+  -> ?ca_path:string
+  -> ?crt_file:string
+  -> ?key_file:string
+  -> ?verify_modes:Async_ssl.Verify_mode.t list
+  -> ?session:Async_ssl.Ssl.Session.t
+  -> ?interrupt:unit Deferred.t
+  -> ?timeout:Time.Span.t
+  -> ?input_buffer_size:int
+  -> ?output_buffer_size:int
+  -> f:
+       (Async_ssl.Ssl.Connection.t
+        -> Input_channel.t
+        -> Output_channel.t
+        -> 'a Deferred.t)
+  -> [< Socket.Address.t ] Tcp.Where_to_connect.t
+  -> 'a Deferred.t
