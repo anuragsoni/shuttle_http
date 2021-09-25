@@ -4,7 +4,7 @@ synopsis: "Async_ssl support for shuttle"
 maintainer: ["Anurag Soni <anurag@sonianurag.com>"]
 authors: ["Anurag Soni"]
 license: "MIT"
-tags: ["async" "reader" "writer"]
+tags: ["async" "reader" "writer" "ssl"]
 homepage: "https://github.com/anuragsoni/shuttle"
 bug-reports: "https://github.com/anuragsoni/shuttle/issues"
 depends: [

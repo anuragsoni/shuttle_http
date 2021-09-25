@@ -16,7 +16,7 @@
 (package
  (name shuttle_ssl)
  (tags
-  (async reader writer))
+  (async reader writer ssl))
  (synopsis "Async_ssl support for shuttle")
  (depends
   (ocaml
