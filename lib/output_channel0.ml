@@ -235,6 +235,8 @@ let write_string t ?pos ?len buf =
   Bytebuffer.Fill.string t.buf buf ?pos ?len
 ;;
 
+let writef t fmt = ksprintf (fun str -> write_string t str) fmt
+
 let write_char t ch =
   ensure_can_write t;
   Bytebuffer.Fill.char t.buf ch

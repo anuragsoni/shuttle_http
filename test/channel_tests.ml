@@ -77,11 +77,11 @@ let%expect_test "create output_channel from pipe" =
   Output_channel.flush t;
   Output_channel.write_string t " World!\n";
   Output_channel.flush t;
-  Output_channel.write_string t "Another line\n";
+  Output_channel.writef t "Another line using writef %d %b\n" 12 false;
   Output_channel.flush t;
   don't_wait_for (Output_channel.flushed t >>= fun () -> Output_channel.close t);
   let%bind () = Pipe.iter_without_pushback rd ~f:(fun msg -> Writer.write stdout msg) in
   [%expect {|
     Hello World!
-    Another line |}]
+    Another line using writef 12 false |}]
 ;;

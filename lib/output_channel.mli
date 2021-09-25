@@ -34,6 +34,7 @@ val schedule_bigstring : t -> ?pos:int -> ?len:int -> Bigstring.t -> unit
 val write_string : t -> ?pos:int -> ?len:int -> string -> unit
 
 val write_char : t -> char -> unit
+val writef : t -> ('a, unit, string, unit) format4 -> 'a
 
 (** [close] will close the underlying file descriptor after waiting for the writer to be
     flushed. *)
