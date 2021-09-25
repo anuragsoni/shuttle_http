@@ -23,6 +23,12 @@ val close_finished : t -> unit Deferred.t
     to modify the bigstring once [write_bigstring] returns. *)
 val write_bigstring : t -> ?pos:int -> ?len:int -> Bigstring.t -> unit
 
+val schedule_bigstring : t -> ?pos:int -> ?len:int -> Bigstring.t -> unit
+  [@@alert
+    info
+      "schedule_bigstring will be removed in a future release. Use [write_bigstring] \
+       instead."]
+
 (** [write_string] copies the string into the channel's internal buffer. The string will
     surface the next time the writer schedules a write. *)
 val write_string : t -> ?pos:int -> ?len:int -> string -> unit

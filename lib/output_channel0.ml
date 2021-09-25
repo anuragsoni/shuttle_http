@@ -228,6 +228,8 @@ let write_bigstring t ?pos ?len buf =
   Bytebuffer.Fill.bigstring t.buf buf ?pos ?len
 ;;
 
+let schedule_bigstring t ?pos ?len buf = write_bigstring t ?pos ?len buf
+
 let write_string t ?pos ?len buf =
   ensure_can_write t;
   Bytebuffer.Fill.string t.buf buf ?pos ?len
