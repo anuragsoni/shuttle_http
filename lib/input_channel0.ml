@@ -7,7 +7,6 @@ let set_nonblock fd = Fd.with_file_descr_exn fd ignore ~nonblocking:true
 type 'a handle_chunk_result =
   [ `Stop of 'a
   | `Continue
-  | `Wait of unit Deferred.t
   ]
 [@@deriving sexp_of]
 
@@ -79,7 +78,6 @@ module Driver = struct
     | Handler_raised
     | Eof_reached
     | Stopped_by_user of 'a
-    | Waiting of unit Deferred.t
 
   type nonrec 'a t =
     { reader : t
@@ -110,8 +108,7 @@ module Driver = struct
       then (
         match t.on_chunk t.reader.buf with
         | `Stop x -> interrupt t (Stopped_by_user x)
-        | `Continue -> ()
-        | `Wait p -> if not (Deferred.is_determined p) then interrupt t (Waiting p)))
+        | `Continue -> ()))
   ;;
 
   let process_incoming t =
@@ -143,7 +140,7 @@ module Driver = struct
       return (`Eof_with_unconsumed b))
   ;;
 
-  let rec run reader ~on_chunk =
+  let run reader ~on_chunk =
     let t = { reader; interrupt = Ivar.create (); state = Running; on_chunk } in
     let monitor =
       Monitor.create ~here:[%here] ~name:"Shuttle.Input_channel.Driver.run" ()
@@ -166,9 +163,6 @@ module Driver = struct
         eof_to_response t
       | Stopped (Stopped_by_user x) -> return (`Stopped x)
       | Stopped Handler_raised -> Deferred.never ()
-      | Stopped (Waiting p) ->
-        let%bind () = p in
-        if is_closed reader then eof_to_response t else run reader ~on_chunk
       | Stopped Eof_reached -> eof_to_response t)
   ;;
 end

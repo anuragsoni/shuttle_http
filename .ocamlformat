@@ -3,3 +3,4 @@ profile=janestreet
 parse-docstrings=true
 module-item-spacing = compact
 break-infix = fit-or-vertical
+wrap-comments=true
