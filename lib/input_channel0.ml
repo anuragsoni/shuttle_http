@@ -1,6 +1,7 @@
 open Core
 open Async_kernel
 open Async_unix
+module Logger = Log.Make_global ()
 
 let set_nonblock fd = Fd.with_file_descr_exn fd ignore ~nonblocking:true
 
@@ -116,7 +117,11 @@ module Driver = struct
     then (
       match refill t.reader with
       | `Eof -> interrupt t Eof_reached
-      | `Buffer_is_full -> ()
+      | `Buffer_is_full ->
+        Logger.info
+          "Input_channel.refill: Internal buffer is full. Can't refill with more content \
+           unless some bytes are consumed by the user";
+        process_chunks t
       | `Nothing_available -> ()
       | `Read_some -> process_chunks t)
   ;;
