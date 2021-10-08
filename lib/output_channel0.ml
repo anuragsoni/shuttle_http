@@ -245,8 +245,8 @@ let write_char t ch =
 let write_from_pipe t reader =
   let finished = Ivar.create () in
   let consumer =
-    (* Add a consumer so the pipe will take the output_channel into account when it checks if
-       the reader contents have been flushed. *)
+    (* Add a consumer so the pipe will take the output_channel into account when it checks
+       if the reader contents have been flushed. *)
     Pipe.add_consumer reader ~downstream_flushed:(fun () ->
         let%map () = flushed t in
         `Ok)
@@ -272,8 +272,8 @@ let write_from_pipe t reader =
   >>| function
   | `Finished -> ()
   | `Closed ->
-    (* Close the pipe (both read and write ends) since the channel is closed.
-         This is desirable so all future calls to [Pipe.write] fail. *)
+    (* Close the pipe (both read and write ends) since the channel is closed. This is
+       desirable so all future calls to [Pipe.write] fail. *)
     Pipe.close_read reader
 ;;
 
