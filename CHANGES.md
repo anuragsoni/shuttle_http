@@ -1,3 +1,8 @@
+# 0.3.1
+* Add support for using format strings for writing to an output channel.
+* Remove support for deferred responses from chunked reader callbacks.
+* Add a new `shuttle_http` library that implements a driver for httpaf server_connection.
+
 # 0.3.0
 * Support creating a reader pipe from `Input_channel`.
 * Support creating a writer pipe from `Output_channel`.
