@@ -1,5 +1,6 @@
 (library
  (name shuttle_test)
+ (package shuttle)
  (inline_tests)
  (preprocess
   (pps ppx_jane))
