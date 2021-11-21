@@ -3,12 +3,14 @@ open! Async
 open Shuttle
 
 let buf' = Bigstring.of_string "+PONG\r\n"
+let unlink f = Deferred.ignore_m (Monitor.try_with (fun () -> Unix.unlink f))
 
-let run ~port =
+let run sock =
+  let%bind () = unlink sock in
   let%bind host_and_port =
     Connection.listen
       ~on_handler_error:`Raise
-      (Tcp.Where_to_listen.of_port port)
+      (Tcp.Where_to_listen.of_file sock)
       ~f:(fun _addr reader writer ->
         Input_channel.read_one_chunk_at_a_time reader ~on_chunk:(fun buf ->
             Bytebuffer.Consume.unsafe_bigstring buf ~f:(fun buf ~pos ~len ->
@@ -24,7 +26,7 @@ let run ~port =
         | `Eof_with_unconsumed _ -> assert false
         | `Stopped _ -> ())
   in
-  ignore (host_and_port : (Socket.Address.Inet.t, int) Tcp.Server.t);
+  ignore (host_and_port : (Socket.Address.Unix.t, string) Tcp.Server.t);
   Deferred.never ()
 ;;
 
@@ -32,12 +34,7 @@ let () =
   Command.async
     ~summary:"Start an echo server"
     Command.Let_syntax.(
-      let%map_open port =
-        flag
-          "-port"
-          (optional_with_default 8888 int)
-          ~doc:" Port to listen on (default 8888)"
-      in
-      fun () -> run ~port)
+      let%map_open sock = anon ("socket" %: string) in
+      fun () -> run sock)
   |> Command.run
 ;;
