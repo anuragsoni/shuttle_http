@@ -7,7 +7,8 @@ let set_nonblock fd = Fd.with_file_descr_exn fd ignore ~nonblocking:true
 
 type 'a handle_chunk_result =
   [ `Stop of 'a
-  | `Continue
+  | `Continue of int
+  | `Stop_consumed of 'a * int
   ]
 [@@deriving sexp_of]
 
@@ -82,7 +83,7 @@ module Driver = struct
 
   type nonrec 'a t =
     { reader : t
-    ; on_chunk : Bytebuffer.t -> 'a handle_chunk_result
+    ; on_chunk : Bigstring.t -> pos:int -> len:int -> 'a handle_chunk_result
     ; interrupt : unit Ivar.t
     ; mutable state : 'a state
     }
@@ -107,9 +108,15 @@ module Driver = struct
       let len = Bytebuffer.length t.reader.buf in
       if len > 0
       then (
-        match t.on_chunk t.reader.buf with
+        let buf = Bytebuffer.unsafe_buf t.reader.buf in
+        let pos = Bytebuffer.pos t.reader.buf in
+        let len = Bytebuffer.length t.reader.buf in
+        match t.on_chunk buf ~pos ~len with
         | `Stop x -> interrupt t (Stopped_by_user x)
-        | `Continue -> ()))
+        | `Stop_consumed (x, count) ->
+          Bytebuffer.drop t.reader.buf count;
+          interrupt t (Stopped_by_user x)
+        | `Continue count -> Bytebuffer.drop t.reader.buf count))
   ;;
 
   let process_incoming t =
@@ -137,12 +144,7 @@ module Driver = struct
     let len = Bytebuffer.length t.reader.buf in
     if len = 0
     then return `Eof
-    else (
-      let b = Bigstring.create len in
-      Bytebuffer.Consume.unsafe_bigstring t.reader.buf ~f:(fun buf ~pos ~len ->
-          Bigstring.blito ~src:buf ~dst:b ~src_pos:pos ();
-          len);
-      return (`Eof_with_unconsumed b))
+    else return (`Eof_with_unconsumed (Bytebuffer.Consume.stringo t.reader.buf))
   ;;
 
   let run reader ~on_chunk =
@@ -189,9 +191,7 @@ let read_one_chunk_at_a_time t ~on_chunk =
 ;;
 
 let drain t =
-  read_one_chunk_at_a_time t ~on_chunk:(fun buf ->
-      Bytebuffer.Consume.unsafe_bigstring buf ~f:(fun _buf ~pos:_ ~len -> len);
-      `Continue)
+  read_one_chunk_at_a_time t ~on_chunk:(fun _buf ~pos:_ ~len -> `Continue len)
   >>| function
   | `Eof -> ()
   | `Eof_with_unconsumed _ | `Stopped _ -> assert false

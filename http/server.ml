@@ -18,15 +18,19 @@ let create_connection_handler
     | `Close -> Ivar.fill read_complete ()
     | `Yield -> Server_connection.yield_reader conn reader_thread
     | `Read ->
-      Input_channel.read_one_chunk_at_a_time reader ~on_chunk:(fun buf ->
-          Bytebuffer.Consume.unsafe_bigstring buf ~f:(fun buf ~pos ~len ->
-              Server_connection.read conn buf ~off:pos ~len);
-          `Continue)
+      Input_channel.read_one_chunk_at_a_time reader ~on_chunk:(fun buf ~pos ~len ->
+          let count = Server_connection.read conn buf ~off:pos ~len in
+          `Continue count)
       >>> (function
       | `Stopped _ -> reader_thread ()
       | `Eof_with_unconsumed buf ->
         ignore
-          (Server_connection.read_eof conn buf ~off:0 ~len:(Bigstring.length buf) : int);
+          (Server_connection.read_eof
+             conn
+             (Bigstring.of_string buf)
+             ~off:0
+             ~len:(String.length buf)
+            : int);
         reader_thread ()
       | `Eof ->
         ignore (Server_connection.read_eof conn Bigstringaf.empty ~off:0 ~len:0 : int);
