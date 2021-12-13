@@ -129,8 +129,7 @@ module Driver = struct
           "Input_channel.refill: Internal buffer is full. Can't refill with more content \
            unless some bytes are consumed by the user";
         process_chunks t
-      | `Nothing_available -> ()
-      | `Read_some -> process_chunks t)
+      | `Nothing_available | `Read_some -> process_chunks t)
   ;;
 
   let stop_watching_on_error t ~monitor =
