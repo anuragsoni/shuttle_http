@@ -30,7 +30,7 @@ val close : t -> unit Deferred.t
     and calls [on_chunk] whenever there is data available. *)
 val read_one_chunk_at_a_time
   :  t
-  -> on_chunk:(Bigstring.t -> pos:int -> len:int -> 'a handle_chunk_result)
+  -> on_chunk:(Bytes.t -> pos:int -> len:int -> 'a handle_chunk_result)
   -> [ `Stopped of 'a | `Eof | `Eof_with_unconsumed of string ] Deferred.t
 
 (** [drain t] reads chunks of data from the reader and discards them. *)

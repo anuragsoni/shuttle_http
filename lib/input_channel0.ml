@@ -53,22 +53,25 @@ let refill t =
   if Bytebuffer.available_to_write t.buf = 0
   then `Buffer_is_full
   else (
-    let result =
-      Bytebuffer.read_assume_fd_is_nonblocking (Fd.file_descr_exn t.fd) t.buf
-    in
-    if Unix.Syscall_result.Int.is_ok result
-    then (
-      match Unix.Syscall_result.Int.ok_exn result with
-      | 0 -> `Eof
-      | n ->
-        assert (n > 0);
-        `Read_some)
-    else (
-      match Unix.Syscall_result.Int.error_exn result with
-      | EAGAIN | EWOULDBLOCK | EINTR -> `Nothing_available
-      | EPIPE | ECONNRESET | EHOSTUNREACH | ENETDOWN | ENETRESET | ENETUNREACH | ETIMEDOUT
-        -> `Eof
-      | error -> raise (Unix.Unix_error (error, "read", ""))))
+    match Bytebuffer.read_assume_fd_is_nonblocking (Fd.file_descr_exn t.fd) t.buf with
+    | 0 -> `Eof
+    | n ->
+      assert (n > 0);
+      `Read_some
+    | exception Unix.Unix_error ((EAGAIN | EWOULDBLOCK | EINTR), _, _) ->
+      `Nothing_available
+    | exception
+        Unix.Unix_error
+          ( ( EPIPE
+            | ECONNRESET
+            | EHOSTUNREACH
+            | ENETDOWN
+            | ENETRESET
+            | ENETUNREACH
+            | ETIMEDOUT )
+          , _
+          , _ ) -> `Eof
+    | exception exn -> raise exn)
 ;;
 
 module Driver = struct
@@ -83,7 +86,7 @@ module Driver = struct
 
   type nonrec 'a t =
     { reader : t
-    ; on_chunk : Bigstring.t -> pos:int -> len:int -> 'a handle_chunk_result
+    ; on_chunk : Bytes.t -> pos:int -> len:int -> 'a handle_chunk_result
     ; interrupt : unit Ivar.t
     ; mutable state : 'a state
     }
