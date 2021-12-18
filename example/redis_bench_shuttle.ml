@@ -14,7 +14,7 @@ let run sock =
       ~f:(fun _addr reader writer ->
         Input_channel.read_one_chunk_at_a_time reader ~on_chunk:(fun buf ~pos ~len ->
             for i = pos to len - 1 do
-              if Char.(Bigstring.get buf i = '\n')
+              if Char.(Bytes.get buf i = '\n')
               then Output_channel.write_bigstring writer buf'
             done;
             Output_channel.flush writer;

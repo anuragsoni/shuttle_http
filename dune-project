@@ -33,32 +33,6 @@
     (< v0.15)))))
 
 (package
-  (name shuttle_http)
-  (tags
-    (async http))
-  (synopsis "HTTP codec for shuttle")
-  (depends
-    (ocaml
-      (>= 4.11.0))
-    (async
-      (and
-        (>= v0.14)
-        (< v0.15)))
-    (core
-      (and
-        (>= v0.14)
-        (< v0.15)))
-    (httpaf
-      (and
-        (>= 0.6.6)))
-    (ppx_jane
-      (and
-        (>= v0.14)
-        (< v0.15)))
-    (shuttle
-      (= :version))))
-
-(package
  (name shuttle)
  (tags
   (async reader writer))

@@ -1,5 +1,0 @@
-(library
- (public_name shuttle_http)
- (preprocess
-  (pps ppx_jane))
- (libraries shuttle httpaf))

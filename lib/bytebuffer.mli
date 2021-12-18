@@ -2,7 +2,7 @@ open! Core
 
 type t [@@deriving sexp_of]
 
-val unsafe_buf : t -> Bigstring.t
+val unsafe_buf : t -> Bytes.t
 val pos : t -> int
 val create : int -> t
 val can_reclaim_space : t -> bool
@@ -11,7 +11,6 @@ val available_to_write : t -> int
 val compact : t -> unit
 val length : t -> int
 val drop : t -> int -> unit
-val unsafe_find : t -> char -> int
 
 module To_bytes : Blit.S_distinct with type src := t with type dst := bytes
 
@@ -21,7 +20,7 @@ module To_string : sig
 end
 
 val read : Unix.File_descr.t -> t -> int
-val read_assume_fd_is_nonblocking : Unix.File_descr.t -> t -> Unix.Syscall_result.Int.t
+val read_assume_fd_is_nonblocking : Unix.File_descr.t -> t -> int
 val write : Unix.File_descr.t -> t -> int
 val write_assume_fd_is_nonblocking : Unix.File_descr.t -> t -> int
 
