@@ -103,58 +103,48 @@ type error =
   | Msg of string
   | Partial
 
-type 'a parser = { run : 'r. Source.t -> (error -> 'r) -> ('a -> 'r) -> 'r }
+type 'a parser = { run : Source.t -> ('a, error) result }
 
-let return x = { run = (fun _source _on_err on_succ -> on_succ x) }
-let fail msg = { run = (fun _source on_err _on_succ -> on_err (Msg msg)) }
-
-let ( >>= ) t f =
-  { run =
-      (fun source on_err on_succ ->
-        t.run source on_err (fun v -> (f v).run source on_err on_succ))
-  }
-;;
+let return x = { run = (fun _source -> Ok x) }
+let fail msg = { run = (fun _source -> Error (Msg msg)) }
+let ( >>=? ) t f = Result.bind t f
+let ( >>= ) t f = { run = (fun source -> t.run source >>=? fun v -> (f v).run source) }
 
 let map4 fn a b c d =
   { run =
-      (fun source on_err on_succ ->
-        a.run source on_err (fun res_a ->
-            b.run source on_err (fun res_b ->
-                c.run source on_err (fun res_c ->
-                    d.run source on_err (fun res_d ->
-                        on_succ (fn res_a res_b res_c res_d))))))
+      (fun source ->
+        a.run source
+        >>=? fun res_a ->
+        b.run source
+        >>=? fun res_b ->
+        c.run source
+        >>=? fun res_c -> d.run source >>=? fun res_d -> Ok (fn res_a res_b res_c res_d))
   }
 ;;
 
-let ( *> ) a b =
-  { run =
-      (fun source on_err on_succ ->
-        a.run source on_err (fun _res_a ->
-            b.run source on_err (fun res_b -> on_succ res_b)))
-  }
-;;
+let ( *> ) a b = { run = (fun source -> a.run source >>=? fun _res_a -> b.run source) }
 
 let ( <* ) a b =
   { run =
-      (fun source on_err on_succ ->
-        a.run source on_err (fun res_a -> b.run source on_err (fun _ -> on_succ res_a)))
+      (fun source ->
+        a.run source >>=? fun res_a -> b.run source >>=? fun _res_b -> Ok res_a)
   }
 ;;
 
 let string str =
-  let run source on_err on_succ =
+  let run source =
     let len = String.length str in
     if Source.length source < len
-    then on_err Partial
+    then Error Partial
     else (
       let rec aux idx =
         if idx = len
         then (
           Source.advance source len;
-          on_succ str)
+          Ok str)
         else if Source.get source idx = String.unsafe_get str idx
         then aux (idx + 1)
-        else on_err (Msg (Printf.sprintf "Could not match: %S" str))
+        else Error (Msg (Printf.sprintf "Could not match: %S" str))
       in
       aux 0)
   in
@@ -162,13 +152,13 @@ let string str =
 ;;
 
 let any_char =
-  let run source on_err on_succ =
+  let run source =
     if Source.length source = 0
-    then on_err Partial
+    then Error Partial
     else (
       let c = Source.get source 0 in
       Source.advance source 1;
-      on_succ c)
+      Ok c)
   in
   { run }
 ;;
@@ -201,14 +191,14 @@ let is_tchar = function
 ;;
 
 let token =
-  let run source on_err on_succ =
+  let run source =
     let pos = Source.index source ' ' in
     if pos = -1
-    then on_err Partial
+    then Error Partial
     else (
       let res = Source.to_string source ~pos:0 ~len:pos in
       Source.advance source (pos + 1);
-      on_succ res)
+      Ok res)
   in
   { run }
 ;;
@@ -231,12 +221,12 @@ let version =
 ;;
 
 let header =
-  let run source on_err on_succ =
+  let run source =
     let pos = Source.index source ':' in
     if pos = -1
-    then on_err Partial
+    then Error Partial
     else if pos = 0
-    then on_err (Msg "Invalid header: Empty header key")
+    then Error (Msg "Invalid header: Empty header key")
     else if Source.for_all source ~pos:0 ~len:pos ~f:is_tchar
     then (
       let key = Source.to_string source ~pos:0 ~len:pos in
@@ -246,26 +236,23 @@ let header =
       done;
       let pos = Source.index source '\r' in
       if pos = -1
-      then on_err Partial
+      then Error Partial
       else (
         let v = Source.to_string source ~pos:0 ~len:pos in
         Source.advance source pos;
-        on_succ (key, String.trim v)))
-    else on_err (Msg "Invalid Header Key")
+        Ok (key, String.trim v)))
+    else Error (Msg "Invalid Header Key")
   in
   { run } <* eol
 ;;
 
 let headers =
-  let run source on_err on_succ =
+  let run source =
     let rec loop acc =
       let len = Source.length source in
       if len > 0 && Source.get source 0 = '\r'
-      then eol.run source on_err (fun _ -> on_succ (Headers.of_list acc))
-      else (
-        match header.run source (fun e -> Error e) (fun v -> Ok v) with
-        | Error e -> on_err e
-        | Ok v -> loop (v :: acc))
+      then eol.run source >>=? fun _ -> Ok (Headers.of_list acc)
+      else header.run source >>=? fun v -> loop (v :: acc)
     in
     loop []
   in
@@ -273,7 +260,7 @@ let headers =
 ;;
 
 let chunk_length =
-  let run source on_err on_succ =
+  let run source =
     let ( lsl ) = Int64.shift_left in
     let ( lor ) = Int64.logor in
     let length = ref 0L in
@@ -336,12 +323,12 @@ let chunk_length =
           state := `Invalid_char ch)
     done;
     match !state with
-    | `Ok -> on_succ !length
-    | `Partial -> on_err Partial
-    | `Expected_newline -> on_err (Msg "Expected_newline")
-    | `Chunk_too_big -> on_err (Msg "Chunk size is too large")
+    | `Ok -> Ok !length
+    | `Partial -> Error Partial
+    | `Expected_newline -> Error (Msg "Expected_newline")
+    | `Chunk_too_big -> Error (Msg "Chunk size is too large")
     | `Invalid_char ch ->
-      on_err (Msg (Printf.sprintf "Invalid chunk_length character %C" ch))
+      Error (Msg (Printf.sprintf "Invalid chunk_length character %C" ch))
   in
   { run }
 ;;
@@ -357,7 +344,7 @@ let request =
 
 let run_parser ?pos ?len buf p =
   let source = Source.of_bytes ?pos ?len buf in
-  p.run source (fun e -> Error e) (fun v -> Ok (v, Source.consumed source))
+  p.run source >>=? fun v -> Ok (v, Source.consumed source)
 ;;
 
 let parse_request ?pos ?len buf = run_parser ?pos ?len buf request
