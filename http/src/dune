@@ -1,0 +1,8 @@
+(library
+ (public_name shuttle_http)
+ (foreign_stubs
+  (language c)
+  (names shuttle_parser_stubs))
+ (preprocess
+  (pps ppx_jane))
+ (libraries shuttle sexplib0))
