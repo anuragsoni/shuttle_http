@@ -173,7 +173,7 @@ let meth source =
 ;;
 
 let version_source source =
-  let _ = string "HTTP/1." source in
+  string "HTTP/1." source;
   any_char source
 ;;
 
