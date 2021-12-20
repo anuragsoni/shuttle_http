@@ -179,16 +179,16 @@ open Base_quickcheck
 let parse_chunk_length () =
   Test.run_exn
     (module struct
-      type t = int64 [@@deriving quickcheck, sexp_of]
+      type t = int [@@deriving quickcheck, sexp_of]
     end)
     ~f:(fun num ->
       let payload =
-        let s = Printf.sprintf "%Lx\r\n" num in
+        let s = Printf.sprintf "%x\r\n" num in
         Bytes.of_string s
       in
       match Shuttle_http.Parser.parse_chunk_length payload with
       | Ok res ->
-        [%test_eq: int64 * int] res (num, String.length (Printf.sprintf "%Lx" num) + 2)
+        [%test_eq: int * int] res (num, String.length (Printf.sprintf "%x" num) + 2)
       | Error Partial -> assert false
       | Error (Msg _) -> ())
 ;;
@@ -198,22 +198,22 @@ let chunk_length_parse_case_insensitive () =
     let buf = Bytes.of_string str in
     match Shuttle_http.Parser.parse_chunk_length buf with
     | Ok res ->
-      [%test_eq: int64 * int] res (num, String.length (Printf.sprintf "%Lx" num) + 2)
+      [%test_eq: int * int] res (num, String.length (Printf.sprintf "%x" num) + 2)
     | Error Partial -> assert false
     | Error (Msg _) -> ()
   in
   Test.run_exn
     (module struct
-      type t = int64 [@@deriving quickcheck, sexp_of]
+      type t = int [@@deriving quickcheck, sexp_of]
     end)
     ~f:(fun num ->
-      let payload = Printf.sprintf "%Lx\r\n" num in
+      let payload = Printf.sprintf "%x\r\n" num in
       run_test num (String.uppercase payload);
       run_test num (String.lowercase payload))
 ;;
 
 type parse_res =
-  [ `Ok of int64 * int
+  [ `Ok of int * int
   | `Msg of string
   | `Partial
   ]
@@ -226,19 +226,19 @@ let parse_chunk_lengths () =
     | Error Partial -> `Partial
     | Error (Msg msg) -> `Msg msg
   in
-  [%test_result: parse_res] ~expect:(`Ok (2738L, 5)) (run_parser "ab2\r\n");
-  [%test_result: parse_res] ~expect:(`Ok (4526507L, 8)) (run_parser "4511ab\r\n");
+  [%test_result: parse_res] ~expect:(`Ok (2738, 5)) (run_parser "ab2\r\n");
+  [%test_result: parse_res] ~expect:(`Ok (4526507, 8)) (run_parser "4511ab\r\n");
   (* We will try to use the same chunk length, but this time with a chunk extension. This
      should not result in any change in our output. *)
-  [%test_result: parse_res] ~expect:(`Ok (4526507L, 13)) (run_parser "4511ab  ; a\r\n");
+  [%test_result: parse_res] ~expect:(`Ok (4526507, 13)) (run_parser "4511ab  ; a\r\n");
   [%test_result: parse_res]
-    ~expect:(`Ok (4526507L, 26))
+    ~expect:(`Ok (4526507, 26))
     (run_parser "4511ab; now in extension\r\n");
   [%test_result: parse_res]
     ~expect:(`Msg "Invalid chunk_length character 'a'")
     (run_parser "4511ab a ; now in extension\r\n");
   [%test_result: parse_res]
-    ~expect:(`Ok (76861433640456465L, 17))
+    ~expect:(`Ok (76861433640456465, 17))
     (run_parser "111111111111111\r\n");
   [%test_result: parse_res]
     ~expect:(`Msg "Chunk size is too large")

@@ -41,10 +41,6 @@
     (ocaml
       (>= 4.11.0))
     sexplib0
-    (ppx_compare
-      (and
-        (>= v0.14)
-        (< v0.15)))
     (ppx_sexp_conv
       (and
         (>= v0.14)

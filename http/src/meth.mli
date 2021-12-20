@@ -11,7 +11,7 @@ type t =
   | (* https://datatracker.ietf.org/doc/html/rfc5789 *)
     `PATCH
   ]
-[@@deriving sexp, compare]
+[@@deriving sexp]
 
 val of_string : string -> t option
 val to_string : t -> string

@@ -11,7 +11,7 @@ type t =
   | (* https://datatracker.ietf.org/doc/html/rfc5789 *)
     `PATCH
   ]
-[@@deriving sexp, compare]
+[@@deriving sexp]
 
 let of_string = function
   | "GET" -> Some `GET
