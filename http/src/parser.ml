@@ -102,6 +102,35 @@ module Source = struct
     Bytes.sub_string t.buffer (t.pos + pos) len
   ;;
 
+  let[@inline always] is_space = function
+    | ' ' | '\012' | '\n' | '\r' | '\t' -> true
+    | _ -> false
+  ;;
+
+  let[@inline always] to_string_trim t ~pos ~len =
+    if pos < 0
+       || t.pos + pos >= t.upper_bound
+       || len < 0
+       || t.pos + pos + len > t.upper_bound
+    then
+      invalid_arg
+        (Format.asprintf
+           "Shuttle_http.Parser.Source.substring: Index out of bounds., Requested off: \
+            %d, len: %d"
+           pos
+           len);
+    let last = ref (t.pos + len - 1) in
+    let pos = ref (t.pos + pos) in
+    while is_space (Bytes.unsafe_get t.buffer !pos) do
+      incr pos
+    done;
+    while is_space (Bytes.unsafe_get t.buffer !last) do
+      decr last
+    done;
+    let len = !last - !pos + 1 in
+    Bytes.sub_string t.buffer !pos len
+  ;;
+
   let[@inline always] index t ch =
     let res = unsafe_memchr t.buffer t.pos ch (length t) in
     if res = -1 then -1 else res - t.pos
@@ -202,9 +231,9 @@ let header source =
     if pos = -1
     then raise_notrace Partial
     else (
-      let v = Source.to_string source ~pos:0 ~len:pos in
+      let v = Source.to_string_trim source ~pos:0 ~len:pos in
       Source.advance source pos;
-      key, String.trim v))
+      key, v))
   else raise_notrace (Msg "Invalid Header Key")
 ;;
 
