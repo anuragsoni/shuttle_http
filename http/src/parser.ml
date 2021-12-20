@@ -90,6 +90,7 @@ module Source = struct
   ;;
 
   let[@inline always] length t = t.upper_bound - t.pos
+  let[@inline always] is_empty t = t.pos = t.upper_bound
 
   let[@inline always] to_string t ~pos ~len =
     if pos < 0
@@ -176,7 +177,7 @@ let[@inline always] string str source =
 ;;
 
 let any_char source =
-  if Source.length source = 0
+  if Source.is_empty source
   then raise_notrace Partial
   else (
     let c = Source.get_unsafe source 0 in
@@ -229,7 +230,7 @@ let header source =
   then (
     let key = Source.to_string source ~pos:0 ~len:pos in
     Source.advance_unsafe source (pos + 1);
-    while Source.length source > 0 && Source.get_unsafe source 0 = ' ' do
+    while (not (Source.is_empty source)) && Source.get_unsafe source 0 = ' ' do
       Source.advance_unsafe source 1
     done;
     let pos = Source.index source '\r' in
@@ -244,8 +245,7 @@ let header source =
 
 let headers =
   let rec loop source acc =
-    let len = Source.length source in
-    if len > 0 && Source.get_unsafe source 0 = '\r'
+    if (not (Source.is_empty source)) && Source.get_unsafe source 0 = '\r'
     then (
       eol source;
       Headers.of_list acc)
@@ -265,7 +265,7 @@ let chunk_length source =
   let processing_chunk = ref true in
   let in_chunk_extension = ref false in
   while not !stop do
-    if Source.length source = 0
+    if Source.is_empty source
     then (
       stop := true;
       state := `Partial)
@@ -293,7 +293,7 @@ let chunk_length source =
       | ('\t' | ' ') when !processing_chunk -> processing_chunk := false
       | ('\t' | ' ') when (not !in_chunk_extension) && not !processing_chunk -> ()
       | '\r' ->
-        if Source.length source = 0
+        if Source.is_empty source
         then (
           stop := true;
           state := `Partial)
