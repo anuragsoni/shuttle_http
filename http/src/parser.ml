@@ -43,13 +43,11 @@ module Source = struct
   type t =
     { buffer : bytes
     ; mutable pos : int
-    ; min_off : int
     ; upper_bound : int
     }
 
-  let of_bytes ?pos ?len buffer =
+  let of_bytes ~pos ?len buffer =
     let buf_len = Bytes.length buffer in
-    let pos = Option.value pos ~default:0 in
     if pos < 0 || pos > buf_len
     then
       invalid_arg
@@ -68,7 +66,7 @@ module Source = struct
            pos
            buf_len
            (pos + len));
-    { buffer; pos; min_off = pos; upper_bound = pos + len }
+    { buffer; pos; upper_bound = pos + len }
   ;;
 
   let[@inline always] get t idx =
@@ -103,8 +101,6 @@ module Source = struct
            len);
     Bytes.sub_string t.buffer (t.pos + pos) len
   ;;
-
-  let[@inline always] consumed t = t.pos - t.min_off
 
   let[@inline always] index t ch =
     let res = unsafe_memchr t.buffer t.pos ch (length t) in
@@ -311,10 +307,13 @@ let request source =
 ;;
 
 let run_parser ?pos ?len buf p =
-  let source = Source.of_bytes ?pos ?len buf in
+  let pos = Option.value pos ~default:0 in
+  let source = Source.of_bytes ~pos ?len buf in
   match p source with
   | (exception (Partial as exn)) | (exception (Msg _ as exn)) -> Error exn
-  | v -> Ok (v, Source.consumed source)
+  | v ->
+    let consumed = source.pos - pos in
+    Ok (v, consumed)
 ;;
 
 let parse_request ?pos ?len buf = run_parser ?pos ?len buf request
