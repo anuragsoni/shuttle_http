@@ -148,11 +148,12 @@ module Source = struct
             %d, len: %d"
            pos
            len);
-    let idx = ref pos in
-    while !idx < len && is_tchar (Bytes.unsafe_get t.buffer (t.pos + !idx)) do
-      incr idx
+    let pos = ref (t.pos + pos) in
+    let len = t.pos + len in
+    while !pos < len && is_tchar (Bytes.unsafe_get t.buffer !pos) do
+      incr pos
     done;
-    !idx = len
+    !pos = len
   ;;
 
   let[@inline always] unsafe_memcmp t str len = unsafe_memcmp t.buffer t.pos str 0 len
