@@ -120,7 +120,7 @@ module Source = struct
            pos
            len);
     let idx = ref pos in
-    while !idx < len && is_tchar (get t !idx) do
+    while !idx < len && is_tchar (Bytes.unsafe_get t.buffer (t.pos + !idx)) do
       incr idx
     done;
     !idx = len
