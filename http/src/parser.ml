@@ -69,11 +69,15 @@ module Source = struct
     { buffer; pos; upper_bound = pos + len }
   ;;
 
+  let[@inline always] get_unsafe t idx = Bytes.unsafe_get t.buffer (t.pos + idx)
+
   let[@inline always] get t idx =
     if idx < 0 || t.pos + idx >= t.upper_bound
     then invalid_arg "Shuttle_http.Parser.Source.get: Index out of bounds";
     Bytes.unsafe_get t.buffer (t.pos + idx)
   ;;
+
+  let[@inline always] advance_unsafe t count = t.pos <- t.pos + count
 
   let[@inline always] advance t count =
     if count < 0 || t.pos + count > t.upper_bound
@@ -162,12 +166,12 @@ end
 exception Msg of string
 exception Partial
 
-let string str source =
+let[@inline always] string str source =
   let len = String.length str in
   if Source.length source < len
   then raise_notrace Partial
   else if Source.unsafe_memcmp source str len = 0
-  then Source.advance source len
+  then Source.advance_unsafe source len
   else raise_notrace (Msg (Printf.sprintf "Could not match: %S" str))
 ;;
 
@@ -175,8 +179,8 @@ let any_char source =
   if Source.length source = 0
   then raise_notrace Partial
   else (
-    let c = Source.get source 0 in
-    Source.advance source 1;
+    let c = Source.get_unsafe source 0 in
+    Source.advance_unsafe source 1;
     c)
 ;;
 
@@ -224,16 +228,16 @@ let header source =
   else if Source.for_all_is_tchar source ~pos:0 ~len:pos
   then (
     let key = Source.to_string source ~pos:0 ~len:pos in
-    Source.advance source (pos + 1);
-    while Source.length source > 0 && Source.get source 0 = ' ' do
-      Source.advance source 1
+    Source.advance_unsafe source (pos + 1);
+    while Source.length source > 0 && Source.get_unsafe source 0 = ' ' do
+      Source.advance_unsafe source 1
     done;
     let pos = Source.index source '\r' in
     if pos = -1
     then raise_notrace Partial
     else (
       let v = Source.to_string_trim source ~pos:0 ~len:pos in
-      Source.advance source pos;
+      Source.advance_unsafe source pos;
       key, v))
   else raise_notrace (Msg "Invalid Header Key")
 ;;
@@ -241,7 +245,7 @@ let header source =
 let headers =
   let rec loop source acc =
     let len = Source.length source in
-    if len > 0 && Source.get source 0 = '\r'
+    if len > 0 && Source.get_unsafe source 0 = '\r'
     then (
       eol source;
       Headers.of_list acc)
