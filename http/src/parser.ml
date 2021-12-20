@@ -237,8 +237,8 @@ let header source =
   else Error (Msg "Invalid Header Key")
 ;;
 
-let headers source =
-  let rec loop acc =
+let headers =
+  let rec loop source acc =
     let len = Source.length source in
     if len > 0 && Source.get source 0 = '\r'
     then (
@@ -251,9 +251,9 @@ let headers source =
       | Ok v ->
         (match eol source with
         | Error _ as e -> e
-        | Ok _ -> loop (v :: acc)))
+        | Ok _ -> loop source (v :: acc)))
   in
-  loop []
+  fun source -> loop source []
 ;;
 
 let chunk_length source =
