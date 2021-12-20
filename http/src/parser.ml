@@ -103,21 +103,35 @@ type error =
   | Msg of string
   | Partial
 
-let return x _source = Ok x
-let fail msg _source = Error (Msg msg)
-let ( >>=? ) t f = Result.bind t f
-let ( >>= ) t f source = t source >>=? fun v -> (f v) source
-
 let map4 fn a b c d source =
-  a source
-  >>=? fun res_a ->
-  b source
-  >>=? fun res_b ->
-  c source >>=? fun res_c -> d source >>=? fun res_d -> Ok (fn res_a res_b res_c res_d)
+  match a source with
+  | Error _ as e -> e
+  | Ok res_a ->
+    (match b source with
+    | Error _ as e -> e
+    | Ok res_b ->
+      (match c source with
+      | Error _ as e -> e
+      | Ok res_c ->
+        (match d source with
+        | Error _ as e -> e
+        | Ok res_d -> Ok (fn res_a res_b res_c res_d))))
 ;;
 
-let ( *> ) a b source = a source >>=? fun _res_a -> b source
-let ( <* ) a b source = a source >>=? fun res_a -> b source >>=? fun _res_b -> Ok res_a
+let ( *> ) a b source =
+  match a source with
+  | Error _ as e -> e
+  | Ok _res_a -> b source
+;;
+
+let ( <* ) a b source =
+  match a source with
+  | Error _ as e -> e
+  | Ok _ as res_a ->
+    (match b source with
+    | Error _ as e -> e
+    | Ok _res_b -> res_a)
+;;
 
 let string str source =
   let len = String.length str in
@@ -182,21 +196,23 @@ let token source =
     Ok res)
 ;;
 
-let meth =
-  token
-  >>= fun token ->
-  match Meth.of_string token with
-  | Some m -> return m
-  | None -> fail (Printf.sprintf "Unexpected HTTP verb %S" token)
+let meth source =
+  match token source with
+  | Error _ as e -> e
+  | Ok token ->
+    (match Meth.of_string token with
+    | Some m -> Ok m
+    | None -> Error (Msg (Printf.sprintf "Unexpected HTTP verb %S" token)))
 ;;
 
-let version =
-  string "HTTP/1." *> any_char
-  >>= (function
-        | '1' -> return Version.v1_1
-        | '0' -> return { Version.major = 1; minor = 0 }
-        | _ -> fail "Invalid http version")
-  <* eol
+let version source =
+  match (string "HTTP/1." *> any_char) source with
+  | Error _ as e -> e
+  | Ok ch ->
+    (match ch with
+    | '1' -> Ok Version.v1_1
+    | '0' -> Ok { Version.major = 1; minor = 0 }
+    | _ -> Error (Msg "Invalid http version"))
 ;;
 
 let header source =
@@ -226,8 +242,14 @@ let headers source =
   let rec loop acc =
     let len = Source.length source in
     if len > 0 && Source.get source 0 = '\r'
-    then eol source >>=? fun _ -> Ok (Headers.of_list acc)
-    else (header <* eol) source >>=? fun v -> loop (v :: acc)
+    then (
+      match eol source with
+      | Error _ as e -> e
+      | Ok _ -> Ok (Headers.of_list acc))
+    else (
+      match (header <* eol) source with
+      | Error _ as e -> e
+      | Ok v -> loop (v :: acc))
   in
   loop []
 ;;
@@ -308,13 +330,15 @@ let request =
     (fun meth path version headers -> Request.create ~version ~headers meth path)
     meth
     token
-    version
+    (version <* eol)
     headers
 ;;
 
 let run_parser ?pos ?len buf p =
   let source = Source.of_bytes ?pos ?len buf in
-  p source >>=? fun v -> Ok (v, Source.consumed source)
+  match p source with
+  | Error _ as e -> e
+  | Ok v -> Ok (v, Source.consumed source)
 ;;
 
 let parse_request ?pos ?len buf = run_parser ?pos ?len buf request
