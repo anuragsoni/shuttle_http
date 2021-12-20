@@ -157,7 +157,7 @@ let eol = string "\r\n"
 (* token = 1*tchar tchar = "!" / "#" / "$" / "%" / "&" / "'" / "*" / "+" / "-" / "." / "^"
    / "_" / "`" / "|" / "~" / DIGIT / ALPHA ; any VCHAR, except delimiters *)
 
-let is_tchar = function
+let[@inline always] is_tchar = function
   | '0' .. '9'
   | 'a' .. 'z'
   | 'A' .. 'Z'
