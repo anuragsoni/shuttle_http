@@ -17,6 +17,28 @@ external unsafe_memcmp
   = "shuttle_parser_bytes_memcmp_string"
   [@@noalloc]
 
+let[@inline always] is_tchar = function
+  | '0' .. '9'
+  | 'a' .. 'z'
+  | 'A' .. 'Z'
+  | '!'
+  | '#'
+  | '$'
+  | '%'
+  | '&'
+  | '\''
+  | '*'
+  | '+'
+  | '-'
+  | '.'
+  | '^'
+  | '_'
+  | '`'
+  | '|'
+  | '~' -> true
+  | _ -> false
+;;
+
 module Source = struct
   type t =
     { buffer : bytes
@@ -89,7 +111,7 @@ module Source = struct
     if res = -1 then -1 else res - t.pos
   ;;
 
-  let for_all t ~pos ~len ~f =
+  let for_all_is_tchar t ~pos ~len =
     if pos < 0
        || t.pos + pos >= t.upper_bound
        || len < 0
@@ -102,7 +124,7 @@ module Source = struct
            pos
            len);
     let idx = ref pos in
-    while !idx < len && f (get t !idx) do
+    while !idx < len && is_tchar (get t !idx) do
       incr idx
     done;
     !idx = len
@@ -157,28 +179,6 @@ let eol = string "\r\n"
 (* token = 1*tchar tchar = "!" / "#" / "$" / "%" / "&" / "'" / "*" / "+" / "-" / "." / "^"
    / "_" / "`" / "|" / "~" / DIGIT / ALPHA ; any VCHAR, except delimiters *)
 
-let[@inline always] is_tchar = function
-  | '0' .. '9'
-  | 'a' .. 'z'
-  | 'A' .. 'Z'
-  | '!'
-  | '#'
-  | '$'
-  | '%'
-  | '&'
-  | '\''
-  | '*'
-  | '+'
-  | '-'
-  | '.'
-  | '^'
-  | '_'
-  | '`'
-  | '|'
-  | '~' -> true
-  | _ -> false
-;;
-
 let token source =
   let pos = Source.index source ' ' in
   if pos = -1
@@ -220,7 +220,7 @@ let header source =
   then Error Partial
   else if pos = 0
   then Error (Msg "Invalid header: Empty header key")
-  else if Source.for_all source ~pos:0 ~len:pos ~f:is_tchar
+  else if Source.for_all_is_tchar source ~pos:0 ~len:pos
   then (
     let key = Source.to_string source ~pos:0 ~len:pos in
     Source.advance source (pos + 1);
