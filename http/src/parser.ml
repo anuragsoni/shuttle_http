@@ -118,20 +118,7 @@ let map4 fn a b c d source =
         | Ok res_d -> Ok (fn res_a res_b res_c res_d))))
 ;;
 
-let ( *> ) a b source =
-  match a source with
-  | Error _ as e -> e
-  | Ok _res_a -> b source
-;;
-
-let ( <* ) a b source =
-  match a source with
-  | Error _ as e -> e
-  | Ok _ as res_a ->
-    (match b source with
-    | Error _ as e -> e
-    | Ok _res_b -> res_a)
-;;
+let unit = Ok ()
 
 let string str source =
   let len = String.length str in
@@ -142,7 +129,7 @@ let string str source =
       if idx = len
       then (
         Source.advance source len;
-        Ok str)
+        unit)
       else if Source.get source idx = String.unsafe_get str idx
       then aux (idx + 1)
       else Error (Msg (Printf.sprintf "Could not match: %S" str))
@@ -205,8 +192,14 @@ let meth source =
     | None -> Error (Msg (Printf.sprintf "Unexpected HTTP verb %S" token)))
 ;;
 
+let version_source source =
+  match string "HTTP/1." source with
+  | Error _ as e -> e
+  | Ok _ -> any_char source
+;;
+
 let version source =
-  match (string "HTTP/1." *> any_char) source with
+  match version_source source with
   | Error _ as e -> e
   | Ok ch ->
     (match ch with
@@ -247,9 +240,12 @@ let headers source =
       | Error _ as e -> e
       | Ok _ -> Ok (Headers.of_list acc))
     else (
-      match (header <* eol) source with
+      match header source with
       | Error _ as e -> e
-      | Ok v -> loop (v :: acc))
+      | Ok v ->
+        (match eol source with
+        | Error _ as e -> e
+        | Ok _ -> loop (v :: acc)))
   in
   loop []
 ;;
@@ -325,12 +321,21 @@ let chunk_length source =
     Error (Msg (Printf.sprintf "Invalid chunk_length character %C" ch))
 ;;
 
+let version source =
+  match version source with
+  | Error _ as e -> e
+  | Ok _ as v ->
+    (match eol source with
+    | Error _ as e -> e
+    | Ok _ -> v)
+;;
+
 let request =
   map4
     (fun meth path version headers -> Request.create ~version ~headers meth path)
     meth
     token
-    (version <* eol)
+    version
     headers
 ;;
 
