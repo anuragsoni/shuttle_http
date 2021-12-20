@@ -1,4 +1,3 @@
-open Sexplib0.Sexp_conv
 module List = ListLabels
 
 let caseless_equal a b =
@@ -19,7 +18,13 @@ let caseless_equal a b =
     not !stop)
 ;;
 
-type t = (string * string) list [@@deriving sexp]
+type t = (string * string) list
+
+let sexp_of_t t =
+  let open Sexplib0 in
+  let sexp_of_header x = Sexp_conv.(sexp_of_pair sexp_of_string sexp_of_string x) in
+  Sexp_conv.sexp_of_list sexp_of_header t
+;;
 
 let empty = []
 let of_rev_list xs = xs

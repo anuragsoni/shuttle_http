@@ -5,7 +5,6 @@ type informational =
   | `Processing (* [RFC2518] *)
   | `Early_hints (* [RFC8297] *)
   ]
-[@@deriving sexp]
 
 let informational_to_code = function
   | `Continue -> 100
@@ -40,7 +39,6 @@ type success =
   | `Already_reported (* [RFC5842] *)
   | `Im_used (* [RFC3229] *)
   ]
-[@@deriving sexp]
 
 let success_to_code = function
   | `Ok -> 200
@@ -91,7 +89,6 @@ type redirection =
   | `Temporary_redirect (* [RFC7231, Section 6.4.7] *)
   | `Permanent_redirect (* [RFC7538] *)
   ]
-[@@deriving sexp]
 
 let redirection_to_code = function
   | `Multiple_choices -> 300
@@ -156,7 +153,6 @@ type client_error =
   | `Request_header_fields_too_large (* [RFC6585] *)
   | `Unavailable_for_legal_reasons (* [RFC7725] *)
   ]
-[@@deriving sexp]
 
 let client_error_to_code = function
   | `Bad_request -> 400
@@ -264,7 +260,6 @@ type server_error =
   | `Not_extended (* [RFC2774] *)
   | `Network_authentication_required (* [RFC6585] *)
   ]
-[@@deriving sexp]
 
 let server_error_to_code = function
   | `Internal_server_error -> 500
@@ -315,7 +310,6 @@ type t =
   | client_error
   | server_error
   ]
-[@@deriving sexp]
 
 let to_code = function
   | #informational as c -> informational_to_code c
@@ -340,3 +334,5 @@ let to_reason_phrase = function
   | #client_error as c -> client_error_to_reason_phrase c
   | #server_error as c -> server_error_to_reason_phrase c
 ;;
+
+let sexp_of_t t = Sexplib0.Sexp_conv.sexp_of_string (to_string t)
