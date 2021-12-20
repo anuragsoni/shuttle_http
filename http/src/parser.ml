@@ -310,15 +310,10 @@ let request source =
   Request.create ~version ~headers meth path
 ;;
 
-type error =
-  | Msg of string
-  | Partial
-
 let run_parser ?pos ?len buf p =
   let source = Source.of_bytes ?pos ?len buf in
   match p source with
-  | exception Partial -> Error Partial
-  | exception Msg s -> Error (Msg s)
+  | (exception (Partial as exn)) | (exception (Msg _ as exn)) -> Error exn
   | v -> Ok (v, Source.consumed source)
 ;;
 
