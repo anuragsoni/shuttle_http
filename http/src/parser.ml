@@ -7,6 +7,16 @@ external unsafe_memchr
   = "shuttle_parser_bytes_memchr_stub"
   [@@noalloc]
 
+external unsafe_memcmp
+  :  bytes
+  -> int
+  -> string
+  -> int
+  -> int
+  -> int
+  = "shuttle_parser_bytes_memcmp_string"
+  [@@noalloc]
+
 module Source = struct
   type t =
     { buffer : bytes
@@ -97,6 +107,8 @@ module Source = struct
     done;
     if !idx = len then true else false
   ;;
+
+  let unsafe_memcmp t str len = unsafe_memcmp t.buffer t.pos str 0 len
 end
 
 type error =
@@ -124,17 +136,11 @@ let string str source =
   let len = String.length str in
   if Source.length source < len
   then Error Partial
-  else (
-    let rec aux idx =
-      if idx = len
-      then (
-        Source.advance source len;
-        unit)
-      else if Source.get source idx = String.unsafe_get str idx
-      then aux (idx + 1)
-      else Error (Msg (Printf.sprintf "Could not match: %S" str))
-    in
-    aux 0)
+  else if Source.unsafe_memcmp source str len = 0
+  then (
+    Source.advance source len;
+    unit)
+  else Error (Msg (Printf.sprintf "Could not match: %S" str))
 ;;
 
 let any_char source =
@@ -251,9 +257,7 @@ let headers source =
 ;;
 
 let chunk_length source =
-  let ( lsl ) = Int64.shift_left in
-  let ( lor ) = Int64.logor in
-  let length = ref 0L in
+  let length = ref 0 in
   let stop = ref false in
   let state = ref `Ok in
   let count = ref 0 in
@@ -274,13 +278,13 @@ let chunk_length source =
       incr count;
       match ch with
       | '0' .. '9' as ch when !processing_chunk ->
-        let curr = Int64.of_int (Char.code ch - Char.code '0') in
+        let curr = Char.code ch - Char.code '0' in
         length := (!length lsl 4) lor curr
       | 'a' .. 'f' as ch when !processing_chunk ->
-        let curr = Int64.of_int (Char.code ch - Char.code 'a' + 10) in
+        let curr = Char.code ch - Char.code 'a' + 10 in
         length := (!length lsl 4) lor curr
       | 'A' .. 'F' as ch when !processing_chunk ->
-        let curr = Int64.of_int (Char.code ch - Char.code 'A' + 10) in
+        let curr = Char.code ch - Char.code 'A' + 10 in
         length := (!length lsl 4) lor curr
       | ';' when not !in_chunk_extension ->
         in_chunk_extension := true;
