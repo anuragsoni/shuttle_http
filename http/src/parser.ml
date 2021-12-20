@@ -71,13 +71,13 @@ module Source = struct
     { buffer; pos; min_off = pos; upper_bound = pos + len }
   ;;
 
-  let get t idx =
+  let[@inline always] get t idx =
     if idx < 0 || t.pos + idx >= t.upper_bound
     then invalid_arg "Shuttle_http.Parser.Source.get: Index out of bounds";
     Bytes.unsafe_get t.buffer (t.pos + idx)
   ;;
 
-  let advance t count =
+  let[@inline always] advance t count =
     if count < 0 || t.pos + count > t.upper_bound
     then
       invalid_arg
@@ -87,9 +87,9 @@ module Source = struct
     t.pos <- t.pos + count
   ;;
 
-  let length t = t.upper_bound - t.pos
+  let[@inline always] length t = t.upper_bound - t.pos
 
-  let to_string t ~pos ~len =
+  let[@inline always] to_string t ~pos ~len =
     if pos < 0
        || t.pos + pos >= t.upper_bound
        || len < 0
@@ -104,9 +104,9 @@ module Source = struct
     Bytes.sub_string t.buffer (t.pos + pos) len
   ;;
 
-  let consumed t = t.pos - t.min_off
+  let[@inline always] consumed t = t.pos - t.min_off
 
-  let index t ch =
+  let[@inline always] index t ch =
     let res = unsafe_memchr t.buffer t.pos ch (length t) in
     if res = -1 then -1 else res - t.pos
   ;;
@@ -130,7 +130,7 @@ module Source = struct
     !idx = len
   ;;
 
-  let unsafe_memcmp t str len = unsafe_memcmp t.buffer t.pos str 0 len
+  let[@inline always] unsafe_memcmp t str len = unsafe_memcmp t.buffer t.pos str 0 len
 end
 
 type error =
