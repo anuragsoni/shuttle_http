@@ -105,7 +105,7 @@ module Source = struct
     while !idx < len && f (get t !idx) do
       incr idx
     done;
-    if !idx = len then true else false
+    !idx = len
   ;;
 
   let unsafe_memcmp t str len = unsafe_memcmp t.buffer t.pos str 0 len
