@@ -11,7 +11,6 @@ type t =
   | (* https://datatracker.ietf.org/doc/html/rfc5789 *)
     `PATCH
   ]
-[@@deriving sexp]
 
 let of_string = function
   | "GET" -> Some `GET
@@ -37,3 +36,5 @@ let to_string = function
   | `TRACE -> "TRACE"
   | `PATCH -> "PATCH"
 ;;
+
+let sexp_of_t t = Sexplib0.Sexp_conv.sexp_of_string (to_string t)

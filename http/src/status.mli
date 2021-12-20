@@ -5,7 +5,6 @@ type informational =
   | `Processing (* [RFC2518] *)
   | `Early_hints (* [RFC8297] *)
   ]
-[@@deriving sexp]
 
 type success =
   [ `Ok (* [RFC7231, Section 6.3.1] *)
@@ -19,7 +18,6 @@ type success =
   | `Already_reported (* [RFC5842] *)
   | `Im_used (* [RFC3229] *)
   ]
-[@@deriving sexp]
 
 type redirection =
   [ `Multiple_choices (* [RFC7231, Section 6.4.1] *)
@@ -31,7 +29,6 @@ type redirection =
   | `Temporary_redirect (* [RFC7231, Section 6.4.7] *)
   | `Permanent_redirect (* [RFC7538] *)
   ]
-[@@deriving sexp]
 
 type client_error =
   [ `Bad_request (* [RFC7231, Section 6.5.1] *)
@@ -63,7 +60,6 @@ type client_error =
   | `Request_header_fields_too_large (* [RFC6585] *)
   | `Unavailable_for_legal_reasons (* [RFC7725] *)
   ]
-[@@deriving sexp]
 
 type server_error =
   [ `Internal_server_error (* [RFC7231, Section 6.6.1] *)
@@ -78,7 +74,6 @@ type server_error =
   | `Not_extended (* [RFC2774] *)
   | `Network_authentication_required (* [RFC6585] *)
   ]
-[@@deriving sexp]
 
 type t =
   [ informational
@@ -87,8 +82,8 @@ type t =
   | client_error
   | server_error
   ]
-[@@deriving sexp]
 
 val to_code : t -> int
 val to_reason_phrase : t -> string
 val to_string : t -> string
+val sexp_of_t : t -> Sexplib0.Sexp.t

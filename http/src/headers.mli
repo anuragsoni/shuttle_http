@@ -1,5 +1,6 @@
-type t [@@deriving sexp]
+type t
 
+val sexp_of_t : t -> Sexplib0.Sexp.t
 val empty : t
 val of_list : (string * string) list -> t
 val of_rev_list : (string * string) list -> t

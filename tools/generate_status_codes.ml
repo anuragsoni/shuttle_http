@@ -145,7 +145,7 @@ let process_csv file is_mli =
                 "| `%s %s"
                 c.Status_code.label
                 (if String.(c.reference = "") then "" else sprintf "(* %s *)" c.reference))
-        ; [ "] [@@deriving sexp]" ]
+        ; [ "]" ]
         ]
     in
     Out_channel.output_lines stdout lines;
@@ -208,7 +208,7 @@ let process_csv file is_mli =
     ; "| redirection"
     ; "| client_error"
     ; "| server_error"
-    ; "] [@@deriving sexp]"
+    ; "]"
     ];
   Out_channel.newline stdout;
   let codebranch_for_kind kind = sprintf "| #%s as c -> %s_to_code c" kind kind in
@@ -235,13 +235,17 @@ let process_csv file is_mli =
       ("let to_reason_phrase = function"
       :: List.map
            [ "informational"; "success"; "redirection"; "client_error"; "server_error" ]
-           ~f:codebranch_for_reason_phrase))
+           ~f:codebranch_for_reason_phrase);
+    Out_channel.output_lines
+      stdout
+      [ "let sexp_of_t t = Sexplib0.Sexp_conv.sexp_of_string (to_string t)" ])
   else
     Out_channel.output_lines
       stdout
       [ "val to_code : t -> int"
       ; "val to_reason_phrase : t -> string"
       ; "val to_string : t -> string"
+      ; "val sexp_of_t : t -> Sexplib0.Sexp.t"
       ]
 ;;
 

@@ -3,6 +3,4 @@
  (foreign_stubs
   (language c)
   (names shuttle_parser_stubs))
- (preprocess
-  (pps ppx_sexp_conv))
  (libraries sexplib0))
