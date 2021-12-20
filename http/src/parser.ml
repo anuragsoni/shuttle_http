@@ -133,45 +133,25 @@ module Source = struct
   let[@inline always] unsafe_memcmp t str len = unsafe_memcmp t.buffer t.pos str 0 len
 end
 
-type error =
-  | Msg of string
-  | Partial
-
-let map4 fn a b c d source =
-  match a source with
-  | Error _ as e -> e
-  | Ok res_a ->
-    (match b source with
-    | Error _ as e -> e
-    | Ok res_b ->
-      (match c source with
-      | Error _ as e -> e
-      | Ok res_c ->
-        (match d source with
-        | Error _ as e -> e
-        | Ok res_d -> Ok (fn res_a res_b res_c res_d))))
-;;
-
-let unit = Ok ()
+exception Msg of string
+exception Partial
 
 let string str source =
   let len = String.length str in
   if Source.length source < len
-  then Error Partial
+  then raise_notrace Partial
   else if Source.unsafe_memcmp source str len = 0
-  then (
-    Source.advance source len;
-    unit)
-  else Error (Msg (Printf.sprintf "Could not match: %S" str))
+  then Source.advance source len
+  else raise_notrace (Msg (Printf.sprintf "Could not match: %S" str))
 ;;
 
 let any_char source =
   if Source.length source = 0
-  then Error Partial
+  then raise_notrace Partial
   else (
     let c = Source.get source 0 in
     Source.advance source 1;
-    Ok c)
+    c)
 ;;
 
 let eol = string "\r\n"
@@ -182,44 +162,39 @@ let eol = string "\r\n"
 let token source =
   let pos = Source.index source ' ' in
   if pos = -1
-  then Error Partial
+  then raise_notrace Partial
   else (
     let res = Source.to_string source ~pos:0 ~len:pos in
     Source.advance source (pos + 1);
-    Ok res)
+    res)
 ;;
 
 let meth source =
-  match token source with
-  | Error _ as e -> e
-  | Ok token ->
-    (match Meth.of_string token with
-    | Some m -> Ok m
-    | None -> Error (Msg (Printf.sprintf "Unexpected HTTP verb %S" token)))
+  let token = token source in
+  match Meth.of_string token with
+  | Some m -> m
+  | None -> raise_notrace (Msg (Printf.sprintf "Unexpected HTTP verb %S" token))
 ;;
 
 let version_source source =
-  match string "HTTP/1." source with
-  | Error _ as e -> e
-  | Ok _ -> any_char source
+  let _ = string "HTTP/1." source in
+  any_char source
 ;;
 
 let version source =
-  match version_source source with
-  | Error _ as e -> e
-  | Ok ch ->
-    (match ch with
-    | '1' -> Ok Version.v1_1
-    | '0' -> Ok { Version.major = 1; minor = 0 }
-    | _ -> Error (Msg "Invalid http version"))
+  let ch = version_source source in
+  match ch with
+  | '1' -> Version.v1_1
+  | '0' -> { Version.major = 1; minor = 0 }
+  | _ -> raise_notrace (Msg "Invalid http version")
 ;;
 
 let header source =
   let pos = Source.index source ':' in
   if pos = -1
-  then Error Partial
+  then raise_notrace Partial
   else if pos = 0
-  then Error (Msg "Invalid header: Empty header key")
+  then raise_notrace (Msg "Invalid header: Empty header key")
   else if Source.for_all_is_tchar source ~pos:0 ~len:pos
   then (
     let key = Source.to_string source ~pos:0 ~len:pos in
@@ -229,12 +204,12 @@ let header source =
     done;
     let pos = Source.index source '\r' in
     if pos = -1
-    then Error Partial
+    then raise_notrace Partial
     else (
       let v = Source.to_string source ~pos:0 ~len:pos in
       Source.advance source pos;
-      Ok (key, String.trim v)))
-  else Error (Msg "Invalid Header Key")
+      key, String.trim v))
+  else raise_notrace (Msg "Invalid Header Key")
 ;;
 
 let headers =
@@ -242,16 +217,12 @@ let headers =
     let len = Source.length source in
     if len > 0 && Source.get source 0 = '\r'
     then (
-      match eol source with
-      | Error _ as e -> e
-      | Ok _ -> Ok (Headers.of_list acc))
+      eol source;
+      Headers.of_list acc)
     else (
-      match header source with
-      | Error _ as e -> e
-      | Ok v ->
-        (match eol source with
-        | Error _ as e -> e
-        | Ok _ -> loop source (v :: acc)))
+      let v = header source in
+      eol source;
+      loop source (v :: acc))
   in
   fun source -> loop source []
 ;;
@@ -317,37 +288,38 @@ let chunk_length source =
         state := `Invalid_char ch)
   done;
   match !state with
-  | `Ok -> Ok !length
-  | `Partial -> Error Partial
-  | `Expected_newline -> Error (Msg "Expected_newline")
-  | `Chunk_too_big -> Error (Msg "Chunk size is too large")
+  | `Ok -> !length
+  | `Partial -> raise_notrace Partial
+  | `Expected_newline -> raise_notrace (Msg "Expected_newline")
+  | `Chunk_too_big -> raise_notrace (Msg "Chunk size is too large")
   | `Invalid_char ch ->
-    Error (Msg (Printf.sprintf "Invalid chunk_length character %C" ch))
+    raise_notrace (Msg (Printf.sprintf "Invalid chunk_length character %C" ch))
 ;;
 
 let version source =
-  match version source with
-  | Error _ as e -> e
-  | Ok _ as v ->
-    (match eol source with
-    | Error _ as e -> e
-    | Ok _ -> v)
+  let version = version source in
+  eol source;
+  version
 ;;
 
-let request =
-  map4
-    (fun meth path version headers -> Request.create ~version ~headers meth path)
-    meth
-    token
-    version
-    headers
+let request source =
+  let meth = meth source in
+  let path = token source in
+  let version = version source in
+  let headers = headers source in
+  Request.create ~version ~headers meth path
 ;;
+
+type error =
+  | Msg of string
+  | Partial
 
 let run_parser ?pos ?len buf p =
   let source = Source.of_bytes ?pos ?len buf in
   match p source with
-  | Error _ as e -> e
-  | Ok v -> Ok (v, Source.consumed source)
+  | exception Partial -> Error Partial
+  | exception Msg s -> Error (Msg s)
+  | v -> Ok (v, Source.consumed source)
 ;;
 
 let parse_request ?pos ?len buf = run_parser ?pos ?len buf request
