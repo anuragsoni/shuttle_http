@@ -22,8 +22,9 @@ let assert_req_success ~here ~expected_req ~expected_consumed ?pos ?len buf =
   let buf = Bytes.From_string.subo ?pos ?len buf in
   let req, consumed =
     match Shuttle_http.Parser.parse_request buf with
-    | Error Partial -> failwith "Unexpected partial parse"
-    | Error (Msg msg) -> failwith msg
+    | Error Shuttle_http.Parser.Partial -> failwith "Unexpected partial parse"
+    | Error (Shuttle_http.Parser.Msg msg) -> failwith msg
+    | Error _ -> assert false
     | Ok res -> res
   in
   [%test_result: string]
@@ -81,7 +82,8 @@ let parse_single_request () =
 let reject_headers_with_space_before_colon () =
   let req = "GET / HTTP/1.1\r\nHost : www.kittyhell.com\r\nKeep-Alive: 115\r\n\r\n" in
   match Shuttle_http.Parser.parse_request (Bytes.of_string req) with
-  | Error (Msg msg) -> [%test_result: string] ~expect:"Invalid Header Key" msg
+  | Error (Shuttle_http.Parser.Msg msg) ->
+    [%test_result: string] ~expect:"Invalid Header Key" msg
   | _ -> assert false
 ;;
 
@@ -137,8 +139,9 @@ let report_partial_parse () =
   let buf = Bytes.of_string req in
   let err =
     match Shuttle_http.Parser.parse_request ~pos:0 ~len:50 buf with
-    | Error Partial -> Some "Partial"
-    | Error (Msg msg) -> Some msg
+    | Error Shuttle_http.Parser.Partial -> Some "Partial"
+    | Error (Shuttle_http.Parser.Msg msg) -> Some msg
+    | Error _ -> assert false
     | Ok _ -> None
   in
   [%test_result: string option] ~expect:(Some "Partial") err
@@ -149,8 +152,9 @@ let validate_http_version () =
   let buf = Bytes.of_string req in
   let err =
     match Shuttle_http.Parser.parse_request buf with
-    | Error (Msg msg) -> msg
-    | Error Partial -> failwith "Unexpected partial"
+    | Error (Shuttle_http.Parser.Msg msg) -> msg
+    | Error Shuttle_http.Parser.Partial -> failwith "Unexpected partial"
+    | Error _ -> assert false
     | Ok _ -> assert false
   in
   [%test_result: String.Caseless.t] ~expect:"Invalid http version" err
@@ -189,8 +193,8 @@ let parse_chunk_length () =
       match Shuttle_http.Parser.parse_chunk_length payload with
       | Ok res ->
         [%test_eq: int * int] res (num, String.length (Printf.sprintf "%x" num) + 2)
-      | Error Partial -> assert false
-      | Error (Msg _) -> ())
+      | Error (Shuttle_http.Parser.Msg _) -> ()
+      | Error _ -> assert false)
 ;;
 
 let chunk_length_parse_case_insensitive () =
@@ -199,8 +203,8 @@ let chunk_length_parse_case_insensitive () =
     match Shuttle_http.Parser.parse_chunk_length buf with
     | Ok res ->
       [%test_eq: int * int] res (num, String.length (Printf.sprintf "%x" num) + 2)
-    | Error Partial -> assert false
-    | Error (Msg _) -> ()
+    | Error (Shuttle_http.Parser.Msg _) -> ()
+    | Error _ -> assert false
   in
   Test.run_exn
     (module struct
@@ -223,8 +227,9 @@ let parse_chunk_lengths () =
   let run_parser buf =
     match Shuttle_http.Parser.parse_chunk_length (Bytes.of_string buf) with
     | Ok res -> `Ok res
-    | Error Partial -> `Partial
-    | Error (Msg msg) -> `Msg msg
+    | Error Shuttle_http.Parser.Partial -> `Partial
+    | Error (Shuttle_http.Parser.Msg msg) -> `Msg msg
+    | Error _ -> assert false
   in
   [%test_result: parse_res] ~expect:(`Ok (2738, 5)) (run_parser "ab2\r\n");
   [%test_result: parse_res] ~expect:(`Ok (4526507, 8)) (run_parser "4511ab\r\n");
