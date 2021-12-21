@@ -340,11 +340,16 @@ let request source =
   Request.create ~version ~headers meth path
 ;;
 
+type error =
+  | Partial
+  | Msg of string
+
 let run_parser ?pos ?len buf p =
   let pos = Option.value pos ~default:0 in
   let source = Source.of_bytes ~pos ?len buf in
   match p source with
-  | (exception (Partial as exn)) | (exception (Msg _ as exn)) -> Error exn
+  | exception Partial -> Error Partial
+  | exception Msg m -> Error (Msg m)
   | v ->
     let consumed = source.pos - pos in
     Ok (v, consumed)

@@ -24,7 +24,6 @@ let assert_req_success ~here ~expected_req ~expected_consumed ?pos ?len buf =
     match Shuttle_http.Parser.parse_request buf with
     | Error Shuttle_http.Parser.Partial -> failwith "Unexpected partial parse"
     | Error (Shuttle_http.Parser.Msg msg) -> failwith msg
-    | Error _ -> assert false
     | Ok res -> res
   in
   [%test_result: string]
@@ -141,7 +140,6 @@ let report_partial_parse () =
     match Shuttle_http.Parser.parse_request ~pos:0 ~len:50 buf with
     | Error Shuttle_http.Parser.Partial -> Some "Partial"
     | Error (Shuttle_http.Parser.Msg msg) -> Some msg
-    | Error _ -> assert false
     | Ok _ -> None
   in
   [%test_result: string option] ~expect:(Some "Partial") err
@@ -154,7 +152,6 @@ let validate_http_version () =
     match Shuttle_http.Parser.parse_request buf with
     | Error (Shuttle_http.Parser.Msg msg) -> msg
     | Error Shuttle_http.Parser.Partial -> failwith "Unexpected partial"
-    | Error _ -> assert false
     | Ok _ -> assert false
   in
   [%test_result: String.Caseless.t] ~expect:"Invalid http version" err
@@ -229,7 +226,6 @@ let parse_chunk_lengths () =
     | Ok res -> `Ok res
     | Error Shuttle_http.Parser.Partial -> `Partial
     | Error (Shuttle_http.Parser.Msg msg) -> `Msg msg
-    | Error _ -> assert false
   in
   [%test_result: parse_res] ~expect:(`Ok (2738, 5)) (run_parser "ab2\r\n");
   [%test_result: parse_res] ~expect:(`Ok (4526507, 8)) (run_parser "4511ab\r\n");
