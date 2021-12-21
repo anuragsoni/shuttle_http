@@ -235,17 +235,13 @@ let process_csv file is_mli =
       ("let to_reason_phrase = function"
       :: List.map
            [ "informational"; "success"; "redirection"; "client_error"; "server_error" ]
-           ~f:codebranch_for_reason_phrase);
-    Out_channel.output_lines
-      stdout
-      [ "let sexp_of_t t = Sexplib0.Sexp_conv.sexp_of_string (to_string t)" ])
+           ~f:codebranch_for_reason_phrase))
   else
     Out_channel.output_lines
       stdout
       [ "val to_code : t -> int"
       ; "val to_reason_phrase : t -> string"
       ; "val to_string : t -> string"
-      ; "val sexp_of_t : t -> Sexplib0.Sexp.t"
       ]
 ;;
 

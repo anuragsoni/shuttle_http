@@ -1,7 +1,5 @@
 type t
 
-val sexp_of_t : t -> Sexplib0.Sexp.t
-
 val create
   :  ?version:Version.t
   -> ?reason_phrase:string

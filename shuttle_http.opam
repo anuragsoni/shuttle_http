@@ -10,7 +10,6 @@ bug-reports: "https://github.com/anuragsoni/shuttle/issues"
 depends: [
   "dune" {>= "2.8"}
   "ocaml" {>= "4.11.0"}
-  "sexplib0"
   "odoc" {with-doc}
 ]
 build: [

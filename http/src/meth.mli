@@ -12,6 +12,5 @@ type t =
     `PATCH
   ]
 
-val sexp_of_t : t -> Sexplib0.Sexp.t
 val of_string : string -> t option
 val to_string : t -> string

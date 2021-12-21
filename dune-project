@@ -39,8 +39,7 @@
   (synopsis "HTTP codec for shuttle")
   (depends
     (ocaml
-      (>= 4.11.0))
-    sexplib0))
+      (>= 4.11.0))))
 
 (package
  (name shuttle)
