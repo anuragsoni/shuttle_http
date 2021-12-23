@@ -33,7 +33,7 @@
     (< v0.15)))))
 
 (package
-  (name shuttle_http)
+  (name h11)
   (tags
     (async http))
   (synopsis "HTTP codec for shuttle")

@@ -1,6 +1,6 @@
 (test
  (name test_parser)
- (package shuttle_http)
+ (package h11)
  (preprocess
   (pps base_quickcheck.ppx_quickcheck ppx_jane))
- (libraries shuttle_http base base_quickcheck alcotest))
+ (libraries h11 base base_quickcheck alcotest))

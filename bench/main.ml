@@ -33,11 +33,11 @@ let hex_chunk_size =
 
 let tests =
   [ Bench.Test.create ~name:"H1 (httparse example)" (fun () ->
-        match Shuttle_http.Parser.parse_request buf with
+        match H11.Parser.parse_request buf with
         | Error _ -> assert false
         | Ok _ -> ())
   ; Bench.Test.create ~name:"Parse chunk size" (fun () ->
-        match Shuttle_http.Parser.parse_chunk_length hex_chunk_size with
+        match H11.Parser.parse_chunk_length hex_chunk_size with
         | Error _ -> assert false
         | Ok _ -> ())
   ; Bench.Test.create ~name:"Parse hex number" (fun () ->
