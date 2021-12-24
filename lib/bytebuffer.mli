@@ -20,7 +20,7 @@ module To_string : sig
 end
 
 val read : Unix.File_descr.t -> t -> int
-val read_assume_fd_is_nonblocking : Unix.File_descr.t -> t -> int
+val read_assume_fd_is_nonblocking : Unix.File_descr.t -> t -> Unix.Syscall_result.Int.t
 val write : Unix.File_descr.t -> t -> int
 val write_assume_fd_is_nonblocking : Unix.File_descr.t -> t -> int
 
