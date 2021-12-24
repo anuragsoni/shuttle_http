@@ -18,6 +18,14 @@ open! Core
     on the bytebuffer.
 *)
 
+external read_assume_fd_is_nonblocking
+  :  Core.Unix.File_descr.t
+  -> pos:int
+  -> len:int
+  -> bytes
+  -> Unix.Syscall_result.Int.t
+  = "shuttle_stubs_unix_read_assume_nonblocking"
+
 type t =
   { mutable buf : (Bytes.t[@sexp.opaque])
   ; mutable pos_read : int
@@ -75,15 +83,18 @@ let write fd t =
 ;;
 
 let read_assume_fd_is_nonblocking fd t =
-  let count =
-    Unix.read_assume_fd_is_nonblocking
+  let res =
+    read_assume_fd_is_nonblocking
       fd
       t.buf
       ~pos:t.pos_fill
       ~len:(Bytes.length t.buf - t.pos_fill)
   in
-  if count > 0 then t.pos_fill <- t.pos_fill + count;
-  count
+  if Unix.Syscall_result.Int.is_ok res
+  then (
+    let count = Unix.Syscall_result.Int.ok_exn res in
+    if count > 0 then t.pos_fill <- t.pos_fill + count);
+  res
 ;;
 
 let write_assume_fd_is_nonblocking fd t =

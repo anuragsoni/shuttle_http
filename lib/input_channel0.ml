@@ -5,6 +5,19 @@ module Logger = Log.Make_global ()
 
 let set_nonblock fd = Fd.with_file_descr_exn fd ignore ~nonblocking:true
 
+module View = struct
+  type t = Bytebuffer.t
+
+  let buf t =
+    let buf = Bytebuffer.unsafe_buf t in
+    Bytes.unsafe_to_string ~no_mutation_while_string_reachable:buf
+  ;;
+
+  let pos t = Bytebuffer.pos t
+  let length t = Bytebuffer.length t
+  let consume t = Bytebuffer.drop t
+end
+
 type 'a handle_chunk_result =
   [ `Stop of 'a
   | `Continue of int
@@ -48,30 +61,46 @@ let close t =
   closed t
 ;;
 
-let refill t =
+let refill' t =
   Bytebuffer.compact t.buf;
   if Bytebuffer.available_to_write t.buf = 0
   then `Buffer_is_full
   else (
-    match Bytebuffer.read_assume_fd_is_nonblocking (Fd.file_descr_exn t.fd) t.buf with
-    | 0 -> `Eof
-    | n ->
-      assert (n > 0);
-      `Read_some
-    | exception Unix.Unix_error ((EAGAIN | EWOULDBLOCK | EINTR), _, _) ->
-      `Nothing_available
-    | exception
-        Unix.Unix_error
-          ( ( EPIPE
-            | ECONNRESET
-            | EHOSTUNREACH
-            | ENETDOWN
-            | ENETRESET
-            | ENETUNREACH
-            | ETIMEDOUT )
-          , _
-          , _ ) -> `Eof
-    | exception exn -> raise exn)
+    let result =
+      Fd.syscall_result_exn t.fd t.buf (fun fd buf ->
+          Bytebuffer.read_assume_fd_is_nonblocking fd buf)
+    in
+    if Unix.Syscall_result.Int.is_ok result
+    then (
+      match Unix.Syscall_result.Int.ok_exn result with
+      | 0 -> `Eof
+      | n ->
+        assert (n > 0);
+        `Read_some)
+    else (
+      match Unix.Syscall_result.Int.error_exn result with
+      | EAGAIN | EWOULDBLOCK | EINTR -> `Nothing_available
+      | EPIPE | ECONNRESET | EHOSTUNREACH | ENETDOWN | ENETRESET | ENETUNREACH | ETIMEDOUT
+        -> `Eof
+      | error -> raise (Unix.Unix_error (error, "read", ""))))
+;;
+
+let view t = t.buf
+let ok = return `Ok
+let eof = return `Eof
+
+let rec refill t =
+  match refill' t with
+  | `Buffer_is_full | `Read_some -> ok
+  | `Eof -> eof
+  | `Nothing_available ->
+    Fd.ready_to t.fd `Read
+    >>= (function
+    | `Ready -> refill t
+    | `Closed -> eof
+    | `Bad_fd ->
+      raise_s
+        [%message "Shuttle.Input_channel.read: bad file descriptor" ~fd:(t.fd : Fd.t)])
 ;;
 
 module Driver = struct
@@ -125,7 +154,7 @@ module Driver = struct
   let process_incoming t =
     if can_process_chunk t
     then (
-      match refill t.reader with
+      match refill' t.reader with
       | `Eof -> interrupt t Eof_reached
       | `Buffer_is_full ->
         Logger.info
@@ -203,7 +232,7 @@ let transfer t writer =
   let finished = Ivar.create () in
   upon (Pipe.closed writer) (fun () -> Ivar.fill_if_empty finished ());
   let rec loop () =
-    match refill t with
+    match refill' t with
     | `Eof -> Ivar.fill_if_empty finished ()
     | `Buffer_is_full | `Read_some ->
       let payload = Bytebuffer.Consume.stringo t.buf in

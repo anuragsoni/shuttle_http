@@ -6,6 +6,15 @@ open! Core
 open! Async_kernel
 open Async_unix
 
+module View : sig
+  type t
+
+  val buf : t -> string
+  val pos : t -> int
+  val length : t -> int
+  val consume : t -> int -> unit
+end
+
 type 'a handle_chunk_result =
   [ `Stop of 'a
     (** [Stop a] indicates that the read loop's handler consumed 0 bytes and that the read
@@ -25,6 +34,8 @@ val create : ?buf_len:int -> Fd.t -> t
 val is_closed : t -> bool
 val closed : t -> unit Deferred.t
 val close : t -> unit Deferred.t
+val refill : t -> [ `Ok | `Eof ] Deferred.t
+val view : t -> View.t
 
 (** [read_one_chunk_at_a_time ~on_chunk] reads bytes into the reader's internal buffer,
     and calls [on_chunk] whenever there is data available. *)
