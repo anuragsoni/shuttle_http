@@ -6,5 +6,5 @@ type error =
   | Partial
   | Msg of string
 
-val parse_request : ?pos:int -> ?len:int -> bytes -> (Request.t * int, error) result
-val parse_chunk_length : ?pos:int -> ?len:int -> bytes -> (int * int, error) result
+val parse_request : ?pos:int -> ?len:int -> string -> (Request.t * int, error) result
+val parse_chunk_length : ?pos:int -> ?len:int -> string -> (int * int, error) result

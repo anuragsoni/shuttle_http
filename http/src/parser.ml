@@ -1,5 +1,5 @@
 external unsafe_memchr
-  :  bytes
+  :  string
   -> int
   -> char
   -> int
@@ -8,7 +8,7 @@ external unsafe_memchr
   [@@noalloc]
 
 external unsafe_memcmp
-  :  bytes
+  :  string
   -> int
   -> string
   -> int
@@ -41,13 +41,13 @@ let[@inline always] is_tchar = function
 
 module Source = struct
   type t =
-    { buffer : bytes
+    { buffer : string
     ; mutable pos : int
     ; upper_bound : int
     }
 
   let of_bytes ~pos ?len buffer =
-    let buf_len = Bytes.length buffer in
+    let buf_len = String.length buffer in
     if pos < 0 || pos > buf_len
     then
       invalid_arg
@@ -69,12 +69,12 @@ module Source = struct
     { buffer; pos; upper_bound = pos + len }
   ;;
 
-  let[@inline always] get_unsafe t idx = Bytes.unsafe_get t.buffer (t.pos + idx)
+  let[@inline always] get_unsafe t idx = String.unsafe_get t.buffer (t.pos + idx)
 
   let[@inline always] get t idx =
     if idx < 0 || t.pos + idx >= t.upper_bound
     then invalid_arg "Shuttle_http.Parser.Source.get: Index out of bounds";
-    Bytes.unsafe_get t.buffer (t.pos + idx)
+    String.unsafe_get t.buffer (t.pos + idx)
   ;;
 
   let[@inline always] advance_unsafe t count = t.pos <- t.pos + count
@@ -104,7 +104,7 @@ module Source = struct
             %d, len: %d"
            pos
            len);
-    Bytes.sub_string t.buffer (t.pos + pos) len
+    String.sub t.buffer (t.pos + pos) len
   ;;
 
   let[@inline always] is_space = function
@@ -126,14 +126,14 @@ module Source = struct
            len);
     let last = ref (t.pos + len - 1) in
     let pos = ref (t.pos + pos) in
-    while is_space (Bytes.unsafe_get t.buffer !pos) do
+    while is_space (String.unsafe_get t.buffer !pos) do
       incr pos
     done;
-    while is_space (Bytes.unsafe_get t.buffer !last) do
+    while is_space (String.unsafe_get t.buffer !last) do
       decr last
     done;
     let len = !last - !pos + 1 in
-    Bytes.sub_string t.buffer !pos len
+    String.sub t.buffer !pos len
   ;;
 
   let[@inline always] index t ch =
@@ -155,7 +155,7 @@ module Source = struct
            len);
     let pos = ref (t.pos + pos) in
     let len = t.pos + len in
-    while !pos < len && is_tchar (Bytes.unsafe_get t.buffer !pos) do
+    while !pos < len && is_tchar (String.unsafe_get t.buffer !pos) do
       incr pos
     done;
     !pos = len
