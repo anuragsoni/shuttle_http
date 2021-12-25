@@ -20,7 +20,6 @@ module type S = sig
 
     val refill : t -> [ `Ok | `Eof ] Deferred.t
     val view : t -> View.t
-    val available : t -> int
   end
 
   module Writer : sig

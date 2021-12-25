@@ -1,5 +1,5 @@
 (executables
- (names redis_bench_async redis_bench_shuttle)
+ (names redis_bench_async redis_bench_shuttle http_server)
  (preprocess
   (pps ppx_jane))
- (libraries core async shuttle shuttle_ssl))
+ (libraries core async shuttle shuttle_ssl h11))
