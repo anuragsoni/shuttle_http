@@ -42,11 +42,15 @@ val writef : t -> ('a, unit, string, unit) format4 -> 'a
     flushed. *)
 val close : t -> unit Deferred.t
 
-(** [flush] will schedule a write system call if one is needed. *)
-val flush : t -> unit
+(** [schedule_flush] will schedule a write system call if one is needed. *)
+val schedule_flush : t -> unit
 
 (** [flushed t f] deferred that will get resolved when all prior writes have finished. *)
 val flushed : t -> unit Deferred.t
+
+(** [flush] schedules a write system call if one is needed and returns a deferred that
+    will get resolved when all prior writes have finished. *)
+val flush : t -> unit Deferred.t
 
 val pipe : t -> string Pipe.Writer.t
 val of_pipe : Info.t -> string Pipe.Writer.t -> (t * unit Deferred.t) Deferred.t

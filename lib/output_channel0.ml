@@ -204,11 +204,16 @@ let is_writing t =
   | Stopped -> false
 ;;
 
-let flush t =
+let schedule_flush t =
   if (not (is_writing t)) && Bytebuffer.length t.buf > 0
   then (
     t.writer_state <- Active;
     Scheduler.within ~monitor:t.monitor (fun () -> write_everything t))
+;;
+
+let flush t =
+  schedule_flush t;
+  flushed t
 ;;
 
 let ensure_can_write t =
@@ -261,7 +266,7 @@ let write_from_pipe t reader =
       | `Nothing_available -> Pipe.values_available reader >>> fun _ -> loop ()
       | `Ok bufs ->
         Queue.iter bufs ~f:(fun buf -> write t buf);
-        flush t;
+        schedule_flush t;
         Pipe.Consumer.values_sent_downstream consumer;
         flushed t >>> loop)
   in
