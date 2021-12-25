@@ -230,12 +230,13 @@ let write_bigstring t ?pos ?len buf =
 
 let schedule_bigstring t ?pos ?len buf = write_bigstring t ?pos ?len buf
 
-let write_string t ?pos ?len buf =
+let write t ?pos ?len buf =
   ensure_can_write t;
   Bytebuffer.Fill.string t.buf buf ?pos ?len
 ;;
 
-let writef t fmt = ksprintf (fun str -> write_string t str) fmt
+let write_string t ?pos ?len buf = write t ?pos ?len buf
+let writef t fmt = ksprintf (fun str -> write t str) fmt
 
 let write_char t ch =
   ensure_can_write t;
@@ -259,7 +260,7 @@ let write_from_pipe t reader =
       | `Eof -> Ivar.fill finished ()
       | `Nothing_available -> Pipe.values_available reader >>> fun _ -> loop ()
       | `Ok bufs ->
-        Queue.iter bufs ~f:(fun buf -> write_string t buf);
+        Queue.iter bufs ~f:(fun buf -> write t buf);
         flush t;
         Pipe.Consumer.values_sent_downstream consumer;
         flushed t >>> loop)

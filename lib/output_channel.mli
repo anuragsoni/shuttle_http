@@ -24,14 +24,16 @@ val close_finished : t -> unit Deferred.t
 val write_bigstring : t -> ?pos:int -> ?len:int -> Bigstring.t -> unit
 
 val schedule_bigstring : t -> ?pos:int -> ?len:int -> Bigstring.t -> unit
-  [@@alert
-    info
-      "schedule_bigstring will be removed in a future release. Use [write_bigstring] \
-       instead."]
+  [@@deprecated
+    "schedule_bigstring will be removed in a future release. Use [write_bigstring] \
+     instead."]
 
-(** [write_string] copies the string into the channel's internal buffer. The string will
-    surface the next time the writer schedules a write. *)
+(** [write] copies the string into the channel's internal buffer. The string will surface
+    the next time the writer schedules a write. *)
+val write : t -> ?pos:int -> ?len:int -> string -> unit
+
 val write_string : t -> ?pos:int -> ?len:int -> string -> unit
+  [@@deprecated "write_string will be removed in a future release. Use [write] instead. "]
 
 val write_char : t -> char -> unit
 val writef : t -> ('a, unit, string, unit) format4 -> 'a

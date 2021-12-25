@@ -24,7 +24,7 @@ let run sock =
             let len = Input_channel.View.length view in
             for i = pos to len - 1 do
               if Char.equal (String.unsafe_get buf i) '\n'
-              then Output_channel.write_string writer "+PONG\r\n"
+              then Output_channel.write writer "+PONG\r\n"
             done;
             Input_channel.View.consume view len;
             Output_channel.flush writer;

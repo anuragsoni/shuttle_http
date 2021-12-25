@@ -7,7 +7,7 @@ let stdout = Lazy.force Writer.stdout
 
 let write_chunks_to_chan wr chunks =
   Deferred.List.iter ~how:`Sequential chunks ~f:(fun chunk ->
-      Output_channel.write_string wr chunk;
+      Output_channel.write wr chunk;
       Output_channel.flush wr;
       Output_channel.flushed wr)
 ;;
@@ -73,9 +73,9 @@ let%expect_test "create input_channel from pipe" =
 let%expect_test "create output_channel from pipe" =
   let rd, wr = Pipe.create () in
   let%bind t, _flushed = Output_channel.of_pipe (Info.of_string "testing") wr in
-  Output_channel.write_string t "Hello";
+  Output_channel.write t "Hello";
   Output_channel.flush t;
-  Output_channel.write_string t " World!\n";
+  Output_channel.write t " World!\n";
   Output_channel.flush t;
   Output_channel.writef t "Another line using writef %d %b\n" 12 false;
   Output_channel.flush t;
