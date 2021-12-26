@@ -48,10 +48,12 @@ let benchmark =
   let headers =
     Headers.of_list [ "content-length", Int.to_string (String.length text) ]
   in
-  let handler request _body =
+  let handler request body =
     let target = Request.path request in
     match target with
     | "/" ->
+      Server.Pull.drain body
+      >>= fun () ->
       let response = Response.create ~headers `Ok in
       return (response, Server.Body.string text)
     | _ -> failwith "path not found"

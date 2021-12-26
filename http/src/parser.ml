@@ -326,6 +326,50 @@ let chunk_length source =
     raise_notrace (Msg (Printf.sprintf "Invalid chunk_length character %C" ch))
 ;;
 
+let take len source =
+  let available = Source.length source in
+  let to_consume = min len available in
+  if to_consume = 0 then raise_notrace Partial;
+  let payload = Source.to_string source ~pos:0 ~len:to_consume in
+  Source.advance source to_consume;
+  payload
+;;
+
+type chunk_kind =
+  | Start_chunk
+  | Continue_chunk of int
+
+type chunk_parser_result =
+  | Chunk_complete of string
+  | Done
+  | Partial_chunk of string * int
+
+let chunk chunk_kind source =
+  match chunk_kind with
+  | Start_chunk ->
+    let chunk_length = chunk_length source in
+    if chunk_length = 0
+    then (
+      eol source;
+      Done)
+    else (
+      let current_chunk = take chunk_length source in
+      let current_chunk_length = String.length current_chunk in
+      if current_chunk_length = chunk_length
+      then (
+        eol source;
+        Chunk_complete current_chunk)
+      else Partial_chunk (current_chunk, chunk_length - current_chunk_length))
+  | Continue_chunk len ->
+    let chunk = take len source in
+    let current_chunk_length = String.length chunk in
+    if current_chunk_length = len
+    then (
+      eol source;
+      Chunk_complete chunk)
+    else Partial_chunk (chunk, len - current_chunk_length)
+;;
+
 let version source =
   let version = version source in
   eol source;
@@ -357,3 +401,4 @@ let run_parser ?pos ?len buf p =
 
 let parse_request ?pos ?len buf = run_parser ?pos ?len buf request
 let parse_chunk_length ?pos ?len buf = run_parser ?pos ?len buf chunk_length
+let parse_chunk ?pos ?len buf chunk_kind = run_parser ?pos ?len buf (chunk chunk_kind)

@@ -1,5 +1,18 @@
 open Import
 
+let[@inline] transfer_encoding headers =
+  match List.rev @@ Headers.find_multi headers "Transfer-Encoding" with
+  | x :: _ when caseless_equal x "chunked" -> `Chunked
+  | _x :: _ -> `Bad_request
+  | [] ->
+    (match
+       List.sort_uniq String.compare (Headers.find_multi headers "Content-Length")
+     with
+    | [] -> `Fixed 0
+    | [ x ] -> `Fixed (int_of_string x)
+    | _ -> `Bad_request)
+;;
+
 module Make (IO : Io_intf.S) = struct
   open IO
 
@@ -62,9 +75,86 @@ module Make (IO : Io_intf.S) = struct
       in
       loop t ~f
     ;;
+
+    let drain t =
+      let rec loop t =
+        t.next ()
+        >>= function
+        | None -> Deferred.unit
+        | Some _ -> loop t
+      in
+      loop t
+    ;;
   end
 
   module Body = struct
+    module Fixed = struct
+      type t = { mutable to_read : int }
+
+      let rec read_upto reader len =
+        let view = Reader.view reader in
+        let to_read = min len (Reader.View.length view) in
+        if to_read = 0
+        then
+          Reader.refill reader
+          >>= function
+          | `Eof -> return `Eof
+          | `Ok -> read_upto reader len
+        else (
+          let chunk = String.sub (Reader.View.buf view) (Reader.View.pos view) to_read in
+          Reader.View.consume view to_read;
+          return (`Ok chunk))
+      ;;
+
+      let create reader len =
+        let t = { to_read = len } in
+        let next () =
+          if t.to_read = 0
+          then Deferred.Option.none
+          else
+            read_upto reader len
+            >>= function
+            | `Eof -> Deferred.Option.none
+            | `Ok chunk ->
+              t.to_read <- t.to_read - String.length chunk;
+              Deferred.Option.some chunk
+        in
+        Pull.create next
+      ;;
+    end
+
+    module Chunked = struct
+      type t = { mutable state : Parser.chunk_kind }
+
+      let create reader =
+        let t = { state = Parser.Start_chunk } in
+        let rec next () =
+          let view = Reader.view reader in
+          let buf = Reader.View.buf view in
+          let pos = Reader.View.pos view in
+          let len = Reader.View.length view in
+          match Parser.parse_chunk ~pos ~len buf t.state with
+          | Ok (parse_result, consumed) ->
+            Reader.View.consume view consumed;
+            (match parse_result with
+            | Parser.Chunk_complete chunk ->
+              t.state <- Parser.Start_chunk;
+              Deferred.Option.some chunk
+            | Parser.Done -> Deferred.Option.none
+            | Parser.Partial_chunk (chunk, to_consume) ->
+              t.state <- Parser.Continue_chunk to_consume;
+              Deferred.Option.some chunk)
+          | Error (Msg msg) -> failwith msg
+          | Error Partial ->
+            Reader.refill reader
+            >>= (function
+            | `Eof -> Deferred.Option.none
+            | `Ok -> next ())
+        in
+        Pull.create next
+      ;;
+    end
+
     type t =
       | Fixed of string
       | Stream of string Pull.t
@@ -79,6 +169,8 @@ module Make (IO : Io_intf.S) = struct
       Writer.write writer "\r\n"
     ;;
 
+    let final_chunk = "0\r\n\r\n"
+
     let write_body t writer =
       match t with
       | Fixed s ->
@@ -89,7 +181,7 @@ module Make (IO : Io_intf.S) = struct
             write_chunk writer chunk;
             Writer.flush writer)
         >>= fun () ->
-        write_chunk writer "";
+        Writer.write writer final_chunk;
         Writer.flush writer
     ;;
   end
@@ -146,19 +238,6 @@ module Make (IO : Io_intf.S) = struct
     Pull.create loop
   ;;
 
-  let[@inline] transfer_encoding headers =
-    match List.rev @@ Headers.find_multi headers "Transfer-Encoding" with
-    | x :: _ when caseless_equal x "chunked" -> `Chunked
-    | _x :: _ -> `Bad_request
-    | [] ->
-      (match
-         List.sort_uniq String.compare (Headers.find_multi headers "Content-Length")
-       with
-      | [] -> `Fixed 0
-      | [ x ] -> `Fixed (int_of_string x)
-      | _ -> `Bad_request)
-  ;;
-
   let[@inline] is_chunked_response resp =
     match transfer_encoding (Response.headers resp) with
     | `Chunked -> true
@@ -171,6 +250,14 @@ module Make (IO : Io_intf.S) = struct
     | _ -> true
   ;;
 
+  let create_body_stream reader req =
+    match transfer_encoding (Request.headers req) with
+    | `Bad_request -> `Bad_request
+    | `Fixed 0 -> `Ok (Pull.empty ())
+    | `Fixed len -> `Ok (Body.Fixed.create reader len)
+    | `Chunked -> `Ok (Body.Chunked.create reader)
+  ;;
+
   let run reader writer handler error_handler =
     let conn = { reader; writer; handler; error_handler } in
     let requests = requests conn in
@@ -179,11 +266,19 @@ module Make (IO : Io_intf.S) = struct
       >>= function
       | None -> Deferred.unit
       | Some req ->
-        conn.handler req (Pull.empty ())
-        >>= fun (response, body) ->
-        write_response conn.writer response;
-        Body.write_body body conn.writer
-        >>= fun () -> if keep_alive response then aux () else Deferred.unit
+        (match create_body_stream reader req with
+        | `Ok body ->
+          conn.handler req body
+          >>= fun (response, body) ->
+          write_response conn.writer response;
+          Body.write_body body conn.writer
+          >>= fun () -> if keep_alive response then aux () else Deferred.unit
+        | `Bad_request ->
+          conn.error_handler ~request:req `Bad_request
+          >>= fun (response, body) ->
+          write_response conn.writer response;
+          Writer.write conn.writer body;
+          Writer.flush conn.writer)
     in
     aux ()
   ;;
