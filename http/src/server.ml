@@ -89,8 +89,6 @@ module Make (IO : Io_intf.S) = struct
 
   module Body = struct
     module Fixed = struct
-      type t = { mutable to_read : int }
-
       let rec read_upto reader len =
         let view = Reader.view reader in
         let to_read = min len (Reader.View.length view) in
@@ -106,52 +104,41 @@ module Make (IO : Io_intf.S) = struct
           return (`Ok chunk))
       ;;
 
-      let create reader len =
-        let t = { to_read = len } in
-        let next () =
-          if t.to_read = 0
-          then Deferred.Option.none
-          else
-            read_upto reader len
-            >>= function
-            | `Eof -> Deferred.Option.none
-            | `Ok chunk ->
-              t.to_read <- t.to_read - String.length chunk;
-              Deferred.Option.some chunk
-        in
-        Pull.create next
+      let rec consume_fixed reader to_read sink =
+        if to_read = 0
+        then Deferred.unit
+        else
+          read_upto reader to_read
+          >>= function
+          | `Eof -> sink None >>= fun () -> Deferred.unit
+          | `Ok chunk ->
+            sink (Some chunk)
+            >>= fun () -> consume_fixed reader (to_read - String.length chunk) sink
       ;;
     end
 
     module Chunked = struct
-      type t = { mutable state : Parser.chunk_kind }
-
-      let create reader =
-        let t = { state = Parser.Start_chunk } in
-        let rec next () =
-          let view = Reader.view reader in
-          let buf = Reader.View.buf view in
-          let pos = Reader.View.pos view in
-          let len = Reader.View.length view in
-          match Parser.parse_chunk ~pos ~len buf t.state with
-          | Ok (parse_result, consumed) ->
-            Reader.View.consume view consumed;
-            (match parse_result with
-            | Parser.Chunk_complete chunk ->
-              t.state <- Parser.Start_chunk;
-              Deferred.Option.some chunk
-            | Parser.Done -> Deferred.Option.none
-            | Parser.Partial_chunk (chunk, to_consume) ->
-              t.state <- Parser.Continue_chunk to_consume;
-              Deferred.Option.some chunk)
-          | Error (Msg msg) -> failwith msg
-          | Error Partial ->
-            Reader.refill reader
-            >>= (function
-            | `Eof -> Deferred.Option.none
-            | `Ok -> next ())
-        in
-        Pull.create next
+      let rec consume_chunk reader state sink =
+        let view = Reader.view reader in
+        let buf = Reader.View.buf view in
+        let pos = Reader.View.pos view in
+        let len = Reader.View.length view in
+        match Parser.parse_chunk ~pos ~len buf state with
+        | Error Partial ->
+          Reader.refill reader
+          >>= (function
+          | `Eof -> sink None >>= fun () -> Deferred.unit
+          | `Ok -> consume_chunk reader state sink)
+        | Error (Msg msg) -> failwith msg
+        | Ok (parse_result, consumed) ->
+          Reader.View.consume view consumed;
+          (match parse_result with
+          | Parser.Chunk_complete chunk ->
+            sink (Some chunk) >>= fun () -> consume_chunk reader Parser.Start_chunk sink
+          | Parser.Done -> sink None >>= fun () -> Deferred.unit
+          | Parser.Partial_chunk (chunk, to_consume) ->
+            sink (Some chunk)
+            >>= fun () -> consume_chunk reader (Parser.Continue_chunk to_consume) sink)
       ;;
     end
 
@@ -186,10 +173,13 @@ module Make (IO : Io_intf.S) = struct
     ;;
   end
 
-  type t =
+  type sink = string option -> unit Deferred.t
+
+  type 'a t =
     { reader : Reader.t
     ; writer : Writer.t
-    ; handler : Request.t -> string Pull.t -> (Response.t * Body.t) Deferred.t
+    ; on_request : Request.t -> 'a * sink
+    ; handler : 'a -> Request.t -> (Response.t * Body.t) Deferred.t
     ; error_handler : ?request:Request.t -> Status.t -> (Response.t * string) Deferred.t
     }
 
@@ -250,35 +240,38 @@ module Make (IO : Io_intf.S) = struct
     | _ -> true
   ;;
 
-  let create_body_stream reader req =
+  let consume_body reader req sink =
     match transfer_encoding (Request.headers req) with
-    | `Bad_request -> `Bad_request
-    | `Fixed 0 -> `Ok (Pull.empty ())
-    | `Fixed len -> `Ok (Body.Fixed.create reader len)
-    | `Chunked -> `Ok (Body.Chunked.create reader)
+    | `Bad_request -> return `Bad_request
+    | `Fixed 0 -> sink None >>= fun () -> return `Ok
+    | `Fixed len -> Body.Fixed.consume_fixed reader len sink >>= fun () -> return `Ok
+    | `Chunked ->
+      Body.Chunked.consume_chunk reader Parser.Start_chunk sink >>= fun () -> return `Ok
   ;;
 
-  let run reader writer handler error_handler =
-    let conn = { reader; writer; handler; error_handler } in
+  let run reader writer on_request handler error_handler =
+    let conn = { reader; writer; on_request; handler; error_handler } in
     let requests = requests conn in
     let rec aux () =
       Pull.read requests
       >>= function
       | None -> Deferred.unit
       | Some req ->
-        (match create_body_stream reader req with
-        | `Ok body ->
-          conn.handler req body
-          >>= fun (response, body) ->
-          write_response conn.writer response;
-          Body.write_body body conn.writer
-          >>= fun () -> if keep_alive response then aux () else Deferred.unit
+        let ctx, sink = on_request req in
+        consume_body reader req sink
+        >>= (function
         | `Bad_request ->
           conn.error_handler ~request:req `Bad_request
           >>= fun (response, body) ->
           write_response conn.writer response;
           Writer.write conn.writer body;
-          Writer.flush conn.writer)
+          Writer.flush conn.writer
+        | `Ok ->
+          conn.handler ctx req
+          >>= fun (response, body) ->
+          write_response conn.writer response;
+          Body.write_body body conn.writer
+          >>= fun () -> if keep_alive response then aux () else Deferred.unit)
     in
     aux ()
   ;;

@@ -44,16 +44,27 @@ end
 
 module Server = Server.Make (IO)
 
+let on_request _req =
+  let consume_body chunk =
+    match chunk with
+    | None -> Deferred.unit
+    | Some s ->
+      Log.Global.info "%s" s;
+      Deferred.unit
+  in
+  (), consume_body
+;;
+
 let benchmark =
   let headers =
     Headers.of_list [ "content-length", Int.to_string (String.length text) ]
   in
-  let handler request body =
+  let handler () request =
     let target = Request.path request in
     match target with
     | "/" ->
-      Server.Pull.drain body
-      >>= fun () ->
+      (* Pipe.drain body *)
+      (* >>= fun () -> *)
       let response = Response.create ~headers `Ok in
       return (response, Server.Body.string text)
     | _ -> failwith "path not found"
@@ -61,7 +72,7 @@ let benchmark =
   handler
 ;;
 
-let error_handler ?request status =
+let error_handler ?request:_ status =
   let response =
     Response.create
       ~headers:(Headers.of_list [ "Content-Length", "0"; "Connection", "close" ])
@@ -81,7 +92,8 @@ let main port max_accepts_per_batch () =
       ~max_connections:10_000
       ~max_accepts_per_batch
       where_to_listen
-      ~f:(fun _addr reader writer -> Server.run reader writer benchmark error_handler)
+      ~f:(fun _addr reader writer ->
+        Server.run reader writer on_request benchmark error_handler)
   in
   Deferred.forever () (fun () ->
       Clock.after Time.Span.(of_sec 0.5)
