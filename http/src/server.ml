@@ -228,12 +228,6 @@ module Make (IO : Io_intf.S) = struct
     Pull.create loop
   ;;
 
-  let[@inline] is_chunked_response resp =
-    match transfer_encoding (Response.headers resp) with
-    | `Chunked -> true
-    | `Bad_request | `Fixed _ -> false
-  ;;
-
   let keep_alive resp =
     match Headers.find (Response.headers resp) "connection" with
     | Some x when caseless_equal x "close" -> false

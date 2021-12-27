@@ -63,8 +63,6 @@ let benchmark =
     let target = Request.path request in
     match target with
     | "/" ->
-      (* Pipe.drain body *)
-      (* >>= fun () -> *)
       let response = Response.create ~headers `Ok in
       return (response, Server.Body.string text)
     | _ -> failwith "path not found"
