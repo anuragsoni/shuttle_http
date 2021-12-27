@@ -106,11 +106,11 @@ module Make (IO : Io_intf.S) = struct
 
       let rec consume_fixed reader to_read sink =
         if to_read = 0
-        then Deferred.unit
+        then return `Ok
         else
           read_upto reader to_read
           >>= function
-          | `Eof -> sink None >>= fun () -> Deferred.unit
+          | `Eof -> sink None >>= fun () -> return `Bad_request
           | `Ok chunk ->
             sink (Some chunk)
             >>= fun () -> consume_fixed reader (to_read - String.length chunk) sink
@@ -127,7 +127,7 @@ module Make (IO : Io_intf.S) = struct
         | Error Partial ->
           Reader.refill reader
           >>= (function
-          | `Eof -> sink None >>= fun () -> Deferred.unit
+          | `Eof -> sink None >>= fun () -> return `Bad_request
           | `Ok -> consume_chunk reader state sink)
         | Error (Msg msg) -> failwith msg
         | Ok (parse_result, consumed) ->
@@ -135,7 +135,7 @@ module Make (IO : Io_intf.S) = struct
           (match parse_result with
           | Parser.Chunk_complete chunk ->
             sink (Some chunk) >>= fun () -> consume_chunk reader Parser.Start_chunk sink
-          | Parser.Done -> sink None >>= fun () -> Deferred.unit
+          | Parser.Done -> sink None >>= fun () -> return `Ok
           | Parser.Partial_chunk (chunk, to_consume) ->
             sink (Some chunk)
             >>= fun () -> consume_chunk reader (Parser.Continue_chunk to_consume) sink)
@@ -244,9 +244,8 @@ module Make (IO : Io_intf.S) = struct
     match transfer_encoding (Request.headers req) with
     | `Bad_request -> return `Bad_request
     | `Fixed 0 -> sink None >>= fun () -> return `Ok
-    | `Fixed len -> Body.Fixed.consume_fixed reader len sink >>= fun () -> return `Ok
-    | `Chunked ->
-      Body.Chunked.consume_chunk reader Parser.Start_chunk sink >>= fun () -> return `Ok
+    | `Fixed len -> Body.Fixed.consume_fixed reader len sink
+    | `Chunked -> Body.Chunked.consume_chunk reader Parser.Start_chunk sink
   ;;
 
   let run reader writer on_request handler error_handler =
