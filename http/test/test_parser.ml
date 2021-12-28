@@ -19,7 +19,7 @@ let req =
 ;;
 
 let assert_req_success ~here ~expected_req ~expected_consumed ?pos ?len buf =
-  let buf = Bytes.From_string.subo ?pos ?len buf in
+  let buf = String.subo ?pos ?len buf in
   let req, consumed =
     match Parser.parse_request buf with
     | Error Parser.Partial -> failwith "Unexpected partial parse"
@@ -80,7 +80,7 @@ let parse_single_request () =
 
 let reject_headers_with_space_before_colon () =
   let req = "GET / HTTP/1.1\r\nHost : www.kittyhell.com\r\nKeep-Alive: 115\r\n\r\n" in
-  match Parser.parse_request (Bytes.of_string req) with
+  match Parser.parse_request req with
   | Error (Parser.Msg msg) -> [%test_result: string] ~expect:"Invalid Header Key" msg
   | _ -> assert false
 ;;
@@ -134,7 +134,7 @@ let parse_at_offset () =
 ;;
 
 let report_partial_parse () =
-  let buf = Bytes.of_string req in
+  let buf = req in
   let err =
     match Parser.parse_request ~pos:0 ~len:50 buf with
     | Error Parser.Partial -> Some "Partial"
@@ -146,7 +146,7 @@ let report_partial_parse () =
 
 let validate_http_version () =
   let req = "GET / HTTP/1.4\r\nHost: www.kittyhell.com\r\nKeep-Alive: 115\r\n\r\n" in
-  let buf = Bytes.of_string req in
+  let buf = req in
   let err =
     match Parser.parse_request buf with
     | Error (Parser.Msg msg) -> msg
@@ -167,7 +167,7 @@ let parse_result_notifies_start_of_body () =
      \r\n\
      foobar"
   in
-  let v = Parser.parse_request (Bytes.of_string buf) |> Result.ok in
+  let v = Parser.parse_request buf |> Result.ok in
   let _req, count = Option.value_exn v in
   [%test_result: string]
     ~expect:"foobar"
@@ -184,7 +184,7 @@ let parse_chunk_length () =
     ~f:(fun num ->
       let payload =
         let s = Printf.sprintf "%x\r\n" num in
-        Bytes.of_string s
+        s
       in
       match Parser.parse_chunk_length payload with
       | Ok res ->
@@ -195,7 +195,7 @@ let parse_chunk_length () =
 
 let chunk_length_parse_case_insensitive () =
   let run_test num str =
-    let buf = Bytes.of_string str in
+    let buf = str in
     match Parser.parse_chunk_length buf with
     | Ok res ->
       [%test_eq: int * int] res (num, String.length (Printf.sprintf "%x" num) + 2)
@@ -221,7 +221,7 @@ type parse_res =
 
 let parse_chunk_lengths () =
   let run_parser buf =
-    match Parser.parse_chunk_length (Bytes.of_string buf) with
+    match Parser.parse_chunk_length buf with
     | Ok res -> `Ok res
     | Error Parser.Partial -> `Partial
     | Error (Parser.Msg msg) -> `Msg msg

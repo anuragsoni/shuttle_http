@@ -1,5 +1,5 @@
 external unsafe_memchr
-  :  bytes
+  :  string
   -> int
   -> char
   -> int
@@ -8,7 +8,7 @@ external unsafe_memchr
   [@@noalloc]
 
 external unsafe_memcmp
-  :  bytes
+  :  string
   -> int
   -> string
   -> int
@@ -41,13 +41,13 @@ let[@inline always] is_tchar = function
 
 module Source = struct
   type t =
-    { buffer : bytes
+    { buffer : string
     ; mutable pos : int
     ; upper_bound : int
     }
 
   let of_bytes ~pos ?len buffer =
-    let buf_len = Bytes.length buffer in
+    let buf_len = String.length buffer in
     if pos < 0 || pos > buf_len
     then
       invalid_arg
@@ -69,12 +69,12 @@ module Source = struct
     { buffer; pos; upper_bound = pos + len }
   ;;
 
-  let[@inline always] get_unsafe t idx = Bytes.unsafe_get t.buffer (t.pos + idx)
+  let[@inline always] get_unsafe t idx = String.unsafe_get t.buffer (t.pos + idx)
 
   let[@inline always] get t idx =
     if idx < 0 || t.pos + idx >= t.upper_bound
     then invalid_arg "Shuttle_http.Parser.Source.get: Index out of bounds";
-    Bytes.unsafe_get t.buffer (t.pos + idx)
+    String.unsafe_get t.buffer (t.pos + idx)
   ;;
 
   let[@inline always] advance_unsafe t count = t.pos <- t.pos + count
@@ -104,7 +104,22 @@ module Source = struct
             %d, len: %d"
            pos
            len);
-    Bytes.sub_string t.buffer (t.pos + pos) len
+    String.sub t.buffer (t.pos + pos) len
+  ;;
+
+  let[@inline always] to_view t ~pos ~len =
+    if pos < 0
+       || t.pos + pos >= t.upper_bound
+       || len < 0
+       || t.pos + pos + len > t.upper_bound
+    then
+      invalid_arg
+        (Format.asprintf
+           "Shuttle_http.Parser.Source.substring: Index out of bounds., Requested off: \
+            %d, len: %d"
+           pos
+           len);
+    { View.buf = t.buffer; pos = t.pos + pos; len }
   ;;
 
   let[@inline always] is_space = function
@@ -126,14 +141,14 @@ module Source = struct
            len);
     let last = ref (t.pos + len - 1) in
     let pos = ref (t.pos + pos) in
-    while is_space (Bytes.unsafe_get t.buffer !pos) do
+    while is_space (String.unsafe_get t.buffer !pos) do
       incr pos
     done;
-    while is_space (Bytes.unsafe_get t.buffer !last) do
+    while is_space (String.unsafe_get t.buffer !last) do
       decr last
     done;
     let len = !last - !pos + 1 in
-    Bytes.sub_string t.buffer !pos len
+    String.sub t.buffer !pos len
   ;;
 
   let[@inline always] index t ch =
@@ -155,7 +170,7 @@ module Source = struct
            len);
     let pos = ref (t.pos + pos) in
     let len = t.pos + len in
-    while !pos < len && is_tchar (Bytes.unsafe_get t.buffer !pos) do
+    while !pos < len && is_tchar (String.unsafe_get t.buffer !pos) do
       incr pos
     done;
     !pos = len
@@ -326,6 +341,50 @@ let chunk_length source =
     raise_notrace (Msg (Printf.sprintf "Invalid chunk_length character %C" ch))
 ;;
 
+let take len source =
+  let available = Source.length source in
+  let to_consume = min len available in
+  if to_consume = 0 then raise_notrace Partial;
+  let payload = Source.to_view source ~pos:0 ~len:to_consume in
+  Source.advance source to_consume;
+  payload
+;;
+
+type chunk_kind =
+  | Start_chunk
+  | Continue_chunk of int
+
+type chunk_parser_result =
+  | Chunk_complete of View.t
+  | Done
+  | Partial_chunk of View.t * int
+
+let chunk chunk_kind source =
+  match chunk_kind with
+  | Start_chunk ->
+    let chunk_length = chunk_length source in
+    if chunk_length = 0
+    then (
+      eol source;
+      Done)
+    else (
+      let current_chunk = take chunk_length source in
+      let current_chunk_length = current_chunk.len in
+      if current_chunk_length = chunk_length
+      then (
+        eol source;
+        Chunk_complete current_chunk)
+      else Partial_chunk (current_chunk, chunk_length - current_chunk_length))
+  | Continue_chunk len ->
+    let chunk = take len source in
+    let current_chunk_length = chunk.len in
+    if current_chunk_length = len
+    then (
+      eol source;
+      Chunk_complete chunk)
+    else Partial_chunk (chunk, len - current_chunk_length)
+;;
+
 let version source =
   let version = version source in
   eol source;
@@ -357,3 +416,4 @@ let run_parser ?pos ?len buf p =
 
 let parse_request ?pos ?len buf = run_parser ?pos ?len buf request
 let parse_chunk_length ?pos ?len buf = run_parser ?pos ?len buf chunk_length
+let parse_chunk ?pos ?len buf chunk_kind = run_parser ?pos ?len buf (chunk chunk_kind)

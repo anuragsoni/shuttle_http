@@ -20,20 +20,14 @@ let req =
    \r\n"
 ;;
 
-let buf = Bytes.of_string req
-
 open Core_bench
 
 let hex_str = "fffffffe"
-
-let hex_chunk_size =
-  let s = Printf.sprintf "%s\r\n" hex_str in
-  Bytes.of_string s
-;;
+let hex_chunk_size = Printf.sprintf "%s\r\n" hex_str
 
 let tests =
   [ Bench.Test.create ~name:"H1 (httparse example)" (fun () ->
-        match H11.Parser.parse_request buf with
+        match H11.Parser.parse_request req with
         | Error _ -> assert false
         | Ok _ -> ())
   ; Bench.Test.create ~name:"Parse chunk size" (fun () ->

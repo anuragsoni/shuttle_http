@@ -9,3 +9,4 @@ val iter : t -> f:(key:string -> data:string -> unit) -> unit
 val fold : t -> init:'a -> f:('a -> key:string -> data:string -> 'a) -> 'a
 val find : t -> string -> string option
 val find_multi : t -> string -> string list
+val add_if_missing : t -> key:string -> data:string -> t
