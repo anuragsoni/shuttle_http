@@ -45,10 +45,7 @@ end
 module Server = Server.Make (IO)
 
 let on_request _req =
-  let consume_body chunk ~pos ~len =
-    Log.Global.info "%s" (String.sub chunk ~pos ~len);
-    Deferred.unit
-  in
+  let consume_body _chunk ~pos:_ ~len:_ = Deferred.unit in
   (), consume_body
 ;;
 
@@ -62,7 +59,14 @@ let benchmark =
     | "/" ->
       let response = Response.create ~headers `Ok in
       return (response, Server.Body.string text)
-    | _ -> failwith "path not found"
+    | "/echo" ->
+      let meth = Request.meth request in
+      (match meth with
+      | `POST ->
+        let response = Response.create ~headers `Ok in
+        return (response, Server.Body.string text)
+      | m -> failwithf "Unexpected method %S for path /echo" (Meth.to_string m) ())
+    | path -> failwithf "path %S not found." path ()
   in
   handler
 ;;
@@ -82,7 +86,7 @@ let main port max_accepts_per_batch () =
     Connection.listen
       ~input_buffer_size:0x4000
       ~output_buffer_size:0x4000
-      ~on_handler_error:`Ignore
+      ~on_handler_error:`Raise
       ~backlog:11_000
       ~max_connections:10_000
       ~max_accepts_per_batch

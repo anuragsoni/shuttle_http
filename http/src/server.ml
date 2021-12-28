@@ -107,7 +107,7 @@ module Make (IO : Io_intf.S) = struct
 
       let rec consume_fixed reader to_read sink =
         if to_read = 0
-        then return `Ok
+        then sink "" ~pos:0 ~len:0 >>= fun () -> return `Ok
         else
           read_upto reader to_read sink
           >>= function
@@ -251,17 +251,17 @@ module Make (IO : Io_intf.S) = struct
       | None -> Deferred.unit
       | Some req ->
         let ctx, sink = on_request req in
-        consume_body reader req sink
+        Deferred.both
+          (consume_body reader req sink)
+          (conn.handler ctx req >>= fun resp -> return (`Response resp))
         >>= (function
-        | `Bad_request ->
+        | `Bad_request, _ ->
           conn.error_handler ~request:req `Bad_request
           >>= fun (response, body) ->
           write_response conn.writer response;
           Writer.write conn.writer body;
           Writer.flush conn.writer
-        | `Ok ->
-          conn.handler ctx req
-          >>= fun (response, body) ->
+        | _, `Response (response, body) ->
           write_response conn.writer response;
           Body.write_body body conn.writer
           >>= fun () -> if keep_alive response then aux () else Deferred.unit)
