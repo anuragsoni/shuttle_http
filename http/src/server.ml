@@ -89,7 +89,7 @@ module Make (IO : Io_intf.S) = struct
 
   module Body = struct
     module Fixed = struct
-      let rec read_upto reader len =
+      let rec read_upto reader len sink =
         let view = Reader.view reader in
         let to_read = min len (Reader.View.length view) in
         if to_read = 0
@@ -97,23 +97,22 @@ module Make (IO : Io_intf.S) = struct
           Reader.refill reader
           >>= function
           | `Eof -> return `Eof
-          | `Ok -> read_upto reader len
-        else (
-          let chunk = String.sub (Reader.View.buf view) (Reader.View.pos view) to_read in
+          | `Ok -> read_upto reader len sink
+        else
+          sink (Reader.View.buf view) ~pos:(Reader.View.pos view) ~len:to_read
+          >>= fun () ->
           Reader.View.consume view to_read;
-          return (`Ok chunk))
+          return (`Ok to_read)
       ;;
 
       let rec consume_fixed reader to_read sink =
         if to_read = 0
         then return `Ok
         else
-          read_upto reader to_read
+          read_upto reader to_read sink
           >>= function
-          | `Eof -> sink None >>= fun () -> return `Bad_request
-          | `Ok chunk ->
-            sink (Some chunk)
-            >>= fun () -> consume_fixed reader (to_read - String.length chunk) sink
+          | `Eof -> sink "" ~pos:0 ~len:0 >>= fun () -> return `Bad_request
+          | `Ok read -> consume_fixed reader (to_read - read) sink
       ;;
     end
 
@@ -127,17 +126,18 @@ module Make (IO : Io_intf.S) = struct
         | Error Partial ->
           Reader.refill reader
           >>= (function
-          | `Eof -> sink None >>= fun () -> return `Bad_request
+          | `Eof -> sink "" ~pos:0 ~len:0 >>= fun () -> return `Bad_request
           | `Ok -> consume_chunk reader state sink)
         | Error (Msg msg) -> failwith msg
         | Ok (parse_result, consumed) ->
           Reader.View.consume view consumed;
           (match parse_result with
           | Parser.Chunk_complete chunk ->
-            sink (Some chunk) >>= fun () -> consume_chunk reader Parser.Start_chunk sink
-          | Parser.Done -> sink None >>= fun () -> return `Ok
+            sink chunk.buf ~pos:chunk.pos ~len:chunk.len
+            >>= fun () -> consume_chunk reader Parser.Start_chunk sink
+          | Parser.Done -> sink "" ~pos:0 ~len:0 >>= fun () -> return `Ok
           | Parser.Partial_chunk (chunk, to_consume) ->
-            sink (Some chunk)
+            sink chunk.buf ~pos:chunk.pos ~len:chunk.len
             >>= fun () -> consume_chunk reader (Parser.Continue_chunk to_consume) sink)
       ;;
     end
@@ -173,7 +173,7 @@ module Make (IO : Io_intf.S) = struct
     ;;
   end
 
-  type sink = string option -> unit Deferred.t
+  type sink = string -> pos:int -> len:int -> unit Deferred.t
 
   type 'a t =
     { reader : Reader.t
@@ -237,7 +237,7 @@ module Make (IO : Io_intf.S) = struct
   let consume_body reader req sink =
     match transfer_encoding (Request.headers req) with
     | `Bad_request -> return `Bad_request
-    | `Fixed 0 -> sink None >>= fun () -> return `Ok
+    | `Fixed 0 -> sink "" ~pos:0 ~len:0 >>= fun () -> return `Ok
     | `Fixed len -> Body.Fixed.consume_fixed reader len sink
     | `Chunked -> Body.Chunked.consume_chunk reader Parser.Start_chunk sink
   ;;

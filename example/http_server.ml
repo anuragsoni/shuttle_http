@@ -45,12 +45,9 @@ end
 module Server = Server.Make (IO)
 
 let on_request _req =
-  let consume_body chunk =
-    match chunk with
-    | None -> Deferred.unit
-    | Some s ->
-      Log.Global.info "%s" s;
-      Deferred.unit
+  let consume_body chunk ~pos ~len =
+    Log.Global.info "%s" (String.sub chunk ~pos ~len);
+    Deferred.unit
   in
   (), consume_body
 ;;

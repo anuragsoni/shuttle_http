@@ -20,7 +20,7 @@ module type S = sig
     val stream : string Pull.t -> t
   end
 
-  type sink = string option -> unit Deferred.t
+  type sink = string -> pos:int -> len:int -> unit Deferred.t
   type 'a t
 
   val run
