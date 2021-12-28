@@ -33,6 +33,15 @@
     (< v0.15)))))
 
 (package
+  (name h11)
+  (tags
+    (async http))
+  (synopsis "HTTP codec for shuttle")
+  (depends
+    (ocaml
+      (>= 4.11.0))))
+
+(package
  (name shuttle)
  (tags
   (async reader writer))

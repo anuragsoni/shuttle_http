@@ -1,7 +1,7 @@
-open! Core
-open! Async
-open Httpaf
+open Core
+open Async
 open Shuttle
+open H11
 
 let text =
   "CHAPTER I. Down the Rabbit-Hole  Alice was beginning to get very tired of sitting by \
@@ -31,57 +31,68 @@ let text =
    the well, and noticed that they were filled with cupboards......"
 ;;
 
-let text = Bigstring.of_string text
+module IO = struct
+  module Deferred = Deferred
+  module Reader = Input_channel
+
+  module Writer = struct
+    include Output_channel
+
+    let write t buf = write t buf
+  end
+end
+
+module Server = Server.Make (IO)
+
+let on_request _req =
+  let consume_body _chunk ~pos:_ ~len:_ = Deferred.unit in
+  (), consume_body
+;;
 
 let benchmark =
   let headers =
-    Headers.of_list [ "content-length", Int.to_string (Bigstringaf.length text) ]
+    Headers.of_list [ "content-length", Int.to_string (String.length text) ]
   in
-  let handler reqd =
-    let { Request.target; _ } = Reqd.request reqd in
-    let request_body = Reqd.request_body reqd in
-    Body.close_reader request_body;
+  let handler () request =
+    let target = Request.path request in
     match target with
-    | "/" -> Reqd.respond_with_bigstring reqd (Response.create ~headers `OK) text
-    | "/yield" ->
-      Scheduler.yield ()
-      >>> fun () -> Reqd.respond_with_bigstring reqd (Response.create ~headers `OK) text
-    | "/delay" ->
-      after Time.Span.millisecond
-      >>> fun () -> Reqd.respond_with_bigstring reqd (Response.create ~headers `OK) text
-    | _ -> Reqd.respond_with_string reqd (Response.create `Not_found) "Route not found"
+    | "/" ->
+      let response = Response.create ~headers `Ok in
+      return (response, Server.Body.string text)
+    | "/echo" ->
+      let meth = Request.meth request in
+      (match meth with
+      | `POST ->
+        let response = Response.create ~headers `Ok in
+        return (response, Server.Body.string text)
+      | m -> failwithf "Unexpected method %S for path /echo" (Meth.to_string m) ())
+    | path -> failwithf "path %S not found." path ()
   in
   handler
 ;;
 
-let error_handler ?request:_ error start_response =
-  let response_body = start_response Headers.empty in
-  (match error with
-  | `Exn exn ->
-    Body.write_string response_body (Exn.to_string exn);
-    Body.write_string response_body "\n"
-  | #Status.standard as error ->
-    Body.write_string response_body (Status.default_reason_phrase error));
-  Body.close_writer response_body
+let error_handler ?request:_ status =
+  let response =
+    Response.create
+      ~headers:(Headers.of_list [ "Content-Length", "0"; "Connection", "close" ])
+      status
+  in
+  return (response, "")
 ;;
 
 let main port max_accepts_per_batch () =
   let where_to_listen = Tcp.Where_to_listen.of_port port in
-  let request_handler _ = benchmark in
-  let error_handler _ = error_handler in
   let%bind server =
     Connection.listen
-      ~on_handler_error:`Ignore
+      ~input_buffer_size:0x4000
+      ~output_buffer_size:0x4000
+      ~on_handler_error:`Raise
       ~backlog:11_000
       ~max_connections:10_000
       ~max_accepts_per_batch
       where_to_listen
-      ~f:(fun addr reader writer ->
-        Shuttle_http.Server.create_connection_handler
-          ~request_handler:(request_handler addr)
-          ~error_handler:(error_handler addr)
-          reader
-          writer)
+      ~f:(fun _addr reader writer ->
+        Server.run reader writer on_request benchmark error_handler)
   in
   Deferred.forever () (fun () ->
       Clock.after Time.Span.(of_sec 0.5)
