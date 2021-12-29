@@ -52,39 +52,6 @@ module Make (IO : Io_intf.S) = struct
     ;;
 
     let read t = t.next ()
-    let empty () = { next = (fun () -> Deferred.Option.none) }
-
-    let of_list xs =
-      let xs = ref xs in
-      let next () =
-        match !xs with
-        | [] -> Deferred.Option.none
-        | x :: xs' ->
-          xs := xs';
-          Deferred.Option.some x
-      in
-      { next }
-    ;;
-
-    let iter t ~f =
-      let rec loop t ~f =
-        t.next ()
-        >>= function
-        | None -> Deferred.unit
-        | Some v -> f v >>= fun () -> loop t ~f
-      in
-      loop t ~f
-    ;;
-
-    let drain t =
-      let rec loop t =
-        t.next ()
-        >>= function
-        | None -> Deferred.unit
-        | Some _ -> loop t
-      in
-      loop t
-    ;;
   end
 
   module Body = struct
@@ -142,46 +109,17 @@ module Make (IO : Io_intf.S) = struct
       ;;
     end
 
-    type t =
-      | Fixed of string
-      | Stream of string Pull.t
-
-    let string s = Fixed s
-    let stream s = Stream s
-
-    let write_chunk writer chunk =
-      let len = String.length chunk in
+    let write_chunk writer chunk ~pos ~len =
       Printf.ksprintf (fun chunk_len -> Writer.write writer chunk_len) "%x\r\n" len;
-      Writer.write writer chunk;
+      Writer.write writer ~pos ~len chunk;
       Writer.write writer "\r\n"
     ;;
 
     let final_chunk = "0\r\n\r\n"
-
-    let write_body t writer =
-      match t with
-      | Fixed s ->
-        Writer.write writer s;
-        Writer.flush writer
-      | Stream stream ->
-        Pull.iter stream ~f:(fun chunk ->
-            write_chunk writer chunk;
-            Writer.flush writer)
-        >>= fun () ->
-        Writer.write writer final_chunk;
-        Writer.flush writer
-    ;;
   end
 
+  type response = [ `Response of Response.t ] Deferred.t
   type sink = string -> pos:int -> len:int -> unit Deferred.t
-
-  type 'a t =
-    { reader : Reader.t
-    ; writer : Writer.t
-    ; on_request : Request.t -> 'a * sink
-    ; handler : 'a -> Request.t -> (Response.t * Body.t) Deferred.t
-    ; error_handler : ?request:Request.t -> Status.t -> (Response.t * string) Deferred.t
-    }
 
   let write_response writer response =
     Writer.write writer (Version.to_string (Response.version response));
@@ -197,6 +135,45 @@ module Make (IO : Io_intf.S) = struct
         Writer.write writer "\r\n");
     Writer.write writer "\r\n"
   ;;
+
+  module Context = struct
+    type t =
+      { writer : Writer.t
+      ; request : Request.t
+      }
+
+    let create writer request = { writer; request }
+    let request t = t.request
+
+    let respond_with_string t response body =
+      write_response t.writer response;
+      Writer.write t.writer body;
+      Writer.flush t.writer >>= fun () -> return (`Response response)
+    ;;
+
+    let respond_with_stream t response pull =
+      write_response t.writer response;
+      let rec loop () =
+        pull ()
+        >>= function
+        | None ->
+          Writer.write t.writer Body.final_chunk;
+          Writer.flush t.writer >>= fun () -> Deferred.return (`Response response)
+        | Some chunk ->
+          Body.write_chunk t.writer chunk ~pos:0 ~len:(String.length chunk);
+          Writer.flush t.writer >>= fun () -> loop ()
+      in
+      loop ()
+    ;;
+  end
+
+  type 'a t =
+    { reader : Reader.t
+    ; writer : Writer.t
+    ; on_request : Request.t -> 'a * sink
+    ; handler : 'a -> Context.t -> response
+    ; error_handler : ?request:Request.t -> Status.t -> (Response.t * string) Deferred.t
+    }
 
   let requests conn =
     let rec loop () =
@@ -251,9 +228,8 @@ module Make (IO : Io_intf.S) = struct
       | None -> Deferred.unit
       | Some req ->
         let ctx, sink = on_request req in
-        Deferred.both
-          (consume_body reader req sink)
-          (conn.handler ctx req >>= fun resp -> return (`Response resp))
+        let context = Context.create writer req in
+        Deferred.both (consume_body reader req sink) (conn.handler ctx context)
         >>= (function
         | `Bad_request, _ ->
           conn.error_handler ~request:req `Bad_request
@@ -261,10 +237,7 @@ module Make (IO : Io_intf.S) = struct
           write_response conn.writer response;
           Writer.write conn.writer body;
           Writer.flush conn.writer
-        | _, `Response (response, body) ->
-          write_response conn.writer response;
-          Body.write_body body conn.writer
-          >>= fun () -> if keep_alive response then aux () else Deferred.unit)
+        | _, `Response response -> if keep_alive response then aux () else Deferred.unit)
     in
     aux ()
   ;;

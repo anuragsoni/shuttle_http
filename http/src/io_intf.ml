@@ -26,7 +26,7 @@ module type S = sig
   module Writer : sig
     type t
 
-    val write : t -> string -> unit
+    val write : t -> ?pos:int -> ?len:int -> string -> unit
     val write_char : t -> char -> unit
     val flush : t -> unit Deferred.t
   end

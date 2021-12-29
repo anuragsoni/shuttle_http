@@ -34,12 +34,7 @@ let text =
 module IO = struct
   module Deferred = Deferred
   module Reader = Input_channel
-
-  module Writer = struct
-    include Output_channel
-
-    let write t buf = write t buf
-  end
+  module Writer = Output_channel
 end
 
 module Server = Server.Make (IO)
@@ -53,18 +48,19 @@ let benchmark =
   let headers =
     Headers.of_list [ "content-length", Int.to_string (String.length text) ]
   in
-  let handler () request =
+  let handler () ctx =
+    let request = Server.Context.request ctx in
     let target = Request.path request in
     match target with
     | "/" ->
       let response = Response.create ~headers `Ok in
-      return (response, Server.Body.string text)
+      Server.Context.respond_with_string ctx response text
     | "/echo" ->
       let meth = Request.meth request in
       (match meth with
       | `POST ->
         let response = Response.create ~headers `Ok in
-        return (response, Server.Body.string text)
+        Server.Context.respond_with_string ctx response text
       | m -> failwithf "Unexpected method %S for path /echo" (Meth.to_string m) ())
     | path -> failwithf "path %S not found." path ()
   in
