@@ -26,8 +26,10 @@ module type S = sig
   val run
     :  Reader.t
     -> Writer.t
-    -> (Request.t -> 'a * sink)
-    -> ('a -> Request.t -> (Response.t * Body.t) Deferred.t)
-    -> (?request:Request.t -> Status.t -> (Response.t * string) Deferred.t)
+    -> (Cohttp.Request.t -> 'a * sink)
+    -> ('a -> Cohttp.Request.t -> (Cohttp.Response.t * Body.t) Deferred.t)
+    -> (?request:Cohttp.Request.t
+        -> Cohttp.Code.status_code
+        -> (Cohttp.Response.t * string) Deferred.t)
     -> unit Deferred.t
 end

@@ -15,7 +15,12 @@ type chunk_parser_result =
   | Done
   | Partial_chunk of View.t * int
 
-val parse_request : ?pos:int -> ?len:int -> string -> (Request.t * int, error) result
+val parse_request
+  :  ?pos:int
+  -> ?len:int
+  -> string
+  -> (Cohttp.Request.t * int, error) result
+
 val parse_chunk_length : ?pos:int -> ?len:int -> string -> (int * int, error) result
 
 val parse_chunk

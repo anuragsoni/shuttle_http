@@ -217,9 +217,7 @@ let token source =
 
 let meth source =
   let token = token source in
-  match Meth.of_string token with
-  | Some m -> m
-  | None -> raise_notrace (Msg (Printf.sprintf "Unexpected HTTP verb %S" token))
+  Cohttp.Code.method_of_string token
 ;;
 
 let version_source source =
@@ -230,8 +228,8 @@ let version_source source =
 let version source =
   let ch = version_source source in
   match ch with
-  | '1' -> Version.v1_1
-  | '0' -> { Version.major = 1; minor = 0 }
+  | '1' -> `HTTP_1_1
+  | '0' -> `HTTP_1_0
   | _ -> raise_notrace (Msg "Invalid http version")
 ;;
 
@@ -263,7 +261,7 @@ let headers =
     if (not (Source.is_empty source)) && Source.get_unsafe source 0 = '\r'
     then (
       eol source;
-      Headers.of_list acc)
+      Cohttp.Header.of_list (List.rev acc))
     else (
       let v = header source in
       eol source;
@@ -396,7 +394,13 @@ let request source =
   let path = token source in
   let version = version source in
   let headers = headers source in
-  Request.create ~version ~headers meth path
+  { Cohttp.Request.headers
+  ; meth
+  ; scheme = None
+  ; resource = path
+  ; version
+  ; encoding = Cohttp.Header.get_transfer_encoding headers
+  }
 ;;
 
 type error =
