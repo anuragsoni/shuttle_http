@@ -39,7 +39,8 @@ end
 
 module Server = Server.Make (IO)
 
-let on_request _req =
+let on_request addr _req =
+  Log.Global.info !"Client socket: %{sexp: Socket.Address.Inet.t}" addr;
   let consume_body _chunk ~pos:_ ~len:_ = Deferred.unit in
   (), consume_body
 ;;
@@ -48,7 +49,8 @@ let benchmark =
   let headers =
     Headers.of_list [ "content-length", Int.to_string (String.length text) ]
   in
-  let handler () ctx =
+  let handler addr () ctx =
+    Log.Global.info !"Client socket: %{sexp: Socket.Address.Inet.t}" addr;
     let request = Server.Context.request ctx in
     let target = Request.path request in
     match target with
@@ -87,8 +89,8 @@ let main port max_accepts_per_batch () =
       ~max_connections:10_000
       ~max_accepts_per_batch
       where_to_listen
-      ~f:(fun _addr reader writer ->
-        Server.run reader writer on_request benchmark error_handler)
+      ~f:(fun addr reader writer ->
+        Server.run reader writer (on_request addr) (benchmark addr) error_handler)
   in
   Deferred.forever () (fun () ->
       Clock.after Time.Span.(of_sec 0.5)
