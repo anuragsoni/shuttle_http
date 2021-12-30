@@ -38,6 +38,8 @@
     (async http))
   (synopsis "HTTP codec for shuttle")
   (depends
+    (cohttp
+      (>= 5.0.0))
     (ocaml
       (>= 4.11.0))))
 

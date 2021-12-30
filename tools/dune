@@ -1,5 +1,0 @@
-(executables
- (names generate_status_codes)
- (preprocess
-  (pps ppx_jane))
- (libraries core core_extended.delimited_kernel))

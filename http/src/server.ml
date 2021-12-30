@@ -1,18 +1,3 @@
-open Import
-
-let[@inline] transfer_encoding headers =
-  match List.rev @@ Headers.find_multi headers "Transfer-Encoding" with
-  | x :: _ when caseless_equal x "chunked" -> `Chunked
-  | _x :: _ -> `Bad_request
-  | [] ->
-    (match
-       List.sort_uniq String.compare (Headers.find_multi headers "Content-Length")
-     with
-    | [] -> `Fixed 0
-    | [ x ] -> `Fixed (int_of_string x)
-    | _ -> `Bad_request)
-;;
-
 module Make (IO : Io_intf.S) = struct
   open IO
 
@@ -178,23 +163,31 @@ module Make (IO : Io_intf.S) = struct
   type 'a t =
     { reader : Reader.t
     ; writer : Writer.t
-    ; on_request : Request.t -> 'a * sink
-    ; handler : 'a -> Request.t -> (Response.t * Body.t) Deferred.t
-    ; error_handler : ?request:Request.t -> Status.t -> (Response.t * string) Deferred.t
+    ; on_request : Cohttp.Request.t -> 'a * sink
+    ; handler : 'a -> Cohttp.Request.t -> (Cohttp.Response.t * Body.t) Deferred.t
+    ; error_handler :
+        ?request:Cohttp.Request.t
+        -> Cohttp.Code.status_code
+        -> (Cohttp.Response.t * string) Deferred.t
     }
 
   let write_response writer response =
-    Writer.write writer (Version.to_string (Response.version response));
+    let open Cohttp in
+    Writer.write writer (Code.string_of_version (Response.version response));
     Writer.write_char writer ' ';
-    Writer.write writer (Status.to_string (Response.status response));
+    Writer.write writer (Code.string_of_status (Response.status response));
     Writer.write_char writer ' ';
-    Writer.write writer (Status.to_reason_phrase (Response.status response));
+    Writer.write
+      writer
+      (Code.reason_phrase_of_code (Code.code_of_status (Response.status response)));
     Writer.write writer "\r\n";
-    Headers.iter (Response.headers response) ~f:(fun ~key ~data ->
+    Header.iter
+      (fun key data ->
         Writer.write writer key;
         Writer.write writer ": ";
         Writer.write writer data;
-        Writer.write writer "\r\n");
+        Writer.write writer "\r\n")
+      (Response.headers response);
     Writer.write writer "\r\n"
   ;;
 
@@ -218,8 +211,11 @@ module Make (IO : Io_intf.S) = struct
       | Error (Msg _msg) ->
         conn.error_handler `Bad_request
         >>= fun (response, body) ->
+        let headers = Cohttp.Response.headers response in
         let response =
-          Response.add_header_if_missing response ~key:"Connection" ~data:"close"
+          { response with
+            headers = Cohttp.Header.add_unless_exists headers "Connection" "close"
+          }
         in
         write_response conn.writer response;
         Writer.write conn.writer body;
@@ -228,18 +224,22 @@ module Make (IO : Io_intf.S) = struct
     Pull.create loop
   ;;
 
-  let keep_alive resp =
-    match Headers.find (Response.headers resp) "connection" with
-    | Some x when caseless_equal x "close" -> false
-    | _ -> true
+  let consume_body reader req sink =
+    match Cohttp.Request.encoding req with
+    | Cohttp.Transfer.Unknown -> sink "" ~pos:0 ~len:0 >>= fun () -> return `Ok
+    | Cohttp.Transfer.Fixed 0L -> sink "" ~pos:0 ~len:0 >>= fun () -> return `Ok
+    | Cohttp.Transfer.Fixed len -> Body.Fixed.consume_fixed reader (Int64.to_int len) sink
+    | Cohttp.Transfer.Chunked -> Body.Chunked.consume_chunk reader Parser.Start_chunk sink
   ;;
 
-  let consume_body reader req sink =
-    match transfer_encoding (Request.headers req) with
-    | `Bad_request -> return `Bad_request
-    | `Fixed 0 -> sink "" ~pos:0 ~len:0 >>= fun () -> return `Ok
-    | `Fixed len -> Body.Fixed.consume_fixed reader len sink
-    | `Chunked -> Body.Chunked.consume_chunk reader Parser.Start_chunk sink
+  let is_keep_alive req res =
+    match
+      ( Cohttp.Header.connection (Cohttp.Request.headers req)
+      , Cohttp.Header.connection (Cohttp.Response.headers res) )
+    with
+    | Some `Close, _ -> false
+    | _, Some `Close -> false
+    | _, _ -> true
   ;;
 
   let run reader writer on_request handler error_handler =
@@ -264,7 +264,7 @@ module Make (IO : Io_intf.S) = struct
         | _, `Response (response, body) ->
           write_response conn.writer response;
           Body.write_body body conn.writer
-          >>= fun () -> if keep_alive response then aux () else Deferred.unit)
+          >>= fun () -> if is_keep_alive req response then aux () else Deferred.unit)
     in
     aux ()
   ;;

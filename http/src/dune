@@ -1,5 +1,6 @@
 (library
  (public_name h11)
+ (libraries cohttp)
  (foreign_stubs
   (language c)
   (names shuttle_parser_stubs)))

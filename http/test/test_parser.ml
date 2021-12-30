@@ -29,27 +29,29 @@ let assert_req_success ~here ~expected_req ~expected_consumed ?pos ?len buf =
   [%test_result: string]
     ~here
     ~message:"HTTP Method mismatch"
-    ~expect:(Meth.to_string @@ Request.meth expected_req)
-    (Meth.to_string @@ Request.meth req);
+    ~expect:(Cohttp.Code.string_of_method @@ Cohttp.Request.meth expected_req)
+    (Cohttp.Code.string_of_method @@ Cohttp.Request.meth req);
   [%test_result: string]
     ~here
     ~message:"path mismatch"
-    ~expect:(Request.path expected_req)
-    (Request.path req);
+    ~expect:(Cohttp.Request.resource expected_req)
+    (Cohttp.Request.resource req);
   [%test_result: (string * string) list]
     ~here
     ~message:"header mismatch"
-    ~expect:(Headers.to_list @@ Request.headers expected_req)
-    (Headers.to_list @@ Request.headers req);
+    ~expect:(Cohttp.Header.to_list @@ Cohttp.Request.headers expected_req)
+    (Cohttp.Header.to_list @@ Cohttp.Request.headers req);
   [%test_result: int] ~here ~expect:expected_consumed consumed
 ;;
 
-let make_req ~headers meth resource = Request.create ~headers meth resource
+let make_req ~headers ?(encoding = Cohttp.Transfer.Fixed 0L) meth resource =
+  { Cohttp.Request.headers; meth; resource; scheme = None; encoding; version = `HTTP_1_1 }
+;;
 
 let req_expected =
   make_req
     ~headers:
-      (Headers.of_rev_list
+      (Cohttp.Header.of_list
          [ "Host", "www.kittyhell.com"
          ; ( "User-Agent"
            , "Mozilla/5.0 (Macintosh; U; Intel Mac OS X 10.6; ja-JP-mac; rv:1.9.2.3) \
@@ -111,7 +113,7 @@ let parse_at_offset () =
   let expected_req =
     make_req
       ~headers:
-        (Headers.of_rev_list
+        (Cohttp.Header.of_list
            [ "Host", "www.redditstatic.com"
            ; ( "User-Agent"
              , "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.8; rv:15.0) Gecko/20100101 \

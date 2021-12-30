@@ -50,22 +50,25 @@ let on_request _req =
 ;;
 
 let benchmark =
-  let headers =
-    Headers.of_list [ "content-length", Int.to_string (String.length text) ]
-  in
+  let open Cohttp in
+  let headers = Header.of_list [ "content-length", Int.to_string (String.length text) ] in
   let handler () request =
-    let target = Request.path request in
+    let target = Request.resource request in
     match target with
     | "/" ->
-      let response = Response.create ~headers `Ok in
+      let response = Response.make ~headers ~status:`OK () in
       return (response, Server.Body.string text)
     | "/echo" ->
       let meth = Request.meth request in
       (match meth with
       | `POST ->
-        let response = Response.create ~headers `Ok in
+        let response = Response.make ~headers ~status:`OK () in
         return (response, Server.Body.string text)
-      | m -> failwithf "Unexpected method %S for path /echo" (Meth.to_string m) ())
+      | m ->
+        failwithf
+          "Unexpected method %S for path /echo"
+          (Cohttp.Code.string_of_method m)
+          ())
     | path -> failwithf "path %S not found." path ()
   in
   handler
@@ -73,9 +76,11 @@ let benchmark =
 
 let error_handler ?request:_ status =
   let response =
-    Response.create
-      ~headers:(Headers.of_list [ "Content-Length", "0"; "Connection", "close" ])
-      status
+    let open Cohttp in
+    Response.make
+      ~headers:(Header.of_list [ "Content-Length", "0"; "Connection", "close" ])
+      ~status
+      ()
   in
   return (response, "")
 ;;
