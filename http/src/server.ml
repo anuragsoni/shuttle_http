@@ -232,16 +232,6 @@ module Make (IO : Io_intf.S) = struct
     | Cohttp.Transfer.Chunked -> Body.Chunked.consume_chunk reader Parser.Start_chunk sink
   ;;
 
-  let is_keep_alive req res =
-    match
-      ( Cohttp.Header.connection (Cohttp.Request.headers req)
-      , Cohttp.Header.connection (Cohttp.Response.headers res) )
-    with
-    | Some `Close, _ -> false
-    | _, Some `Close -> false
-    | _, _ -> true
-  ;;
-
   let run reader writer on_request handler error_handler =
     let conn = { reader; writer; on_request; handler; error_handler } in
     let requests = requests conn in
@@ -264,7 +254,13 @@ module Make (IO : Io_intf.S) = struct
         | _, `Response (response, body) ->
           write_response conn.writer response;
           Body.write_body body conn.writer
-          >>= fun () -> if is_keep_alive req response then aux () else Deferred.unit)
+          >>= fun () ->
+          if not
+               Cohttp.(
+                 Header.get_connection_close (Request.headers req)
+                 || Header.get_connection_close (Response.headers response))
+          then aux ()
+          else Deferred.unit)
     in
     aux ()
   ;;
