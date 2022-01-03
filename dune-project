@@ -35,13 +35,24 @@
 (package
   (name h11)
   (tags
-    (async http))
+    (http11 h11))
   (synopsis "HTTP codec for shuttle")
   (depends
     (cohttp
       (>= 5.0.0))
     (ocaml
       (>= 4.11.0))))
+
+(package
+  (name shuttle_http)
+  (tags
+   (async http11 h11))
+  (synopsis "HTTP 1.1 server for async")
+  (depends
+   (h11
+    (= :version))
+   (shuttle
+    (= :version))))
 
 (package
  (name shuttle)
