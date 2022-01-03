@@ -39,18 +39,6 @@ module Make (IO : Io_intf.S) = struct
     let read t = t.next ()
     let empty () = { next = (fun () -> Deferred.Option.none) }
 
-    let of_list xs =
-      let xs = ref xs in
-      let next () =
-        match !xs with
-        | [] -> Deferred.Option.none
-        | x :: xs' ->
-          xs := xs';
-          Deferred.Option.some x
-      in
-      { next }
-    ;;
-
     let iter t ~f =
       let rec loop t ~f =
         t.next ()
@@ -74,7 +62,9 @@ module Make (IO : Io_intf.S) = struct
 
   module Body = struct
     module Fixed = struct
-      let rec read_upto reader len sink =
+      type t = { mutable to_read : int }
+
+      let rec read_upto reader len =
         let view = Reader.view reader in
         let to_read = min len (Reader.View.length view) in
         if to_read = 0
@@ -82,57 +72,69 @@ module Make (IO : Io_intf.S) = struct
           Reader.refill reader
           >>= function
           | `Eof -> return `Eof
-          | `Ok -> read_upto reader len sink
-        else
-          sink (Reader.View.buf view) ~pos:(Reader.View.pos view) ~len:to_read
-          >>= fun () ->
+          | `Ok -> read_upto reader len
+        else (
+          let chunk = String.sub (Reader.View.buf view) (Reader.View.pos view) to_read in
           Reader.View.consume view to_read;
-          return (`Ok to_read)
+          return (`Ok chunk))
       ;;
 
-      let rec consume_fixed reader to_read sink =
-        if to_read = 0
-        then sink "" ~pos:0 ~len:0 >>= fun () -> return `Ok
-        else
-          read_upto reader to_read sink
-          >>= function
-          | `Eof -> sink "" ~pos:0 ~len:0 >>= fun () -> return `Bad_request
-          | `Ok read -> consume_fixed reader (to_read - read) sink
+      let create reader len =
+        let t = { to_read = len } in
+        let next () =
+          if t.to_read = 0
+          then Deferred.Option.none
+          else
+            read_upto reader len
+            >>= function
+            | `Eof -> Deferred.Option.none
+            | `Ok chunk ->
+              t.to_read <- t.to_read - String.length chunk;
+              Deferred.Option.some chunk
+        in
+        Pull.create next
       ;;
     end
 
     module Chunked = struct
-      let rec consume_chunk reader state sink =
-        let view = Reader.view reader in
-        let buf = Reader.View.buf view in
-        let pos = Reader.View.pos view in
-        let len = Reader.View.length view in
-        match Parser.parse_chunk ~pos ~len buf state with
-        | Error Partial ->
-          Reader.refill reader
-          >>= (function
-          | `Eof -> sink "" ~pos:0 ~len:0 >>= fun () -> return `Bad_request
-          | `Ok -> consume_chunk reader state sink)
-        | Error (Msg msg) -> failwith msg
-        | Ok (parse_result, consumed) ->
-          Reader.View.consume view consumed;
-          (match parse_result with
-          | Parser.Chunk_complete chunk ->
-            sink chunk.buf ~pos:chunk.pos ~len:chunk.len
-            >>= fun () -> consume_chunk reader Parser.Start_chunk sink
-          | Parser.Done -> sink "" ~pos:0 ~len:0 >>= fun () -> return `Ok
-          | Parser.Partial_chunk (chunk, to_consume) ->
-            sink chunk.buf ~pos:chunk.pos ~len:chunk.len
-            >>= fun () -> consume_chunk reader (Parser.Continue_chunk to_consume) sink)
+      type t = { mutable state : Parser.chunk_kind }
+
+      let create reader =
+        let t = { state = Parser.Start_chunk } in
+        let rec next () =
+          let view = Reader.view reader in
+          let buf = Reader.View.buf view in
+          let pos = Reader.View.pos view in
+          let len = Reader.View.length view in
+          match Parser.parse_chunk ~pos ~len buf t.state with
+          | Ok (parse_result, consumed) ->
+            Reader.View.consume view consumed;
+            (match parse_result with
+            | Parser.Chunk_complete chunk ->
+              t.state <- Parser.Start_chunk;
+              Deferred.Option.some (String.sub chunk.buf chunk.pos chunk.len)
+            | Parser.Done -> Deferred.Option.none
+            | Parser.Partial_chunk (chunk, to_consume) ->
+              t.state <- Parser.Continue_chunk to_consume;
+              Deferred.Option.some (String.sub chunk.buf chunk.pos chunk.len))
+          | Error (Msg msg) -> failwith msg
+          | Error Partial ->
+            Reader.refill reader
+            >>= (function
+            | `Eof -> Deferred.Option.none
+            | `Ok -> next ())
+        in
+        Pull.create next
       ;;
     end
 
-    type t =
-      | Fixed of string
-      | Stream of string Pull.t
+    module Reader = struct
+      type t = string Pull.t
 
-    let string s = Fixed s
-    let stream s = Stream s
+      let iter t ~f = Pull.iter t ~f
+      let drain t = Pull.drain t
+      let read t = Pull.read t
+    end
 
     let write_chunk writer chunk =
       let len = String.length chunk in
@@ -142,34 +144,7 @@ module Make (IO : Io_intf.S) = struct
     ;;
 
     let final_chunk = "0\r\n\r\n"
-
-    let write_body t writer =
-      match t with
-      | Fixed s ->
-        Writer.write writer s;
-        Writer.flush writer
-      | Stream stream ->
-        Pull.iter stream ~f:(fun chunk ->
-            write_chunk writer chunk;
-            Writer.flush writer)
-        >>= fun () ->
-        Writer.write writer final_chunk;
-        Writer.flush writer
-    ;;
   end
-
-  type sink = string -> pos:int -> len:int -> unit Deferred.t
-
-  type 'a t =
-    { reader : Reader.t
-    ; writer : Writer.t
-    ; on_request : Cohttp.Request.t -> 'a * sink
-    ; handler : 'a -> Cohttp.Request.t -> (Cohttp.Response.t * Body.t) Deferred.t
-    ; error_handler :
-        ?request:Cohttp.Request.t
-        -> Cohttp.Code.status_code
-        -> (Cohttp.Response.t * string) Deferred.t
-    }
 
   let write_response writer response =
     let open Cohttp in
@@ -191,9 +166,73 @@ module Make (IO : Io_intf.S) = struct
     Writer.write writer "\r\n"
   ;;
 
-  let requests conn =
+  module Connection = struct
+    type response =
+      | Keep_alive
+      | Close
+
+    type sink = string -> unit Deferred.t
+
+    type t =
+      { reader : Reader.t
+      ; writer : Writer.t
+      ; request : Cohttp.Request.t
+      ; request_body : string Pull.t
+      ; handler : t -> response Deferred.t
+      ; error_handler :
+          ?request:Cohttp.Request.t
+          -> Cohttp.Code.status_code
+          -> (Cohttp.Response.t * string) Deferred.t
+      }
+
+    let request t = t.request
+    let request_body t = t.request_body
+
+    let respond_with_string t response body =
+      write_response t.writer response;
+      Writer.write t.writer body;
+      Writer.flush t.writer
+      >>= fun () ->
+      Pull.drain t.request_body
+      >>= fun () ->
+      if not
+           Cohttp.(
+             Header.get_connection_close (Request.headers t.request)
+             || Header.get_connection_close (Response.headers response))
+      then return Keep_alive
+      else return Close
+    ;;
+
+    let respond_with_stream t response state f =
+      write_response t.writer response;
+      let sink buf =
+        Body.write_chunk t.writer buf;
+        Writer.flush t.writer
+      in
+      f state sink
+      >>= fun () ->
+      Writer.write t.writer Body.final_chunk;
+      Writer.flush t.writer
+      >>= fun () ->
+      if not
+           Cohttp.(
+             Header.get_connection_close (Request.headers t.request)
+             || Header.get_connection_close (Response.headers response))
+      then return Keep_alive
+      else return Close
+    ;;
+  end
+
+  let requests
+      reader
+      writer
+      (error_handler :
+        ?request:Cohttp.Request.t
+        -> Cohttp.Code.status_code
+        -> (Cohttp.Response.t * string) Deferred.t)
+    =
     let rec loop () =
-      let view = Reader.view conn.reader in
+      let view = Reader.view reader in
       match
         Parser.parse_request
           ~pos:(Reader.View.pos view)
@@ -204,12 +243,12 @@ module Make (IO : Io_intf.S) = struct
         Reader.View.consume view consumed;
         Deferred.Option.some req
       | Error Parser.Partial ->
-        Reader.refill conn.reader
+        Reader.refill reader
         >>= (function
         | `Eof -> Deferred.Option.none
         | `Ok -> loop ())
       | Error (Msg _msg) ->
-        conn.error_handler `Bad_request
+        error_handler `Bad_request
         >>= fun (response, body) ->
         let headers = Cohttp.Response.headers response in
         let response =
@@ -217,50 +256,42 @@ module Make (IO : Io_intf.S) = struct
             headers = Cohttp.Header.add_unless_exists headers "Connection" "close"
           }
         in
-        write_response conn.writer response;
-        Writer.write conn.writer body;
-        Writer.flush conn.writer >>= fun () -> Deferred.Option.none
+        write_response writer response;
+        Writer.write writer body;
+        Writer.flush writer >>= fun () -> Deferred.Option.none
     in
     Pull.create loop
   ;;
 
-  let consume_body reader req sink =
+  let create_body_reader reader req =
     match Cohttp.Request.encoding req with
-    | Cohttp.Transfer.Unknown -> sink "" ~pos:0 ~len:0 >>= fun () -> return `Ok
-    | Cohttp.Transfer.Fixed 0L -> sink "" ~pos:0 ~len:0 >>= fun () -> return `Ok
-    | Cohttp.Transfer.Fixed len -> Body.Fixed.consume_fixed reader (Int64.to_int len) sink
-    | Cohttp.Transfer.Chunked -> Body.Chunked.consume_chunk reader Parser.Start_chunk sink
+    | Cohttp.Transfer.Unknown -> Pull.empty ()
+    | Cohttp.Transfer.Fixed 0L -> Pull.empty ()
+    | Cohttp.Transfer.Fixed len -> Body.Fixed.create reader (Int64.to_int len)
+    | Cohttp.Transfer.Chunked -> Body.Chunked.create reader
   ;;
 
-  let run reader writer on_request handler error_handler =
-    let conn = { reader; writer; on_request; handler; error_handler } in
-    let requests = requests conn in
+  let run reader writer handler error_handler =
+    let requests = requests reader writer error_handler in
     let rec aux () =
       Pull.read requests
       >>= function
       | None -> Deferred.unit
       | Some req ->
-        let ctx, sink = on_request req in
-        Deferred.both
-          (consume_body reader req sink)
-          (conn.handler ctx req >>= fun resp -> return (`Response resp))
+        let request_body = create_body_reader reader req in
+        let conn =
+          { Connection.reader
+          ; writer
+          ; handler
+          ; error_handler
+          ; request = req
+          ; request_body
+          }
+        in
+        conn.handler conn
         >>= (function
-        | `Bad_request, _ ->
-          conn.error_handler ~request:req `Bad_request
-          >>= fun (response, body) ->
-          write_response conn.writer response;
-          Writer.write conn.writer body;
-          Writer.flush conn.writer
-        | _, `Response (response, body) ->
-          write_response conn.writer response;
-          Body.write_body body conn.writer
-          >>= fun () ->
-          if not
-               Cohttp.(
-                 Header.get_connection_close (Request.headers req)
-                 || Header.get_connection_close (Response.headers response))
-          then aux ()
-          else Deferred.unit)
+        | Connection.Keep_alive -> aux ()
+        | Connection.Close -> Deferred.unit)
     in
     aux ()
   ;;

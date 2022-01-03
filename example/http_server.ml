@@ -44,26 +44,40 @@ end
 
 module Server = Server.Make (IO)
 
-let on_request _req =
-  let consume_body _chunk ~pos:_ ~len:_ = Deferred.unit in
-  (), consume_body
-;;
-
 let benchmark =
   let open Cohttp in
   let headers = Header.of_list [ "content-length", Int.to_string (String.length text) ] in
-  let handler () request =
+  let handler conn =
+    let request = Server.Connection.request conn in
     let target = Request.resource request in
     match target with
     | "/" ->
       let response = Response.make ~headers ~status:`OK () in
-      return (response, Server.Body.string text)
+      Server.Connection.respond_with_string conn response text
+    | "/post" ->
+      let meth = Request.meth request in
+      (match meth with
+      | `POST ->
+        let request_body = Server.Connection.request_body conn in
+        let response =
+          Response.make
+            ~headers:(Cohttp.Header.of_list [ "transfer-encoding", "chunked" ])
+            ~status:`OK
+            ()
+        in
+        Server.Connection.respond_with_stream conn response request_body (fun body sink ->
+            Server.Body.Reader.iter body ~f:sink)
+      | m ->
+        failwithf
+          "Unexpected method %S for path /echo"
+          (Cohttp.Code.string_of_method m)
+          ())
     | "/echo" ->
       let meth = Request.meth request in
       (match meth with
       | `POST ->
         let response = Response.make ~headers ~status:`OK () in
-        return (response, Server.Body.string text)
+        Server.Connection.respond_with_string conn response text
       | m ->
         failwithf
           "Unexpected method %S for path /echo"
@@ -96,8 +110,7 @@ let main port max_accepts_per_batch () =
       ~max_connections:10_000
       ~max_accepts_per_batch
       where_to_listen
-      ~f:(fun _addr reader writer ->
-        Server.run reader writer on_request benchmark error_handler)
+      ~f:(fun _addr reader writer -> Server.run reader writer benchmark error_handler)
   in
   Deferred.forever () (fun () ->
       Clock.after Time.Span.(of_sec 0.5)
