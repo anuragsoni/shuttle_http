@@ -193,8 +193,6 @@ module Make (IO : Io_intf.S) = struct
       Writer.write t.writer body;
       Writer.flush t.writer
       >>= fun () ->
-      Pull.drain t.request_body
-      >>= fun () ->
       if not
            Cohttp.(
              Header.get_connection_close (Request.headers t.request)
@@ -290,8 +288,8 @@ module Make (IO : Io_intf.S) = struct
         in
         conn.handler conn
         >>= (function
-        | Connection.Keep_alive -> aux ()
-        | Connection.Close -> Deferred.unit)
+        | Connection.Keep_alive -> Pull.drain conn.request_body >>= fun () -> aux ()
+        | Connection.Close -> Pull.drain conn.request_body)
     in
     aux ()
   ;;
