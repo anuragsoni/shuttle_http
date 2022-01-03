@@ -18,13 +18,6 @@ module View = struct
   let consume t = Bytebuffer.drop t
 end
 
-type 'a handle_chunk_result =
-  [ `Stop of 'a
-  | `Continue of int
-  | `Stop_consumed of 'a * int
-  ]
-[@@deriving sexp_of]
-
 type t =
   { fd : Fd.t
   ; mutable reading : bool
@@ -103,131 +96,6 @@ let rec refill t =
         [%message "Shuttle.Input_channel.read: bad file descriptor" ~fd:(t.fd : Fd.t)])
 ;;
 
-module Driver = struct
-  type 'a state =
-    | Running
-    | Stopped of 'a stop_reason
-
-  and 'a stop_reason =
-    | Handler_raised
-    | Eof_reached
-    | Stopped_by_user of 'a
-
-  type nonrec 'a t =
-    { reader : t
-    ; on_chunk : Bytes.t -> pos:int -> len:int -> 'a handle_chunk_result
-    ; interrupt : unit Ivar.t
-    ; mutable state : 'a state
-    }
-
-  let is_running t =
-    match t.state with
-    | Running -> true
-    | Stopped _ -> false
-  ;;
-
-  let interrupt t reason =
-    assert (is_running t);
-    t.state <- Stopped reason;
-    Ivar.fill t.interrupt ()
-  ;;
-
-  let can_process_chunk t = (not t.reader.is_closed) && is_running t
-
-  let process_chunks t =
-    if can_process_chunk t
-    then (
-      let len = Bytebuffer.length t.reader.buf in
-      if len > 0
-      then (
-        let buf = Bytebuffer.unsafe_buf t.reader.buf in
-        let pos = Bytebuffer.pos t.reader.buf in
-        let len = Bytebuffer.length t.reader.buf in
-        match t.on_chunk buf ~pos ~len with
-        | `Stop x -> interrupt t (Stopped_by_user x)
-        | `Stop_consumed (x, count) ->
-          Bytebuffer.drop t.reader.buf count;
-          interrupt t (Stopped_by_user x)
-        | `Continue count -> Bytebuffer.drop t.reader.buf count))
-  ;;
-
-  let process_incoming t =
-    if can_process_chunk t
-    then (
-      match refill' t.reader with
-      | `Eof -> interrupt t Eof_reached
-      | `Buffer_is_full ->
-        Logger.info
-          "Input_channel.refill: Internal buffer is full. Can't refill with more content \
-           unless some bytes are consumed by the user";
-        process_chunks t
-      | `Nothing_available | `Read_some -> process_chunks t)
-  ;;
-
-  let stop_watching_on_error t ~monitor =
-    let parent = Monitor.current () in
-    Monitor.detach_and_iter_errors monitor ~f:(fun exn ->
-        if is_running t then interrupt t Handler_raised;
-        Monitor.send_exn parent exn)
-  ;;
-
-  let eof_to_response t =
-    let len = Bytebuffer.length t.reader.buf in
-    if len = 0
-    then return `Eof
-    else return (`Eof_with_unconsumed (Bytebuffer.Consume.stringo t.reader.buf))
-  ;;
-
-  let run reader ~on_chunk =
-    let t = { reader; interrupt = Ivar.create (); state = Running; on_chunk } in
-    let monitor =
-      Monitor.create ~here:[%here] ~name:"Shuttle.Input_channel.Driver.run" ()
-    in
-    stop_watching_on_error t ~monitor;
-    match%bind
-      Scheduler.within' ~monitor (fun () ->
-          let interrupt = Deferred.any_unit [ Ivar.read t.interrupt; closed t.reader ] in
-          Fd.interruptible_every_ready_to ~interrupt t.reader.fd `Read process_incoming t)
-    with
-    | `Bad_fd | `Unsupported ->
-      raise_s
-        [%message
-          "Shuttle.Input_channel.run: fd doesn't support watching"
-            ~fd:(t.reader.fd : Fd.t)]
-    | `Closed | `Interrupted ->
-      (match t.state with
-      | Running ->
-        assert (Fd.is_closed t.reader.fd || t.reader.is_closed);
-        eof_to_response t
-      | Stopped (Stopped_by_user x) -> return (`Stopped x)
-      | Stopped Handler_raised -> Deferred.never ()
-      | Stopped Eof_reached -> eof_to_response t)
-  ;;
-end
-
-let read_one_chunk_at_a_time t ~on_chunk =
-  if t.is_closed
-  then
-    raise_s [%message "Shuttle.Input_channel: attempting to read from a closed channel"];
-  if t.reading
-  then raise_s [%message "Shuttle.Input_channel: already reading from input channel"];
-  t.reading <- true;
-  Monitor.protect
-    ~run:`Now
-    ~here:[%here]
-    ~finally:(fun () ->
-      t.reading <- false;
-      Deferred.unit)
-    (fun () -> Driver.run t ~on_chunk)
-;;
-
-let drain t =
-  read_one_chunk_at_a_time t ~on_chunk:(fun _buf ~pos:_ ~len -> `Continue len)
-  >>| function
-  | `Eof -> ()
-  | `Eof_with_unconsumed _ | `Stopped _ -> assert false
-;;
-
 let transfer t writer =
   let finished = Ivar.create () in
   upon (Pipe.closed writer) (fun () -> Ivar.fill_if_empty finished ());
@@ -253,3 +121,5 @@ let pipe t =
   (transfer t writer >>> fun () -> close t >>> fun () -> Pipe.close writer);
   reader
 ;;
+
+let drain t = Pipe.drain (pipe t)

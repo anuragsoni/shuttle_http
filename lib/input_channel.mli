@@ -15,19 +15,6 @@ module View : sig
   val consume : t -> int -> unit
 end
 
-type 'a handle_chunk_result =
-  [ `Stop of 'a
-    (** [Stop a] indicates that the read loop's handler consumed 0 bytes and that the read
-        loop should stop with the user provided value [a]. *)
-  | `Stop_consumed of 'a * int
-    (** [Stop_consumed (a, n)] indicates that the read loop's handler consumed [n] bytes,
-        and that the read loop should stop with the user provided value [a]. *)
-  | `Continue of int
-    (** [Continue] indicates that the read loop's handler consumed [n] bytes, and would
-        like to keep reading. *)
-  ]
-[@@deriving sexp_of]
-
 type t [@@deriving sexp_of]
 
 val create : ?buf_len:int -> Fd.t -> t
@@ -36,13 +23,6 @@ val closed : t -> unit Deferred.t
 val close : t -> unit Deferred.t
 val refill : t -> [ `Ok | `Eof ] Deferred.t
 val view : t -> View.t
-
-(** [read_one_chunk_at_a_time ~on_chunk] reads bytes into the reader's internal buffer,
-    and calls [on_chunk] whenever there is data available. *)
-val read_one_chunk_at_a_time
-  :  t
-  -> on_chunk:(Bytes.t -> pos:int -> len:int -> 'a handle_chunk_result)
-  -> [ `Stopped of 'a | `Eof | `Eof_with_unconsumed of string ] Deferred.t
 
 (** [drain t] reads chunks of data from the reader and discards them. *)
 val drain : t -> unit Deferred.t
