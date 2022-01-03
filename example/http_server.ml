@@ -47,18 +47,19 @@ module Server = Server.Make (IO)
 let benchmark =
   let open Cohttp in
   let headers = Header.of_list [ "content-length", Int.to_string (String.length text) ] in
-  let handler request _request_body =
+  let handler conn =
+    let request = Server.Connection.request conn in
     let target = Request.resource request in
     match target with
     | "/" ->
       let response = Response.make ~headers ~status:`OK () in
-      return (response, Server.Body.string text)
+      Server.Connection.respond_with_string conn response text
     | "/echo" ->
       let meth = Request.meth request in
       (match meth with
       | `POST ->
         let response = Response.make ~headers ~status:`OK () in
-        return (response, Server.Body.string text)
+        Server.Connection.respond_with_string conn response text
       | m ->
         failwithf
           "Unexpected method %S for path /echo"

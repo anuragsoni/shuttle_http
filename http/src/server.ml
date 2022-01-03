@@ -171,17 +171,6 @@ module Make (IO : Io_intf.S) = struct
     ;;
   end
 
-  type 'a t =
-    { reader : Reader.t
-    ; writer : Writer.t
-    ; handler :
-        Cohttp.Request.t -> string Pull.t -> (Cohttp.Response.t * Body.t) Deferred.t
-    ; error_handler :
-        ?request:Cohttp.Request.t
-        -> Cohttp.Code.status_code
-        -> (Cohttp.Response.t * string) Deferred.t
-    }
-
   let write_response writer response =
     let open Cohttp in
     Writer.write writer (Code.string_of_version (Response.version response));
@@ -202,9 +191,52 @@ module Make (IO : Io_intf.S) = struct
     Writer.write writer "\r\n"
   ;;
 
-  let requests conn =
+  module Connection = struct
+    type response =
+      | Keep_alive
+      | Close
+
+    type t =
+      { reader : Reader.t
+      ; writer : Writer.t
+      ; request : Cohttp.Request.t
+      ; request_body : string Pull.t
+      ; handler : t -> response Deferred.t
+      ; error_handler :
+          ?request:Cohttp.Request.t
+          -> Cohttp.Code.status_code
+          -> (Cohttp.Response.t * string) Deferred.t
+      }
+
+    let request t = t.request
+    let request_body t = t.request_body
+
+    let respond_with_string t response body =
+      write_response t.writer response;
+      Writer.write t.writer body;
+      Writer.flush t.writer
+      >>= fun () ->
+      Pull.drain t.request_body
+      >>= fun () ->
+      if not
+           Cohttp.(
+             Header.get_connection_close (Request.headers t.request)
+             || Header.get_connection_close (Response.headers response))
+      then return Keep_alive
+      else return Close
+    ;;
+  end
+
+  let requests
+      reader
+      writer
+      (error_handler :
+        ?request:Cohttp.Request.t
+        -> Cohttp.Code.status_code
+        -> (Cohttp.Response.t * string) Deferred.t)
+    =
     let rec loop () =
-      let view = Reader.view conn.reader in
+      let view = Reader.view reader in
       match
         Parser.parse_request
           ~pos:(Reader.View.pos view)
@@ -215,12 +247,12 @@ module Make (IO : Io_intf.S) = struct
         Reader.View.consume view consumed;
         Deferred.Option.some req
       | Error Parser.Partial ->
-        Reader.refill conn.reader
+        Reader.refill reader
         >>= (function
         | `Eof -> Deferred.Option.none
         | `Ok -> loop ())
       | Error (Msg _msg) ->
-        conn.error_handler `Bad_request
+        error_handler `Bad_request
         >>= fun (response, body) ->
         let headers = Cohttp.Response.headers response in
         let response =
@@ -228,9 +260,9 @@ module Make (IO : Io_intf.S) = struct
             headers = Cohttp.Header.add_unless_exists headers "Connection" "close"
           }
         in
-        write_response conn.writer response;
-        Writer.write conn.writer body;
-        Writer.flush conn.writer >>= fun () -> Deferred.Option.none
+        write_response writer response;
+        Writer.write writer body;
+        Writer.flush writer >>= fun () -> Deferred.Option.none
     in
     Pull.create loop
   ;;
@@ -244,26 +276,26 @@ module Make (IO : Io_intf.S) = struct
   ;;
 
   let run reader writer handler error_handler =
-    let conn = { reader; writer; handler; error_handler } in
-    let requests = requests conn in
+    let requests = requests reader writer error_handler in
     let rec aux () =
       Pull.read requests
       >>= function
       | None -> Deferred.unit
       | Some req ->
-        let body_reader = create_body_reader reader req in
-        conn.handler req body_reader
+        let request_body = create_body_reader reader req in
+        let conn =
+          { Connection.reader
+          ; writer
+          ; handler
+          ; error_handler
+          ; request = req
+          ; request_body
+          }
+        in
+        conn.handler conn
         >>= (function
-        | response, body ->
-          write_response conn.writer response;
-          Body.write_body body conn.writer
-          >>= fun () ->
-          if not
-               Cohttp.(
-                 Header.get_connection_close (Request.headers req)
-                 || Header.get_connection_close (Response.headers response))
-          then Pull.drain body_reader >>= fun () -> aux ()
-          else Deferred.unit)
+        | Connection.Keep_alive -> aux ()
+        | Connection.Close -> Deferred.unit)
     in
     aux ()
   ;;

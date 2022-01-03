@@ -20,12 +20,19 @@ module type S = sig
     val stream : string Pull.t -> t
   end
 
-  type 'a t
+  module Connection : sig
+    type t
+    type response
+
+    val request : t -> Cohttp.Request.t
+    val request_body : t -> string Pull.t
+    val respond_with_string : t -> Cohttp.Response.t -> string -> response Deferred.t
+  end
 
   val run
     :  Reader.t
     -> Writer.t
-    -> (Cohttp.Request.t -> string Pull.t -> (Cohttp.Response.t * Body.t) Deferred.t)
+    -> (Connection.t -> Connection.response Deferred.t)
     -> (?request:Cohttp.Request.t
         -> Cohttp.Code.status_code
         -> (Cohttp.Response.t * string) Deferred.t)
