@@ -1,7 +1,6 @@
 open Core
 open Async
 open Shuttle
-open H11
 
 let text =
   "CHAPTER I. Down the Rabbit-Hole  Alice was beginning to get very tired of sitting by \
@@ -31,42 +30,29 @@ let text =
    the well, and noticed that they were filled with cupboards......"
 ;;
 
-module IO = struct
-  module Deferred = Deferred
-  module Reader = Input_channel
-
-  module Writer = struct
-    include Output_channel
-
-    let write t buf = write t buf
-  end
-end
-
-module Server = Server.Make (IO)
-
 let benchmark =
   let open Cohttp in
+  let open Shuttle_http in
   let headers = Header.of_list [ "content-length", Int.to_string (String.length text) ] in
   let handler conn =
-    let request = Server.Connection.request conn in
+    let request = Connection.request conn in
     let target = Request.resource request in
     match target with
     | "/" ->
       let response = Response.make ~headers ~status:`OK () in
-      Server.Connection.respond_with_string conn response text
+      Connection.respond_with_string conn response text
     | "/post" ->
       let meth = Request.meth request in
       (match meth with
       | `POST ->
-        let request_body = Server.Connection.request_body conn in
+        let request_body = Connection.request_body conn in
         let response =
           Response.make
             ~headers:(Cohttp.Header.of_list [ "transfer-encoding", "chunked" ])
             ~status:`OK
             ()
         in
-        Server.Connection.respond_with_stream conn response request_body (fun body sink ->
-            Server.Body.Reader.iter body ~f:sink)
+        Connection.respond_with_stream conn response request_body
       | m ->
         failwithf
           "Unexpected method %S for path /echo"
@@ -77,7 +63,7 @@ let benchmark =
       (match meth with
       | `POST ->
         let response = Response.make ~headers ~status:`OK () in
-        Server.Connection.respond_with_string conn response text
+        Connection.respond_with_string conn response text
       | m ->
         failwithf
           "Unexpected method %S for path /echo"
@@ -110,7 +96,8 @@ let main port max_accepts_per_batch () =
       ~max_connections:10_000
       ~max_accepts_per_batch
       where_to_listen
-      ~f:(fun _addr reader writer -> Server.run reader writer benchmark error_handler)
+      ~f:(fun addr reader writer ->
+        Shuttle_http.run addr reader writer benchmark error_handler)
   in
   Deferred.forever () (fun () ->
       Clock.after Time.Span.(of_sec 0.5)

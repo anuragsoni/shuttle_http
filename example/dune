@@ -2,4 +2,4 @@
  (names redis_bench_async redis_bench_shuttle http_server)
  (preprocess
   (pps ppx_jane))
- (libraries core async shuttle shuttle_ssl h11))
+ (libraries core async shuttle shuttle_ssl shuttle_http))
