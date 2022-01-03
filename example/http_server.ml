@@ -44,15 +44,10 @@ end
 
 module Server = Server.Make (IO)
 
-let on_request _req =
-  let consume_body _chunk ~pos:_ ~len:_ = Deferred.unit in
-  (), consume_body
-;;
-
 let benchmark =
   let open Cohttp in
   let headers = Header.of_list [ "content-length", Int.to_string (String.length text) ] in
-  let handler () request =
+  let handler request _request_body =
     let target = Request.resource request in
     match target with
     | "/" ->
@@ -96,8 +91,7 @@ let main port max_accepts_per_batch () =
       ~max_connections:10_000
       ~max_accepts_per_batch
       where_to_listen
-      ~f:(fun _addr reader writer ->
-        Server.run reader writer on_request benchmark error_handler)
+      ~f:(fun _addr reader writer -> Server.run reader writer benchmark error_handler)
   in
   Deferred.forever () (fun () ->
       Clock.after Time.Span.(of_sec 0.5)

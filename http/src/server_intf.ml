@@ -20,14 +20,12 @@ module type S = sig
     val stream : string Pull.t -> t
   end
 
-  type sink = string -> pos:int -> len:int -> unit Deferred.t
   type 'a t
 
   val run
     :  Reader.t
     -> Writer.t
-    -> (Cohttp.Request.t -> 'a * sink)
-    -> ('a -> Cohttp.Request.t -> (Cohttp.Response.t * Body.t) Deferred.t)
+    -> (Cohttp.Request.t -> string Pull.t -> (Cohttp.Response.t * Body.t) Deferred.t)
     -> (?request:Cohttp.Request.t
         -> Cohttp.Code.status_code
         -> (Cohttp.Response.t * string) Deferred.t)
