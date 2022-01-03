@@ -39,18 +39,6 @@ module Make (IO : Io_intf.S) = struct
     let read t = t.next ()
     let empty () = { next = (fun () -> Deferred.Option.none) }
 
-    let of_list xs =
-      let xs = ref xs in
-      let next () =
-        match !xs with
-        | [] -> Deferred.Option.none
-        | x :: xs' ->
-          xs := xs';
-          Deferred.Option.some x
-      in
-      { next }
-    ;;
-
     let iter t ~f =
       let rec loop t ~f =
         t.next ()
@@ -140,12 +128,13 @@ module Make (IO : Io_intf.S) = struct
       ;;
     end
 
-    type t =
-      | Fixed of string
-      | Stream of string Pull.t
+    module Reader = struct
+      type t = string Pull.t
 
-    let string s = Fixed s
-    let stream s = Stream s
+      let iter t ~f = Pull.iter t ~f
+      let drain t = Pull.drain t
+      let read t = Pull.read t
+    end
 
     let write_chunk writer chunk =
       let len = String.length chunk in
@@ -155,20 +144,6 @@ module Make (IO : Io_intf.S) = struct
     ;;
 
     let final_chunk = "0\r\n\r\n"
-
-    let write_body t writer =
-      match t with
-      | Fixed s ->
-        Writer.write writer s;
-        Writer.flush writer
-      | Stream stream ->
-        Pull.iter stream ~f:(fun chunk ->
-            write_chunk writer chunk;
-            Writer.flush writer)
-        >>= fun () ->
-        Writer.write writer final_chunk;
-        Writer.flush writer
-    ;;
   end
 
   let write_response writer response =
@@ -196,6 +171,8 @@ module Make (IO : Io_intf.S) = struct
       | Keep_alive
       | Close
 
+    type sink = string -> unit Deferred.t
+
     type t =
       { reader : Reader.t
       ; writer : Writer.t
@@ -217,6 +194,25 @@ module Make (IO : Io_intf.S) = struct
       Writer.flush t.writer
       >>= fun () ->
       Pull.drain t.request_body
+      >>= fun () ->
+      if not
+           Cohttp.(
+             Header.get_connection_close (Request.headers t.request)
+             || Header.get_connection_close (Response.headers response))
+      then return Keep_alive
+      else return Close
+    ;;
+
+    let respond_with_stream t response state f =
+      write_response t.writer response;
+      let sink buf =
+        Body.write_chunk t.writer buf;
+        Writer.flush t.writer
+      in
+      f state sink
+      >>= fun () ->
+      Writer.write t.writer Body.final_chunk;
+      Writer.flush t.writer
       >>= fun () ->
       if not
            Cohttp.(

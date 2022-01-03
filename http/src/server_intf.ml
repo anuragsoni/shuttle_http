@@ -2,31 +2,31 @@ module type S = sig
   module IO : Io_intf.S
   open IO
 
-  module Pull : sig
-    type 'a t
-
-    val create : (unit -> 'a option Deferred.t) -> 'a t
-    val read : 'a t -> 'a option Deferred.t
-    val empty : unit -> 'a t
-    val of_list : 'a list -> 'a t
-    val iter : 'a t -> f:('a -> unit Deferred.t) -> unit Deferred.t
-    val drain : 'a t -> unit Deferred.t
-  end
-
   module Body : sig
-    type t
+    module Reader : sig
+      type t
 
-    val string : string -> t
-    val stream : string Pull.t -> t
+      val iter : t -> f:(string -> unit Deferred.t) -> unit Deferred.t
+      val drain : t -> unit Deferred.t
+      val read : t -> string option Deferred.t
+    end
   end
 
   module Connection : sig
     type t
     type response
+    type sink = string -> unit Deferred.t
 
     val request : t -> Cohttp.Request.t
-    val request_body : t -> string Pull.t
+    val request_body : t -> Body.Reader.t
     val respond_with_string : t -> Cohttp.Response.t -> string -> response Deferred.t
+
+    val respond_with_stream
+      :  t
+      -> Cohttp.Response.t
+      -> 'a
+      -> ('a -> sink -> unit Deferred.t)
+      -> response Deferred.t
   end
 
   val run

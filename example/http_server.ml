@@ -54,6 +54,24 @@ let benchmark =
     | "/" ->
       let response = Response.make ~headers ~status:`OK () in
       Server.Connection.respond_with_string conn response text
+    | "/post" ->
+      let meth = Request.meth request in
+      (match meth with
+      | `POST ->
+        let request_body = Server.Connection.request_body conn in
+        let response =
+          Response.make
+            ~headers:(Cohttp.Header.of_list [ "transfer-encoding", "chunked" ])
+            ~status:`OK
+            ()
+        in
+        Server.Connection.respond_with_stream conn response request_body (fun body sink ->
+            Server.Body.Reader.iter body ~f:sink)
+      | m ->
+        failwithf
+          "Unexpected method %S for path /echo"
+          (Cohttp.Code.string_of_method m)
+          ())
     | "/echo" ->
       let meth = Request.meth request in
       (match meth with
