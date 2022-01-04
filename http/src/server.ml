@@ -131,6 +131,7 @@ module Make (IO : Io_intf.S) = struct
     module Reader = struct
       type t = string Pull.t
 
+      let create = Pull.create
       let iter t ~f = Pull.iter t ~f
       let drain t = Pull.drain t
       let read t = Pull.read t
@@ -201,13 +202,11 @@ module Make (IO : Io_intf.S) = struct
       else return Close
     ;;
 
-    let respond_with_stream t response state f =
+    let respond_with_stream t response stream =
       write_response t.writer response;
-      let sink buf =
-        Body.write_chunk t.writer buf;
-        Writer.flush t.writer
-      in
-      f state sink
+      Body.Reader.iter stream ~f:(fun buf ->
+          Body.write_chunk t.writer buf;
+          Writer.flush t.writer)
       >>= fun () ->
       Writer.write t.writer Body.final_chunk;
       Writer.flush t.writer

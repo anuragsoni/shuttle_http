@@ -43,9 +43,14 @@ module Connection = struct
   ;;
 
   let respond_with_stream t response reader =
-    Server.Connection.respond_with_stream t.conn response reader (fun reader sink ->
-        Pipe.iter ~flushed:Pipe.Flushed.When_value_processed reader ~f:(fun buf ->
-            sink buf))
+    let body =
+      Server.Body.Reader.create (fun () ->
+          Pipe.read reader
+          >>| function
+          | `Ok v -> Some v
+          | `Eof -> None)
+    in
+    Server.Connection.respond_with_stream t.conn response body
   ;;
 end
 

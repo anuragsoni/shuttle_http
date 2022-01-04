@@ -6,6 +6,7 @@ module type S = sig
     module Reader : sig
       type t
 
+      val create : (unit -> string option Deferred.t) -> t
       val iter : t -> f:(string -> unit Deferred.t) -> unit Deferred.t
       val drain : t -> unit Deferred.t
       val read : t -> string option Deferred.t
@@ -24,8 +25,7 @@ module type S = sig
     val respond_with_stream
       :  t
       -> Cohttp.Response.t
-      -> 'a
-      -> ('a -> sink -> unit Deferred.t)
+      -> Body.Reader.t
       -> response Deferred.t
   end
 
