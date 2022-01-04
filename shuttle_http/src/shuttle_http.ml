@@ -43,13 +43,7 @@ module Connection = struct
   ;;
 
   let respond_with_stream t response reader =
-    let body =
-      Server.Body.Reader.create (fun () ->
-          Pipe.read reader
-          >>| function
-          | `Ok v -> Some v
-          | `Eof -> None)
-    in
+    let body = Server.Body.Reader.create (fun () -> Pipe.read reader) in
     Server.Connection.respond_with_stream t.conn response body
   ;;
 end

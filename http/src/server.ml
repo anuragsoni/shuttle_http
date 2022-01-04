@@ -10,41 +10,38 @@ module Make (IO : Io_intf.S) = struct
       let return x = return x
       let ( >>= ) = ( >>= )
     end
-
-    module Option = struct
-      let none = return None
-      let some x = return (Some x)
-    end
   end
 
   open Deferred.Infix
 
   module Pull = struct
-    type 'a t = { mutable next : unit -> 'a option Deferred.t }
+    let eof = return `Eof
+
+    type 'a t = { mutable next : unit -> [ `Ok of 'a | `Eof ] Deferred.t }
 
     let create next =
       let t = { next } in
       let next () =
         next ()
         >>= function
-        | None ->
-          t.next <- (fun () -> return None);
-          Deferred.Option.none
-        | r -> return r
+        | `Eof ->
+          t.next <- (fun () -> return `Eof);
+          eof
+        | `Ok r -> return (`Ok r)
       in
       t.next <- next;
       t
     ;;
 
     let read t = t.next ()
-    let empty () = { next = (fun () -> Deferred.Option.none) }
+    let empty () = { next = (fun () -> eof) }
 
     let iter t ~f =
       let rec loop t ~f =
         t.next ()
         >>= function
-        | None -> Deferred.unit
-        | Some v -> f v >>= fun () -> loop t ~f
+        | `Eof -> Deferred.unit
+        | `Ok v -> f v >>= fun () -> loop t ~f
       in
       loop t ~f
     ;;
@@ -53,8 +50,8 @@ module Make (IO : Io_intf.S) = struct
       let rec loop t =
         t.next ()
         >>= function
-        | None -> Deferred.unit
-        | Some _ -> loop t
+        | `Eof -> Deferred.unit
+        | `Ok _ -> loop t
       in
       loop t
     ;;
@@ -83,14 +80,14 @@ module Make (IO : Io_intf.S) = struct
         let t = { to_read = len } in
         let next () =
           if t.to_read = 0
-          then Deferred.Option.none
+          then Pull.eof
           else
             read_upto reader len
             >>= function
-            | `Eof -> Deferred.Option.none
+            | `Eof -> Pull.eof
             | `Ok chunk ->
               t.to_read <- t.to_read - String.length chunk;
-              Deferred.Option.some chunk
+              return (`Ok chunk)
         in
         Pull.create next
       ;;
@@ -112,16 +109,16 @@ module Make (IO : Io_intf.S) = struct
             (match parse_result with
             | Parser.Chunk_complete chunk ->
               t.state <- Parser.Start_chunk;
-              Deferred.Option.some (String.sub chunk.buf chunk.pos chunk.len)
-            | Parser.Done -> Deferred.Option.none
+              return (`Ok (String.sub chunk.buf chunk.pos chunk.len))
+            | Parser.Done -> Pull.eof
             | Parser.Partial_chunk (chunk, to_consume) ->
               t.state <- Parser.Continue_chunk to_consume;
-              Deferred.Option.some (String.sub chunk.buf chunk.pos chunk.len))
+              return (`Ok (String.sub chunk.buf chunk.pos chunk.len)))
           | Error (Msg msg) -> failwith msg
           | Error Partial ->
             Reader.refill reader
             >>= (function
-            | `Eof -> Deferred.Option.none
+            | `Eof -> Pull.eof
             | `Ok -> next ())
         in
         Pull.create next
@@ -238,11 +235,11 @@ module Make (IO : Io_intf.S) = struct
       with
       | Ok (req, consumed) ->
         Reader.View.consume view consumed;
-        Deferred.Option.some req
+        return (`Ok req)
       | Error Parser.Partial ->
         Reader.refill reader
         >>= (function
-        | `Eof -> Deferred.Option.none
+        | `Eof -> Pull.eof
         | `Ok -> loop ())
       | Error (Msg _msg) ->
         error_handler `Bad_request
@@ -255,7 +252,7 @@ module Make (IO : Io_intf.S) = struct
         in
         write_response writer response;
         Writer.write writer body;
-        Writer.flush writer >>= fun () -> Deferred.Option.none
+        Writer.flush writer >>= fun () -> Pull.eof
     in
     Pull.create loop
   ;;
@@ -273,8 +270,8 @@ module Make (IO : Io_intf.S) = struct
     let rec aux () =
       Pull.read requests
       >>= function
-      | None -> Deferred.unit
-      | Some req ->
+      | `Eof -> Deferred.unit
+      | `Ok req ->
         let request_body = create_body_reader reader req in
         let conn =
           { Connection.reader

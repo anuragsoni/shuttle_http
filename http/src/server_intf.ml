@@ -6,10 +6,10 @@ module type S = sig
     module Reader : sig
       type t
 
-      val create : (unit -> string option Deferred.t) -> t
+      val create : (unit -> [ `Ok of string | `Eof ] Deferred.t) -> t
       val iter : t -> f:(string -> unit Deferred.t) -> unit Deferred.t
       val drain : t -> unit Deferred.t
-      val read : t -> string option Deferred.t
+      val read : t -> [ `Ok of string | `Eof ] Deferred.t
     end
   end
 
