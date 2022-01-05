@@ -161,27 +161,30 @@ module Source = struct
     done;
     !pos = len
   ;;
+
+  let unsafe_memcmp t pos str =
+    let rec loop t pos str len =
+      if pos = len
+      then true
+      else
+        Char.equal (get_unsafe t pos) (String.unsafe_get str pos)
+        && loop t (pos + 1) str len
+    in
+    loop t pos str (String.length str)
+  ;;
 end
 
 exception Msg of string
 exception Partial
 
-let[@inline always] string str source =
+let string str source =
   let len = String.length str in
   if Source.length source < len
   then raise_notrace Partial
-  else (
-    let rec aux idx =
-      if idx = len
-      then Source.advance source len
-      else if Source.get source idx = String.unsafe_get str idx
-      then aux (idx + 1)
-      else raise_notrace (Msg (Printf.sprintf "Could not match: %S" str))
-    in
-    aux 0)
+  else if Source.unsafe_memcmp source 0 str
+  then Source.advance source len
+  else raise_notrace (Msg (Printf.sprintf "Could not match: %S" str))
 ;;
-
-(* if Source.unsafe_memcmp source str len = 0 then Source.advance_unsafe source len *)
 
 let any_char source =
   if Source.is_empty source
