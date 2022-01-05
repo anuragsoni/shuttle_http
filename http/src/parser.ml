@@ -132,17 +132,15 @@ module Source = struct
     String.sub t.buffer !pos len
   ;;
 
-  exception Found of int
-
-  let index t ch =
-    try
-      for i = 0 to length t - 1 do
-        if String.unsafe_get t.buffer (t.pos + i) = ch then raise_notrace (Found i)
-      done;
-      -1
-    with
-    | Found i -> i
+  let rec index_rec t ch idx len =
+    if idx = len
+    then -1
+    else if String.unsafe_get t.buffer (t.pos + idx) = ch
+    then idx
+    else index_rec t ch (idx + 1) len
   ;;
+
+  let index t ch = index_rec t ch 0 (length t)
 
   let for_all_is_tchar t ~pos ~len =
     if pos < 0
