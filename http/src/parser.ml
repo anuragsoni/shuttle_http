@@ -1,22 +1,3 @@
-external unsafe_memchr
-  :  string
-  -> int
-  -> char
-  -> int
-  -> int
-  = "shuttle_parser_bytes_memchr_stub"
-  [@@noalloc]
-
-external unsafe_memcmp
-  :  string
-  -> int
-  -> string
-  -> int
-  -> int
-  -> int
-  = "shuttle_parser_bytes_memcmp_string"
-  [@@noalloc]
-
 let[@inline always] is_tchar = function
   | '0' .. '9'
   | 'a' .. 'z'
@@ -151,10 +132,15 @@ module Source = struct
     String.sub t.buffer !pos len
   ;;
 
-  let[@inline always] index t ch =
-    let res = unsafe_memchr t.buffer t.pos ch (length t) in
-    if res = -1 then -1 else res - t.pos
+  let rec index_rec t ch idx len =
+    if idx = len
+    then -1
+    else if String.unsafe_get t.buffer (t.pos + idx) = ch
+    then idx
+    else index_rec t ch (idx + 1) len
   ;;
+
+  let index t ch = index_rec t ch 0 (length t)
 
   let for_all_is_tchar t ~pos ~len =
     if pos < 0
@@ -176,18 +162,27 @@ module Source = struct
     !pos = len
   ;;
 
-  let[@inline always] unsafe_memcmp t str len = unsafe_memcmp t.buffer t.pos str 0 len
+  let unsafe_memcmp t pos str =
+    let rec loop t pos str len =
+      if pos = len
+      then true
+      else
+        Char.equal (get_unsafe t pos) (String.unsafe_get str pos)
+        && loop t (pos + 1) str len
+    in
+    loop t pos str (String.length str)
+  ;;
 end
 
 exception Msg of string
 exception Partial
 
-let[@inline always] string str source =
+let string str source =
   let len = String.length str in
   if Source.length source < len
   then raise_notrace Partial
-  else if Source.unsafe_memcmp source str len = 0
-  then Source.advance_unsafe source len
+  else if Source.unsafe_memcmp source 0 str
+  then Source.advance source len
   else raise_notrace (Msg (Printf.sprintf "Could not match: %S" str))
 ;;
 
