@@ -14,6 +14,10 @@ type t [@@deriving sexp_of]
     [flush], which triggers a write system call if needed. *)
 val create : ?initial_buffer_size:int -> ?write_timeout:Time_ns.Span.t -> Fd.t -> t
 
+(** [monitor] returns the async monitor used by [Output_channel] for performing all write
+    operations.*)
+val monitor : t -> Monitor.t
+
 val is_closed : t -> bool
 val is_open : t -> bool
 val close_started : t -> unit Deferred.t

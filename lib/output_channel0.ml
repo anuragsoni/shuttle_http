@@ -78,6 +78,8 @@ let create ?initial_buffer_size ?write_timeout fd =
   }
 ;;
 
+let monitor t = t.monitor
+
 let is_closed t =
   match t.close_state with
   | Open -> false
