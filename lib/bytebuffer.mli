@@ -35,3 +35,5 @@ end
 module Consume : sig
   val stringo : (t, string) Blit.subo
 end
+
+val index : t -> char -> int

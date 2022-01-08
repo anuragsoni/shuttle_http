@@ -174,3 +174,10 @@ module Consume = struct
     res
   ;;
 end
+
+let rec index_rec t ch idx len =
+  if idx = len then -1
+  else if Char.equal (Bytes.unsafe_get t.buf (t.pos_read + idx)) ch then idx
+  else index_rec t ch (idx + 1) len
+
+let index t ch = index_rec t ch 0 (length t)
