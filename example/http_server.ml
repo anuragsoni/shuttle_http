@@ -1,6 +1,6 @@
 open Core
 open Async
-open Shuttle
+open Shuttle_http
 
 let text =
   "CHAPTER I. Down the Rabbit-Hole  Alice was beginning to get very tired of sitting by \
@@ -30,78 +30,15 @@ let text =
    the well, and noticed that they were filled with cupboards......"
 ;;
 
-let benchmark =
-  let open Cohttp in
-  let open Shuttle_http in
-  let headers = Header.of_list [ "content-length", Int.to_string (String.length text) ] in
-  let handler conn =
-    let request = Connection.request conn in
-    let target = Request.resource request in
-    match target with
-    | "/" ->
-      let response = Response.make ~headers ~status:`OK () in
-      Connection.respond_with_string conn response text
-    | "/post" ->
-      let meth = Request.meth request in
-      (match meth with
-      | `POST ->
-        let request_body = Connection.request_body conn in
-        let response =
-          Response.make
-            ~headers:(Cohttp.Header.of_list [ "transfer-encoding", "chunked" ])
-            ~status:`OK
-            ()
-        in
-        Connection.respond_with_stream conn response request_body
-      | m ->
-        failwithf
-          "Unexpected method %S for path /echo"
-          (Cohttp.Code.string_of_method m)
-          ())
-    | "/echo" ->
-      let meth = Request.meth request in
-      (match meth with
-      | `POST ->
-        let response = Response.make ~headers ~status:`OK () in
-        Connection.respond_with_string conn response text
-      | m ->
-        failwithf
-          "Unexpected method %S for path /echo"
-          (Cohttp.Code.string_of_method m)
-          ())
-    | path -> failwithf "path %S not found." path ()
-  in
-  handler
-;;
+let handler ~body:_ _addr _req = Server.respond_string text
 
-let error_handler ?request:_ status =
-  let response =
-    let open Cohttp in
-    Response.make
-      ~headers:(Header.of_list [ "Content-Length", "0"; "Connection", "close" ])
-      ~status
-      ()
-  in
-  return (response, "")
-;;
-
-let main port max_accepts_per_batch () =
-  let where_to_listen = Tcp.Where_to_listen.of_port port in
-  let%bind server =
-    Connection.listen
-      ~input_buffer_size:0x4000
-      ~output_buffer_size:0x4000
-      ~on_handler_error:`Raise
-      ~backlog:11_000
-      ~max_connections:10_000
-      ~max_accepts_per_batch
-      where_to_listen
-      ~f:(fun addr reader writer ->
-        Shuttle_http.run addr reader writer benchmark error_handler)
-  in
+let start_server port accepts () =
+  Server.create ~max_accepts_per_batch:accepts (Tcp.Where_to_listen.of_port port) handler
+  >>= fun server ->
   Deferred.forever () (fun () ->
-      Clock.after Time.Span.(of_sec 0.5)
-      >>| fun () -> Log.Global.printf "conns: %d" (Tcp.Server.num_connections server));
+      after Time.Span.(of_sec 0.5)
+      >>| fun () ->
+      Log.Global.printf "Active connections: %d" (Tcp.Server.num_connections server));
   Deferred.never ()
 ;;
 
@@ -116,6 +53,6 @@ let () =
               (optional_with_default 8080 int)
               ~doc:"int Source port to listen on")
            (flag "-a" (optional_with_default 1 int) ~doc:"int Maximum accepts per batch"))
-        ~f:(fun (port, accepts) () -> main port accepts ()))
+        ~f:(fun (port, accepts) () -> start_server port accepts ()))
   |> Command.run
 ;;

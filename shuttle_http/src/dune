@@ -2,4 +2,4 @@
  (name shuttle_http)
  (preprocess
   (pps ppx_jane))
- (libraries shuttle h11))
+ (libraries shuttle http cohttp))
