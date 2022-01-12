@@ -1,6 +1,0 @@
-(test
- (name test_parser)
- (package h11)
- (preprocess
-  (pps base_quickcheck.ppx_quickcheck ppx_jane))
- (libraries h11 base base_quickcheck alcotest))

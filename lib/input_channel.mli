@@ -41,3 +41,4 @@ val transfer : t -> string Pipe.Writer.t -> unit Deferred.t
 val of_pipe : Info.t -> string Pipe.Reader.t -> t Deferred.t
 val read_line : t -> [ `Ok of string | `Eof ] Deferred.t
 val lines : t -> string Pipe.Reader.t
+val read : t -> int -> [ `Ok of string | `Eof ] Deferred.t

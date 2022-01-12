@@ -173,3 +173,18 @@ let lines t =
   upon finished (fun () -> close t >>> fun () -> Pipe.close w);
   r
 ;;
+
+let rec read t len =
+  let view = view t in
+  if View.length view > 0
+  then (
+    let to_read = min (View.length view) len in
+    let buf = String.sub (View.buf view) ~pos:(View.pos view) ~len:to_read in
+    View.consume view to_read;
+    return (`Ok buf))
+  else
+    refill t
+    >>= function
+    | `Eof -> return `Eof
+    | `Ok -> read t len
+;;
