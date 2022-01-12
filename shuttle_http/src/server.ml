@@ -11,11 +11,7 @@ type response_action =
   ]
 
 type 'r respond_t =
-  ?flush:bool
-  -> ?headers:Cohttp.Header.t
-  -> ?body:Body.t
-  -> Cohttp.Code.status_code
-  -> 'r Deferred.t
+  ?headers:Cohttp.Header.t -> ?body:Body.t -> Cohttp.Code.status_code -> 'r Deferred.t
 
 let read_body req rd =
   match Io.Request.has_body req with
@@ -57,7 +53,6 @@ let handle_client handle_request sock rd wr =
               >>= fun () -> handler rd wr >>= fun () -> loop rd wr sock handle_request
             | `Response (res, res_body) ->
               let keep_alive = Cohttp.Request.is_keep_alive req in
-              let flush = Cohttp.Response.flush res in
               let res =
                 let headers =
                   Cohttp.Header.add_unless_exists
@@ -69,8 +64,7 @@ let handle_client handle_request sock rd wr =
               in
               Io.Response.write_header res wr
               >>= fun () ->
-              Output_channel.schedule_flush wr;
-              let writer = Io.Response.make_body_writer ~flush res wr in
+              let writer = Io.Response.make_body_writer ~flush:true res wr in
               (Body.Private.write_body Io.Response.write_body res_body) writer
               >>= fun () ->
               Body.Private.drain req_body
@@ -99,12 +93,12 @@ let create
     where_to_connect
 ;;
 
-let respond ?(flush = true) ?(headers = Cohttp.Header.init ()) ?(body = `Empty) status =
+let respond ?(headers = Cohttp.Header.init ()) ?(body = `Empty) status =
   let encoding = Body.transfer_encoding body in
-  let resp = Cohttp.Response.make ~status ~flush ~encoding ~headers () in
+  let resp = Cohttp.Response.make ~status ~encoding ~headers () in
   return (`Response (resp, body))
 ;;
 
-let respond_string ?flush ?headers ?(status = `OK) body =
-  respond ?flush ?headers ~body:(`String body) status
+let respond_string ?headers ?(status = `OK) body =
+  respond ?headers ~body:(`String body) status
 ;;
