@@ -35,6 +35,31 @@ let collect_errors writer ~f =
     ]
 ;;
 
+let write_response writer res =
+  let module Writer = Output_channel in
+  let open Cohttp in
+  let headers =
+    Header.add_transfer_encoding (Response.headers res) (Response.encoding res)
+  in
+  let res = { res with headers } in
+  Writer.write writer (Code.string_of_version (Response.version res));
+  Writer.write_char writer ' ';
+  Writer.write writer (Code.string_of_status (Response.status res));
+  Writer.write_char writer ' ';
+  Writer.write
+    writer
+    (Code.reason_phrase_of_code (Code.code_of_status (Response.status res)));
+  Writer.write writer "\r\n";
+  Header.iter
+    (fun key data ->
+      Writer.write writer key;
+      Writer.write writer ": ";
+      Writer.write writer data;
+      Writer.write writer "\r\n")
+    (Response.headers res);
+  Writer.write writer "\r\n"
+;;
+
 let handle_client handle_request sock rd wr =
   collect_errors wr ~f:(fun () ->
       let rec loop rd wr sock handle_request =
@@ -62,8 +87,7 @@ let handle_client handle_request sock rd wr =
                 in
                 { res with Cohttp.Response.headers }
               in
-              Io.Response.write_header res wr
-              >>= fun () ->
+              write_response wr res;
               let writer = Io.Response.make_body_writer ~flush:true res wr in
               (Body.Private.write_body Io.Response.write_body res_body) writer
               >>= fun () ->
