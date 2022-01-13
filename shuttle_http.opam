@@ -9,7 +9,8 @@ homepage: "https://github.com/anuragsoni/shuttle"
 bug-reports: "https://github.com/anuragsoni/shuttle/issues"
 depends: [
   "dune" {>= "2.8"}
-  "h11" {= version}
+  "http" {= "6.0.0"}
+  "cohttp" {= "6.0.0"}
   "shuttle" {= version}
   "odoc" {with-doc}
 ]
@@ -28,3 +29,7 @@ build: [
   ]
 ]
 dev-repo: "git+https://github.com/anuragsoni/shuttle.git"
+pin-depends: [
+  "http.6.0.0" "git+https://github.com/mirage/ocaml-cohttp.git#a898adefe6326e7df2872e3283df3a31385db748"
+  "cohttp.6.0.0" "git+https://github.com/mirage/ocaml-cohttp.git#a898adefe6326e7df2872e3283df3a31385db748"
+]
