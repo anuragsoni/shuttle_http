@@ -15,31 +15,33 @@ module Reader = struct
 
   let empty = { encoding = Http.Transfer.Fixed 0L; reader = Pipe.empty () }
 
-  let create req chan =
-    match Http.Request.has_body req with
-    | `No | `Unknown -> empty
-    | `Yes ->
-      let reader = Io.Request.make_body_reader req chan in
-      let reader =
-        Pipe.create_reader ~close_on_exception:false (fun writer ->
-            Deferred.repeat_until_finished () (fun () ->
-                match%bind Io.Request.read_body_chunk reader with
-                | Done -> return (`Finished ())
-                | Chunk buf ->
-                  if Pipe.is_closed writer
-                  then return (`Repeat ())
-                  else (
-                    let%map () = Pipe.write writer buf in
-                    `Repeat ())
-                | Final_chunk buf ->
-                  if Pipe.is_closed writer
-                  then return (`Finished ())
-                  else (
-                    let%map () = Pipe.write writer buf in
-                    `Finished ())))
-      in
-      { encoding = Http.Request.encoding req; reader }
-  ;;
+  module Private = struct
+    let create req chan =
+      match Http.Request.has_body req with
+      | `No | `Unknown -> empty
+      | `Yes ->
+        let reader = Io.Request.make_body_reader req chan in
+        let reader =
+          Pipe.create_reader ~close_on_exception:false (fun writer ->
+              Deferred.repeat_until_finished () (fun () ->
+                  match%bind Io.Request.read_body_chunk reader with
+                  | Done -> return (`Finished ())
+                  | Chunk buf ->
+                    if Pipe.is_closed writer
+                    then return (`Repeat ())
+                    else (
+                      let%map () = Pipe.write writer buf in
+                      `Repeat ())
+                  | Final_chunk buf ->
+                    if Pipe.is_closed writer
+                    then return (`Finished ())
+                    else (
+                      let%map () = Pipe.write writer buf in
+                      `Finished ())))
+        in
+        { encoding = Http.Request.encoding req; reader }
+    ;;
+  end
 
   let encoding t = t.encoding
   let pipe t = t.reader
@@ -68,21 +70,23 @@ module Writer = struct
 
   let stream x = { encoding = Http.Transfer.Chunked; kind = Stream x }
 
-  let write t writer =
-    match t.kind with
-    | Empty -> Deferred.unit
-    | Fixed x ->
-      Output_channel.write writer x;
-      Output_channel.flush writer
-    | Stream xs ->
-      let%bind () =
-        Pipe.iter xs ~f:(fun buf ->
-            Output_channel.writef writer "%x\r\n" (String.length buf);
-            Output_channel.write writer buf;
-            Output_channel.write writer "\r\n";
-            Output_channel.flush writer)
-      in
-      Output_channel.write writer "0\r\n\r\n";
-      Output_channel.flush writer
-  ;;
+  module Private = struct
+    let write t writer =
+      match t.kind with
+      | Empty -> Deferred.unit
+      | Fixed x ->
+        Output_channel.write writer x;
+        Output_channel.flush writer
+      | Stream xs ->
+        let%bind () =
+          Pipe.iter xs ~f:(fun buf ->
+              Output_channel.writef writer "%x\r\n" (String.length buf);
+              Output_channel.write writer buf;
+              Output_channel.write writer "\r\n";
+              Output_channel.flush writer)
+        in
+        Output_channel.write writer "0\r\n\r\n";
+        Output_channel.flush writer
+    ;;
+  end
 end

@@ -41,13 +41,13 @@ let run_server_loop handle_request reader writer =
       [%log.error log "Error while parsing http request: %S" msg];
       Deferred.unit
     | `Ok req ->
-      let req_body = Body.Reader.create req reader in
+      let req_body = Body.Reader.Private.create req reader in
       let%bind res, res_body = handle_request ~body:req_body req in
       let keep_alive =
         Http.Request.is_keep_alive req && Http.Response.is_keep_alive res
       in
       write_response writer res;
-      let%bind () = Body.Writer.write res_body writer in
+      let%bind () = Body.Writer.Private.write res_body writer in
       let%bind () = Body.Reader.drain req_body in
       if keep_alive then loop reader writer handle_request else Deferred.unit
   in
