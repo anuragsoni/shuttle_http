@@ -124,35 +124,62 @@ let pipe t =
 
 let drain t = Pipe.drain (pipe t)
 
+let rec read_line_slow t acc =
+  if Bytebuffer.length t.buf = 0
+  then (
+    match%bind refill t with
+    | `Eof ->
+      (match acc with
+      | [] -> eof
+      | xs -> return (`Eof_with_unconsumed xs))
+    | `Buffer_is_full ->
+      assert
+        (* We should never reach this branch as only attempt to refill if the buffer is
+           empty *)
+        false
+    | `Ok -> read_line_slow t acc)
+  else (
+    let idx = Bytebuffer.index t.buf '\n' in
+    if idx > -1
+    then (
+      let buf = Bytebuffer.unsafe_buf t.buf in
+      let pos = Bytebuffer.pos t.buf in
+      let len = idx in
+      if len >= 1 && Char.equal (Bytes.unsafe_get buf (pos + idx - 1)) '\r'
+      then (
+        let line = Bytes.To_string.sub buf ~pos ~len:(idx - 1) in
+        Bytebuffer.drop t.buf (len + 1);
+        return (`Ok (line :: acc)))
+      else (
+        let line = Bytes.To_string.sub buf ~pos ~len in
+        Bytebuffer.drop t.buf (len + 1);
+        return (`Ok (line :: acc))))
+    else (
+      let curr = Bytebuffer.Consume.stringo t.buf in
+      read_line_slow t (curr :: acc)))
+;;
+
 let read_line t =
-  Deferred.create (fun ivar ->
-      let rec loop t =
-        let idx = Bytebuffer.index t.buf '\n' in
-        if idx = -1
-        then
-          upon (refill t) (function
-              | `Ok -> loop t
-              | `Eof ->
-                if Bytebuffer.length t.buf = 0
-                then Ivar.fill ivar `Eof
-                else (
-                  let payload = Bytebuffer.Consume.stringo t.buf in
-                  Ivar.fill ivar (`Ok payload)))
-        else (
-          let buf = Bytebuffer.unsafe_buf t.buf in
-          let pos = Bytebuffer.pos t.buf in
-          let len = idx in
-          if len >= 1 && Char.equal (Bytes.unsafe_get buf (pos + idx - 1)) '\r'
-          then (
-            let line = Bytes.To_string.sub buf ~pos ~len:(idx - 1) in
-            Bytebuffer.drop t.buf (len + 1);
-            Ivar.fill ivar (`Ok line))
-          else (
-            let line = Bytes.To_string.sub buf ~pos ~len in
-            Bytebuffer.drop t.buf (len + 1);
-            Ivar.fill ivar (`Ok line)))
-      in
-      loop t)
+  let idx = Bytebuffer.index t.buf '\n' in
+  if idx > -1
+  then (
+    let buf = Bytebuffer.unsafe_buf t.buf in
+    let pos = Bytebuffer.pos t.buf in
+    let len = idx in
+    if len >= 1 && Char.equal (Bytes.unsafe_get buf (pos + idx - 1)) '\r'
+    then (
+      let line = Bytes.To_string.sub buf ~pos ~len:(idx - 1) in
+      Bytebuffer.drop t.buf (len + 1);
+      return (`Ok line))
+    else (
+      let line = Bytes.To_string.sub buf ~pos ~len in
+      Bytebuffer.drop t.buf (len + 1);
+      return (`Ok line)))
+  else (
+    match%map read_line_slow t [] with
+    | `Eof -> `Eof
+    | `Eof_with_unconsumed xs -> `Ok (String.concat (List.rev xs))
+    | `Ok chunks -> `Ok (String.concat (List.rev chunks)))
 ;;
 
 let lines t =
