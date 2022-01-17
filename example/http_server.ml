@@ -30,10 +30,20 @@ let text =
    the well, and noticed that they were filled with cupboards......"
 ;;
 
-let handler ~body:_ _addr _req = Server.respond_string text
+let headers =
+  Cohttp.Header.of_list [ "content-length", Int.to_string (String.length text) ]
+;;
+
+let handler ~body:_ _req = Server.respond_string ~headers text
 
 let start_server port accepts () =
-  Server.create ~max_accepts_per_batch:accepts (Tcp.Where_to_listen.of_port port) handler
+  Shuttle.Connection.listen
+    ~backlog:11_000
+    ~max_accepts_per_batch:accepts
+    (Tcp.Where_to_listen.of_port port)
+    ~on_handler_error:`Raise
+    ~f:(fun _addr reader writer ->
+      Shuttle_http.Server.run_server_loop handler reader writer)
   >>= fun server ->
   Deferred.forever () (fun () ->
       after Time.Span.(of_sec 0.5)
