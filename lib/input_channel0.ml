@@ -80,11 +80,13 @@ let refill' t =
 
 let view t = t.buf
 let ok = return `Ok
+let buffer_is_full = return `Buffer_is_full
 let eof = return `Eof
 
 let rec refill t =
   match refill' t with
-  | `Buffer_is_full | `Read_some -> ok
+  | `Read_some -> ok
+  | `Buffer_is_full -> buffer_is_full
   | `Eof -> eof
   | `Nothing_available ->
     Fd.ready_to t.fd `Read
@@ -213,5 +215,5 @@ let rec read t len =
     refill t
     >>= function
     | `Eof -> return `Eof
-    | `Ok -> read t len
+    | `Ok | `Buffer_is_full -> read t len
 ;;

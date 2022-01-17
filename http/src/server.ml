@@ -14,7 +14,7 @@ type 'r respond_t =
   ?headers:Cohttp.Header.t -> ?body:Body.t -> Cohttp.Code.status_code -> 'r Deferred.t
 
 let read_body req rd =
-  match Io.Request.has_body req with
+  match Http.Request.has_body req with
   (* TODO maybe attempt to read body *)
   | `No | `Unknown -> `Empty
   | `Yes ->

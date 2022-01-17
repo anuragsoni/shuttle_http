@@ -24,7 +24,14 @@ module IO = struct
     Deferred.unit
   ;;
 
-  let refill ic = Input_channel.refill ic
+  let refill ic =
+    Input_channel.refill ic
+    >>| function
+    | `Buffer_is_full -> `Eof
+    | `Ok -> `Ok
+    | `Eof -> `Eof
+  ;;
+
   let flush oc = Output_channel.flush oc
 
   let with_input_buffer ic ~f =
