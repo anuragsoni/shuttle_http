@@ -159,7 +159,6 @@ module Single_write_result = struct
 end
 
 let single_write t =
-  (* match Faraday.operation t.buf with *)
   if Bytebuffer.length t.buf > 0
   then (
     match write t with
