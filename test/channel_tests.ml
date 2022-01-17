@@ -124,7 +124,8 @@ let%expect_test "can read lines with a small internal buffer" =
     Pipe.iter_without_pushback lines ~f:(fun msg ->
         Writer.writef stdout "%s (%d)\n" msg (String.length msg))
   in
-  [%expect {|
+  [%expect
+    {|
     aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb (64)
     Hello (5)
     World (5)
