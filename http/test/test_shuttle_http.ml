@@ -46,8 +46,9 @@ let%expect_test "test simple server" =
   Output_channel.write writer test_post_req_with_fixed_body;
   Output_channel.schedule_flush writer;
   let%bind () = Ivar.read finished in
-  [%expect
-    {|
+  let%bind () =
+    [%expect
+      {|
     Hello
     ((headers
       ((Host www.kittyhell.com)
@@ -62,4 +63,7 @@ let%expect_test "test simple server" =
      (meth POST) (scheme ())
      (resource /wp-content/uploads/2010/03/hello-kitty-darth-vader-pink.jpg)
      (version HTTP_1_1) (encoding (Fixed 5))) |}]
+  in
+  let%bind () = Output_channel.close writer in
+  Input_channel.close reader
 ;;
