@@ -32,12 +32,20 @@ let write_response writer res =
 
 let run_server_loop handle_request reader writer =
   let rec loop reader writer handle_request =
-    match%bind Io.Request.read reader with
-    | `Eof -> Deferred.unit
-    | `Invalid msg ->
+    let view = Input_channel.view reader in
+    let buf = Input_channel.View.buf view in
+    let pos = Input_channel.View.pos view in
+    let len = Input_channel.View.length view in
+    match Http.Private.Parser.parse_request buf ~pos ~len with
+    | Error Partial ->
+      (match%bind Input_channel.refill reader with
+      | `Ok -> loop reader writer handle_request
+      | `Eof | `Buffer_is_full -> Deferred.unit)
+    | Error (Msg msg) ->
       [%log.error log "Error while parsing http request: %S" msg];
       Deferred.unit
-    | `Ok req ->
+    | Ok (req, consumed) ->
+      Input_channel.View.consume view consumed;
       let req_body = Body.Reader.Private.create req reader in
       let%bind res, res_body = handle_request ~body:(Body.Reader.pipe req_body) req in
       let keep_alive =
