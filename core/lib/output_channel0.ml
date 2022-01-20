@@ -22,11 +22,11 @@ module Config = struct
   ;;
 
   let create
-      ?(initial_buffer_size = default_initial_buffer_size)
+      ?(buf_len = default_initial_buffer_size)
       ?(write_timeout = default_write_timeout)
       ()
     =
-    validate { initial_buffer_size; write_timeout }
+    validate { initial_buffer_size = buf_len; write_timeout }
   ;;
 end
 
@@ -62,8 +62,8 @@ type t =
   }
 [@@deriving sexp_of]
 
-let create ?initial_buffer_size ?write_timeout fd =
-  let config = Config.create ?initial_buffer_size ?write_timeout () in
+let create ?buf_len ?write_timeout fd =
+  let config = Config.create ?buf_len ?write_timeout () in
   set_nonblock fd;
   { fd
   ; config

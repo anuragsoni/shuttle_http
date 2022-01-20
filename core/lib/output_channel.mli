@@ -8,11 +8,11 @@ open Async_unix
 
 type t [@@deriving sexp_of]
 
-(** [create ?initial_buffer_size ?max_buffer_size ?write_timeout fd] creates a new writer.
+(** [create ?buf_len ?write_timeout fd] creates a new writer.
 
     The writer doesn't flush automatically and the user is responsible for calling
     [flush], which triggers a write system call if needed. *)
-val create : ?initial_buffer_size:int -> ?write_timeout:Time_ns.Span.t -> Fd.t -> t
+val create : ?buf_len:int -> ?write_timeout:Time_ns.Span.t -> Fd.t -> t
 
 (** [monitor] returns the async monitor used by [Output_channel] for performing all write
     operations.*)

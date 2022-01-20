@@ -22,9 +22,7 @@ let listen
     (fun addr socket ->
       let fd = Socket.fd socket in
       let input_channel = Input_channel.create ?buf_len:input_buffer_size fd in
-      let output_channel =
-        Output_channel.create ?initial_buffer_size:output_buffer_size fd
-      in
+      let output_channel = Output_channel.create ?buf_len:output_buffer_size fd in
       Monitor.protect
         ~run:`Now
         ~finally:(fun () ->
@@ -44,7 +42,7 @@ let with_connection
   let%bind socket = Tcp.connect_sock ?interrupt ?timeout where_to_connect in
   let fd = Socket.fd socket in
   let input_channel = Input_channel.create ?buf_len:input_buffer_size fd in
-  let output_channel = Output_channel.create ?initial_buffer_size:output_buffer_size fd in
+  let output_channel = Output_channel.create ?buf_len:output_buffer_size fd in
   Monitor.protect
     ~run:`Now
     ~finally:(fun () ->

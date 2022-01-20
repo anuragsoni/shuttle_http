@@ -27,7 +27,7 @@ let%expect_test "test simple server" =
       Pipe.iter_without_pushback body ~f:(fun v -> Writer.write_line stdout v)
     in
     Writer.writef stdout !"%{sexp: Cohttp.Request.t}\n" req;
-    Server.respond_string "World"
+    Server.respond_string ~headers:(Http.Header.of_list [ "content-length", "5" ]) "World"
   in
   let%bind reader, write_to_reader = pipe () in
   let%bind read_from_writer, writer = pipe () in
