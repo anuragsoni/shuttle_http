@@ -12,10 +12,6 @@ type body = Body.Writer.t
 let write_response writer res =
   let module Writer = Output_channel in
   let open Cohttp in
-  let headers =
-    Header.add_transfer_encoding (Response.headers res) (Response.encoding res)
-  in
-  let res = { res with headers } in
   Writer.write writer (Code.string_of_version (Response.version res));
   Writer.write_char writer ' ';
   Writer.write writer (Code.string_of_status (Response.status res));
