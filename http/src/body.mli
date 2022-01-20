@@ -20,7 +20,7 @@ module Writer : sig
   val encoding : t -> Http.Transfer.encoding
   val empty : t
   val string : string -> t
-  val stream : string Pipe.Reader.t -> t
+  val stream : ?encoding:Http.Transfer.encoding -> string Pipe.Reader.t -> t
 
   module Private : sig
     val write : t -> Output_channel.t -> unit Deferred.t

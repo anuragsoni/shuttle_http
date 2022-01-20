@@ -68,25 +68,45 @@ module Writer = struct
     { encoding = Http.Transfer.Fixed (Int64.of_int (String.length x)); kind = Fixed x }
   ;;
 
-  let stream x = { encoding = Http.Transfer.Chunked; kind = Stream x }
+  let stream ?(encoding = Http.Transfer.Chunked) x = { encoding; kind = Stream x }
 
   module Private = struct
+    let is_chunked t =
+      match t.encoding with
+      | Http.Transfer.Chunked -> true
+      | _ -> false
+    ;;
+
+    let make_writer t =
+      match t.encoding with
+      | Http.Transfer.Chunked ->
+        fun writer buf ->
+          Output_channel.writef writer "%x\r\n" (String.length buf);
+          Output_channel.write writer buf;
+          Output_channel.write writer "\r\n";
+          Output_channel.flush writer
+      | _ ->
+        fun writer buf ->
+          Output_channel.write writer buf;
+          Output_channel.flush writer
+    ;;
+
     let write t writer =
-      match t.kind with
-      | Empty -> Deferred.unit
-      | Fixed x ->
-        Output_channel.write writer x;
-        Output_channel.flush writer
-      | Stream xs ->
-        let%bind () =
-          Pipe.iter xs ~f:(fun buf ->
-              Output_channel.writef writer "%x\r\n" (String.length buf);
-              Output_channel.write writer buf;
-              Output_channel.write writer "\r\n";
-              Output_channel.flush writer)
-        in
-        Output_channel.write writer "0\r\n\r\n";
-        Output_channel.flush writer
+      Deferred.create (fun ivar ->
+          match t.kind with
+          | Empty -> Ivar.fill ivar ()
+          | Fixed x ->
+            Output_channel.write writer x;
+            Output_channel.flush writer >>> fun () -> Ivar.fill ivar ()
+          | Stream xs ->
+            let write_chunk = make_writer t in
+            Pipe.iter xs ~f:(fun buf -> write_chunk writer buf)
+            >>> fun () ->
+            if is_chunked t
+            then (
+              Output_channel.write writer "0\r\n\r\n";
+              Output_channel.flush writer >>> fun () -> Ivar.fill ivar ())
+            else Ivar.fill ivar ())
     ;;
   end
 end
