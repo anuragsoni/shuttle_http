@@ -23,7 +23,6 @@ let%expect_test "test simple server" =
   let open Shuttle_http in
   let stdout = Lazy.force Writer.stdout in
   let handler ~body req =
-    let body = Body.Reader.pipe body in
     let%bind () =
       Pipe.iter_without_pushback body ~f:(fun v -> Writer.write_line stdout v)
     in

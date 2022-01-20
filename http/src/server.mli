@@ -2,19 +2,14 @@ open! Core
 open! Async
 open! Shuttle
 
-type response = Http.Response.t * Body.Writer.t
+type body
+type response = Http.Response.t * body
 
 val run_server_loop
-  :  (body:Body.Reader.t -> Http.Request.t -> response Deferred.t)
+  :  (body:string Pipe.Reader.t -> Http.Request.t -> response Deferred.t)
   -> Input_channel.t
   -> Output_channel.t
   -> unit Deferred.t
-
-val respond
-  :  ?headers:Http.Header.t
-  -> ?body:Body.Writer.t
-  -> Http.Status.t
-  -> response Deferred.t
 
 val respond_string
   :  ?headers:Http.Header.t
