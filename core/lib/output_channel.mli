@@ -18,6 +18,11 @@ val create : ?buf_len:int -> ?write_timeout:Time_ns.Span.t -> Fd.t -> t
     operations.*)
 val monitor : t -> Monitor.t
 
+(** [remote_closed] is a deferred that's resolved when the consumer that's reading the
+    bytes written to the Output_channel is closed, i.e. the channel has received an EPIPE
+    or ECONNRESET when it attempts to perform a write. *)
+val remote_closed : t -> unit Deferred.t
+
 val is_closed : t -> bool
 val is_open : t -> bool
 val close_started : t -> unit Deferred.t

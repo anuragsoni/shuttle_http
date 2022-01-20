@@ -57,6 +57,7 @@ type t =
   ; mutable close_state : close_state
   ; close_started : unit Ivar.t
   ; close_finished : unit Ivar.t
+  ; remote_closed : unit Ivar.t
   ; mutable writer_state : writer_state
   ; mutable bytes_written : Int63.t
   }
@@ -72,6 +73,7 @@ let create ?buf_len ?write_timeout fd =
   ; buf = Bytebuffer.create config.initial_buffer_size
   ; monitor = Monitor.create ()
   ; close_state = Open
+  ; remote_closed = Ivar.create ()
   ; close_started = Ivar.create ()
   ; close_finished = Ivar.create ()
   ; bytes_written = Int63.zero
@@ -79,6 +81,7 @@ let create ?buf_len ?write_timeout fd =
 ;;
 
 let monitor t = t.monitor
+let remote_closed t = Ivar.read t.remote_closed
 
 let is_closed t =
   match t.close_state with
@@ -169,7 +172,9 @@ let single_write t =
 
 let rec write_everything t =
   match single_write t with
-  | Stop -> stop_writer t
+  | Stop ->
+    Ivar.fill t.remote_closed ();
+    stop_writer t
   | Continue ->
     if not (Bytebuffer.length t.buf > 0)
     then (
