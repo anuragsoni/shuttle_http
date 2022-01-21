@@ -7,7 +7,6 @@ module Logger = Log.Make_global ()
 let log = Lazy.force Logger.log
 
 type response = Http.Response.t * Body.Writer.t
-type body = Body.Writer.t
 
 let write_response writer res =
   let module Writer = Output_channel in
@@ -47,7 +46,7 @@ let run_server_loop handle_request reader writer =
     | Ok (req, consumed) ->
       Input_channel.View.consume view consumed;
       let req_body = Body.Reader.Private.create req reader in
-      let%bind res, res_body = handle_request ~body:(Body.Reader.pipe req_body) req in
+      let%bind res, res_body = handle_request req req_body in
       let keep_alive =
         Http.Request.is_keep_alive req && Http.Response.is_keep_alive res
       in

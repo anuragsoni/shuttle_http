@@ -22,9 +22,10 @@ let test_post_req_with_fixed_body =
 let%expect_test "test simple server" =
   let open Shuttle_http in
   let stdout = Lazy.force Writer.stdout in
-  let handler ~body req =
+  let handler req body =
     let%bind () =
-      Pipe.iter_without_pushback body ~f:(fun v -> Writer.write_line stdout v)
+      Pipe.iter_without_pushback (Body.Reader.pipe body) ~f:(fun v ->
+          Writer.write_line stdout v)
     in
     Writer.writef stdout !"%{sexp: Cohttp.Request.t}\n" req;
     Server.respond_string ~headers:(Http.Header.of_list [ "content-length", "5" ]) "World"
@@ -50,5 +51,5 @@ let%expect_test "test simple server" =
   let%bind () =
     Pipe.iter_without_pushback reader_pipe ~f:(fun v -> Writer.writef stdout "%S" v)
   in
-  [%expect {| "HTTP/1.1 200 OK OK\r\ncontent-length: 5\r\n\r\nWorld" |}]
+  [%expect {| "HTTP/1.1 200 OK OK\r\nconnection: close\r\ncontent-length: 5\r\n\r\nWorld" |}]
 ;;
