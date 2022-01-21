@@ -66,17 +66,3 @@ let run_server_loop handle_request reader writer =
   in
   loop reader writer handle_request
 ;;
-
-let respond ?(headers = Http.Header.init ()) ?(body = Body.Writer.empty) status =
-  let encoding = Body.Writer.encoding body in
-  let resp = Http.Response.make ~status ~encoding ~headers () in
-  return (resp, body)
-;;
-
-let respond_string ?headers ?(status = `OK) body =
-  respond ?headers ~body:(Body.Writer.string body) status
-;;
-
-let respond_stream ?headers ?(status = `OK) body =
-  respond ?headers ~body:(Body.Writer.stream body) status
-;;

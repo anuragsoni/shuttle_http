@@ -28,7 +28,9 @@ let%expect_test "test simple server" =
           Writer.write_line stdout v)
     in
     Writer.writef stdout !"%{sexp: Cohttp.Request.t}\n" req;
-    Server.respond_string ~headers:(Http.Header.of_list [ "content-length", "5" ]) "World"
+    return
+      ( Http.Response.make ~headers:(Http.Header.of_list [ "content-length", "5" ]) ()
+      , Body.Writer.string "World" )
   in
   let%bind reader, write_to_reader = pipe () in
   let%bind read_from_writer, writer = pipe () in
@@ -51,5 +53,6 @@ let%expect_test "test simple server" =
   let%bind () =
     Pipe.iter_without_pushback reader_pipe ~f:(fun v -> Writer.writef stdout "%S" v)
   in
-  [%expect {| "HTTP/1.1 200 OK OK\r\nconnection: close\r\ncontent-length: 5\r\n\r\nWorld" |}]
+  [%expect
+    {| "HTTP/1.1 200 OK OK\r\nconnection: close\r\ncontent-length: 5\r\n\r\nWorld" |}]
 ;;

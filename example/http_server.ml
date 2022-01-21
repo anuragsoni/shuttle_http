@@ -34,7 +34,7 @@ let headers =
   Cohttp.Header.of_list [ "content-length", Int.to_string (String.length text) ]
 ;;
 
-let handler _req _body = Server.respond_string ~headers text
+let handler _req _body = return (Http.Response.make ~headers (), Body.Writer.string text)
 
 let start_server port accepts () =
   Shuttle.Connection.listen
