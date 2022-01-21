@@ -81,14 +81,22 @@ module Writer = struct
       match t.encoding with
       | Http.Transfer.Chunked ->
         fun writer buf ->
-          Output_channel.writef writer "%x\r\n" (String.length buf);
-          Output_channel.write writer buf;
-          Output_channel.write writer "\r\n";
-          Output_channel.flush writer
+          (* avoid writing empty payloads as that is used to indicate the end of a
+             stream. *)
+          if String.is_empty buf
+          then Deferred.unit
+          else (
+            Output_channel.writef writer "%x\r\n" (String.length buf);
+            Output_channel.write writer buf;
+            Output_channel.write writer "\r\n";
+            Output_channel.flush writer)
       | _ ->
         fun writer buf ->
-          Output_channel.write writer buf;
-          Output_channel.flush writer
+          if String.is_empty buf
+          then Deferred.unit
+          else (
+            Output_channel.write writer buf;
+            Output_channel.flush writer)
     ;;
 
     let write t writer =
