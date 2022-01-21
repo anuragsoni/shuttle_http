@@ -39,9 +39,10 @@
   (synopsis "HTTP 1.1 server for async")
   (depends
    (http
-    (= 6.0.0))
+    (> 5.0.0))
    (cohttp
-    (= 6.0.0))
+    (> 5.0.0))
+   ppx_log
    (shuttle
     (= :version))))
 

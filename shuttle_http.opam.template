@@ -1,4 +1,0 @@
-pin-depends: [
-  "http.6.0.0" "git+https://github.com/mirage/ocaml-cohttp.git#a898adefe6326e7df2872e3283df3a31385db748"
-  "cohttp.6.0.0" "git+https://github.com/mirage/ocaml-cohttp.git#a898adefe6326e7df2872e3283df3a31385db748"
-]
