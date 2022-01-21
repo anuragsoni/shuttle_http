@@ -51,6 +51,15 @@ let run_server_loop handle_request reader writer =
       let keep_alive =
         Http.Request.is_keep_alive req && Http.Response.is_keep_alive res
       in
+      let res =
+        let headers =
+          Http.Header.replace
+            (Http.Response.headers res)
+            "connection"
+            (if keep_alive then "keep-alive" else "close")
+        in
+        { res with Http.Response.headers }
+      in
       write_response writer res;
       let%bind () = Body.Writer.Private.write res_body writer in
       let%bind () = Body.Reader.drain req_body in
