@@ -35,7 +35,7 @@ let run_server_loop handle_request reader writer =
     let buf = Input_channel.View.buf view in
     let pos = Input_channel.View.pos view in
     let len = Input_channel.View.length view in
-    match Http.Private.Parser.parse_request buf ~pos ~len with
+    match Parser.parse_request buf ~pos ~len with
     | Error Partial ->
       (match%bind Input_channel.refill reader with
       | `Ok -> loop reader writer handle_request

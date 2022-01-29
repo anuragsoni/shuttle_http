@@ -55,3 +55,7 @@ module Server : sig
     -> Output_channel.t
     -> unit Deferred.t
 end
+
+module Private : sig
+  module Parser = Parser
+end
