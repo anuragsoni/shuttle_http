@@ -2,9 +2,11 @@ open Core
 open Async
 open Shuttle
 
-type encoding = Http.Transfer.encoding
-
-let sexp_of_encoding t = Cohttp.Transfer.sexp_of_encoding t
+type encoding = Http.Transfer.encoding =
+  | Chunked
+  | Fixed of int64
+  | Unknown
+[@@deriving sexp]
 
 module Reader = struct
   type t =

@@ -10,14 +10,11 @@ type response = Http.Response.t * Body.Writer.t
 
 let write_response writer res =
   let module Writer = Output_channel in
-  let open Cohttp in
-  Writer.write writer (Code.string_of_version (Response.version res));
+  let open Http in
+  Writer.write writer (Version.to_string (Response.version res));
   Writer.write_char writer ' ';
-  Writer.write writer (Code.string_of_status (Response.status res));
+  Writer.write writer (Status.to_string (Response.status res));
   Writer.write_char writer ' ';
-  Writer.write
-    writer
-    (Code.reason_phrase_of_code (Code.code_of_status (Response.status res)));
   Writer.write writer "\r\n";
   Header.iter
     (fun key data ->
