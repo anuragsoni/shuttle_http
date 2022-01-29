@@ -336,7 +336,7 @@ let[@warning "-3"] request source =
   ; scheme = None
   ; resource = path
   ; version
-  ; encoding = Header.get_transfer_encoding headers
+  ; encoding = Transfer.Unknown
   }
 ;;
 
