@@ -4,4 +4,4 @@
  (preprocess
   (pps ppx_jane))
  (package shuttle_http)
- (libraries shuttle_http core async shuttle))
+ (libraries shuttle_http cohttp core async shuttle))

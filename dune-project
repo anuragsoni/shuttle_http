@@ -41,7 +41,7 @@
    (http
     (> 5.0.0))
    (cohttp
-    (> 5.0.0))
+    (and (> 5.0.0) :with-test))
    ppx_log
    (shuttle
     (= :version))))

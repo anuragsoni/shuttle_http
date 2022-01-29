@@ -10,7 +10,7 @@ bug-reports: "https://github.com/anuragsoni/shuttle/issues"
 depends: [
   "dune" {>= "2.8"}
   "http" {> "5.0.0"}
-  "cohttp" {> "5.0.0"}
+  "cohttp" {> "5.0.0" & with-test}
   "ppx_log"
   "shuttle" {= version}
   "odoc" {with-doc}
