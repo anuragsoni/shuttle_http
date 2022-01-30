@@ -33,20 +33,6 @@
     (< v0.15)))))
 
 (package
-  (name shuttle_http)
-  (tags
-   (async http11 h11))
-  (synopsis "HTTP 1.1 server for async")
-  (depends
-   (http
-    (> 5.0.0))
-   (cohttp
-    (and (> 5.0.0) :with-test))
-   ppx_log
-   (shuttle
-    (= :version))))
-
-(package
  (name shuttle)
  (tags
   (async reader writer))
