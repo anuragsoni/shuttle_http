@@ -1,22 +1,14 @@
 open! Core
 
-external read_assume_fd_is_nonblocking
-  :  Core.Unix.File_descr.t
-  -> pos:int
-  -> len:int
-  -> bytes
-  -> Unix.Syscall_result.Int.t
-  = "shuttle_stubs_unix_read_assume_nonblocking"
-
 type t =
-  { mutable buf : (Bytes.t[@sexp.opaque])
+  { mutable buf : (Bigstring.t[@sexp.opaque])
   ; mutable pos_read : int
   ; mutable pos_fill : int
   }
 [@@deriving sexp_of]
 
 let create size =
-  let buf = Bytes.create size in
+  let buf = Bigstring.create size in
   { buf; pos_read = 0; pos_fill = 0 }
 ;;
 
@@ -27,22 +19,19 @@ let compact t =
   if t.pos_read > 0
   then (
     let len = t.pos_fill - t.pos_read in
-    Bytes.blit ~src:t.buf ~dst:t.buf ~src_pos:t.pos_read ~dst_pos:0 ~len;
+    Bigstring.blit ~src:t.buf ~dst:t.buf ~src_pos:t.pos_read ~dst_pos:0 ~len;
     t.pos_read <- 0;
     t.pos_fill <- len)
 ;;
 
 let length t = t.pos_fill - t.pos_read
 let can_reclaim_space t = t.pos_read > 0
-let capacity t = Bytes.length t.buf
-let available_to_write t = Bytes.length t.buf - t.pos_fill
+let capacity t = Bigstring.length t.buf
+let available_to_write t = Bigstring.length t.buf - t.pos_fill
 
 let resize t size =
-  let curr_len = Bytes.length t.buf in
-  let new_len = (Bytes.length t.buf + size) * 2 in
-  let new_buf = Bytes.create new_len in
-  Bytes.blit ~src:t.buf ~dst:new_buf ~src_pos:0 ~dst_pos:0 ~len:curr_len;
-  t.buf <- new_buf
+  let new_len = (Bigstring.length t.buf + size) * 2 in
+  t.buf <- Bigstring.unsafe_destroy_and_resize t.buf ~len:new_len
 ;;
 
 let drop t len =
@@ -52,25 +41,25 @@ let drop t len =
 
 let read fd t =
   let count =
-    Unix.read fd ~buf:t.buf ~pos:t.pos_fill ~len:(Bytes.length t.buf - t.pos_fill)
+    Bigstring_unix.read fd t.buf ~pos:t.pos_fill ~len:(Bigstring.length t.buf - t.pos_fill)
   in
   if count > 0 then t.pos_fill <- t.pos_fill + count;
   count
 ;;
 
 let write fd t =
-  let count = Unix.write fd ~buf:t.buf ~pos:t.pos_read ~len:(length t) in
+  let count = Bigstring_unix.write fd t.buf ~pos:t.pos_read ~len:(length t) in
   if count > 0 then t.pos_read <- t.pos_read + count;
   count
 ;;
 
 let read_assume_fd_is_nonblocking fd t =
   let res =
-    read_assume_fd_is_nonblocking
+    Bigstring_unix.read_assume_fd_is_nonblocking
       fd
       t.buf
       ~pos:t.pos_fill
-      ~len:(Bytes.length t.buf - t.pos_fill)
+      ~len:(Bigstring.length t.buf - t.pos_fill)
   in
   if Unix.Syscall_result.Int.is_ok res
   then (
@@ -81,41 +70,16 @@ let read_assume_fd_is_nonblocking fd t =
 
 let write_assume_fd_is_nonblocking fd t =
   let res =
-    Unix.write_assume_fd_is_nonblocking fd t.buf ~pos:t.pos_read ~len:(length t)
+    Bigstring_unix.write_assume_fd_is_nonblocking fd t.buf ~pos:t.pos_read ~len:(length t)
   in
   if res > 0 then t.pos_read <- t.pos_read + res;
   res
 ;;
 
-module To_bytes =
-  Blit.Make_distinct
-    (struct
-      type nonrec t = t
-
-      let length t = length t
-    end)
-    (struct
-      type t = bytes
-
-      let create ~len = Bytes.create len
-      let length t = Bytes.length t
-
-      let unsafe_blit ~src ~src_pos ~dst ~dst_pos ~len =
-        Bytes.blit ~src:src.buf ~src_pos:(src_pos + src.pos_read) ~dst ~dst_pos ~len
-      ;;
-    end)
-
-module To_string =
-  Blit.Make_to_string
-    (struct
-      type nonrec t = t
-    end)
-    (To_bytes)
-
 module Fill = struct
   let char t ch =
     if available_to_write t < 1 then resize t 1;
-    Bytes.set t.buf t.pos_fill ch;
+    Bigstring.set t.buf t.pos_fill ch;
     t.pos_fill <- t.pos_fill + 1
   ;;
 
@@ -129,40 +93,44 @@ module Fill = struct
   ;;
 
   let string t ?pos ?len str =
-    add_gen t ?pos ?len ~total_length:(String.length str) ~blit:Bytes.From_string.blit str
-  ;;
-
-  let bytes t ?pos ?len str =
-    add_gen t ?pos ?len ~total_length:(Bytes.length str) ~blit:Bytes.blit str
-  ;;
-
-  let bigstring t ?pos ?len str =
     add_gen
       t
       ?pos
       ?len
-      ~total_length:(Bigstring.length str)
-      ~blit:Bigstring.To_bytes.blit
+      ~total_length:(String.length str)
+      ~blit:Bigstring.From_string.blit
       str
   ;;
 
-  let bytebuffer t buf = bytes t ~pos:buf.pos_read ~len:(length buf) buf.buf
+  let bytes t ?pos ?len str =
+    add_gen
+      t
+      ?pos
+      ?len
+      ~total_length:(Bytes.length str)
+      ~blit:Bigstring.From_bytes.blit
+      str
+  ;;
+
+  let bigstring t ?pos ?len str =
+    add_gen t ?pos ?len ~total_length:(Bigstring.length str) ~blit:Bigstring.blit str
+  ;;
+
+  let bytebuffer t buf = bigstring t ~pos:buf.pos_read ~len:(length buf) buf.buf
 end
 
 module Consume = struct
   let stringo ?pos ?len t =
-    let res = To_string.subo ?pos ?len t in
-    drop t (String.length res);
+    let pos, len =
+      Ordered_collection_common.get_pos_len_exn ?pos ?len () ~total_length:(length t)
+    in
+    let res = Bigstring.To_string.sub t.buf ~pos:(pos + t.pos_read) ~len in
+    drop t len;
     res
   ;;
 end
 
-let rec index_rec t ch idx len =
-  if idx = len
-  then -1
-  else if Char.equal (Bytes.unsafe_get t.buf (t.pos_read + idx)) ch
-  then idx
-  else index_rec t ch (idx + 1) len
+let index t ch =
+  let idx = Bigstring.unsafe_find t.buf ch ~pos:t.pos_read ~len:(length t) in
+  if idx < 0 then -1 else idx - t.pos_read
 ;;
-
-let index t ch = index_rec t ch 0 (length t)

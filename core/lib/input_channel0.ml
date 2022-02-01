@@ -67,13 +67,10 @@ let refill' t =
 ;;
 
 let view t =
-  let buf =
-    Bytes.unsafe_to_string
-      ~no_mutation_while_string_reachable:(Bytebuffer.unsafe_buf t.buf)
-  in
+  let buf = Bytebuffer.unsafe_buf t.buf in
   let pos = Bytebuffer.pos t.buf in
   let len = Bytebuffer.length t.buf in
-  Core.Unix.IOVec.of_string buf ~pos ~len
+  Core.Unix.IOVec.of_bigstring buf ~pos ~len
 ;;
 
 let ok = return `Ok
@@ -144,13 +141,13 @@ let rec read_line_slow t acc =
       let buf = Bytebuffer.unsafe_buf t.buf in
       let pos = Bytebuffer.pos t.buf in
       let len = idx in
-      if len >= 1 && Char.equal (Bytes.unsafe_get buf (pos + idx - 1)) '\r'
+      if len >= 1 && Char.equal (Bigstring.get buf (pos + idx - 1)) '\r'
       then (
-        let line = Bytes.To_string.sub buf ~pos ~len:(idx - 1) in
+        let line = Bigstring.To_string.sub buf ~pos ~len:(idx - 1) in
         Bytebuffer.drop t.buf (len + 1);
         return (`Ok (line :: acc)))
       else (
-        let line = Bytes.To_string.sub buf ~pos ~len in
+        let line = Bigstring.To_string.sub buf ~pos ~len in
         Bytebuffer.drop t.buf (len + 1);
         return (`Ok (line :: acc))))
     else (
@@ -165,13 +162,13 @@ let read_line t =
     let buf = Bytebuffer.unsafe_buf t.buf in
     let pos = Bytebuffer.pos t.buf in
     let len = idx in
-    if len >= 1 && Char.equal (Bytes.unsafe_get buf (pos + idx - 1)) '\r'
+    if len >= 1 && Char.equal (Bigstring.get buf (pos + idx - 1)) '\r'
     then (
-      let line = Bytes.To_string.sub buf ~pos ~len:(idx - 1) in
+      let line = Bigstring.To_string.sub buf ~pos ~len:(idx - 1) in
       Bytebuffer.drop t.buf (len + 1);
       return (`Ok line))
     else (
-      let line = Bytes.To_string.sub buf ~pos ~len in
+      let line = Bigstring.To_string.sub buf ~pos ~len in
       Bytebuffer.drop t.buf (len + 1);
       return (`Ok line)))
   else (
@@ -205,7 +202,7 @@ let rec read t len =
   if view.len > 0
   then (
     let to_read = min view.len len in
-    let buf = String.sub view.buf ~pos:view.pos ~len:to_read in
+    let buf = Bigstring.to_string view.buf ~pos:view.pos ~len:to_read in
     consume t to_read;
     return (`Ok buf))
   else
