@@ -5,19 +5,6 @@ module Logger = Log.Make_global ()
 
 let set_nonblock fd = Fd.with_file_descr_exn fd ignore ~nonblocking:true
 
-module View = struct
-  type t = Bytebuffer.t
-
-  let buf t =
-    let buf = Bytebuffer.unsafe_buf t in
-    Bytes.unsafe_to_string ~no_mutation_while_string_reachable:buf
-  ;;
-
-  let pos t = Bytebuffer.pos t
-  let length t = Bytebuffer.length t
-  let consume t = Bytebuffer.drop t
-end
-
 type t =
   { fd : Fd.t
   ; mutable reading : bool
@@ -43,6 +30,7 @@ let create ?(buf_len = 64 * 1024) fd =
   }
 ;;
 
+let consume t n = Bytebuffer.drop t.buf n
 let is_closed t = t.is_closed
 let closed t = Ivar.read t.closed
 
@@ -78,7 +66,16 @@ let refill' t =
       | error -> raise (Unix.Unix_error (error, "read", ""))))
 ;;
 
-let view t = t.buf
+let view t =
+  let buf =
+    Bytes.unsafe_to_string
+      ~no_mutation_while_string_reachable:(Bytebuffer.unsafe_buf t.buf)
+  in
+  let pos = Bytebuffer.pos t.buf in
+  let len = Bytebuffer.length t.buf in
+  Core.Unix.IOVec.of_string buf ~pos ~len
+;;
+
 let ok = return `Ok
 let buffer_is_full = return `Buffer_is_full
 let eof = return `Eof
@@ -205,11 +202,11 @@ let lines t =
 
 let rec read t len =
   let view = view t in
-  if View.length view > 0
+  if view.len > 0
   then (
-    let to_read = min (View.length view) len in
-    let buf = String.sub (View.buf view) ~pos:(View.pos view) ~len:to_read in
-    View.consume view to_read;
+    let to_read = min view.len len in
+    let buf = String.sub view.buf ~pos:view.pos ~len:to_read in
+    consume t to_read;
     return (`Ok buf))
   else
     refill t

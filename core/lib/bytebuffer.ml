@@ -1,22 +1,5 @@
 open! Core
 
-(*  Bytebuffer is split into three regions using two separate indices that are used
-    to support read and write operations.
-    +--------------------+---------------------------+----------------------------+
-    | Consumed Bytes     | Bytes available to read   | Empty space for writing    |
-    +--------------------+---------------------------+----------------------------+
-    |     0 <=       pos_read         <=          pos_fill              <= capacity
-
-    Consumed Bytes: This is content that's already consumed via a get/read operation.
-    This space can be safely reclaimed.
-
-    Bytes available to read: This is the actual content that will be surfaced to users via
-    get/read operations on the bytebuffer.
-
-    Empty space for writing: This is space that will be filled by any set/write operations
-    on the bytebuffer.
-*)
-
 external read_assume_fd_is_nonblocking
   :  Core.Unix.File_descr.t
   -> pos:int

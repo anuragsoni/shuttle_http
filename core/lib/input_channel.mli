@@ -6,15 +6,6 @@ open! Core
 open! Async_kernel
 open Async_unix
 
-module View : sig
-  type t
-
-  val buf : t -> string
-  val pos : t -> int
-  val length : t -> int
-  val consume : t -> int -> unit
-end
-
 type t [@@deriving sexp_of]
 
 val create : ?buf_len:int -> Fd.t -> t
@@ -22,7 +13,8 @@ val is_closed : t -> bool
 val closed : t -> unit Deferred.t
 val close : t -> unit Deferred.t
 val refill : t -> [ `Ok | `Eof | `Buffer_is_full ] Deferred.t
-val view : t -> View.t
+val view : t -> string Core.Unix.IOVec.t
+val consume : t -> int -> unit
 
 (** [drain t] reads chunks of data from the reader and discards them. *)
 val drain : t -> unit Deferred.t
