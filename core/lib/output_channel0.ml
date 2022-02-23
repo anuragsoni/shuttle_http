@@ -297,3 +297,17 @@ let pipe t =
   don't_wait_for (write_from_pipe t reader);
   writer
 ;;
+
+let open_file ?buf_len ?(append = false) filename =
+  let mode =
+    let base_mode = [ `Wronly; `Creat ] in
+    if append then `Append :: base_mode else base_mode
+  in
+  let%map fd = Async.Unix.openfile ~mode filename in
+  create ?buf_len fd
+;;
+
+let with_file ?buf_len ?append filename ~f =
+  let%bind t = open_file ?buf_len ?append filename in
+  Monitor.protect ~finally:(fun () -> close t) (fun () -> f t)
+;;

@@ -219,3 +219,13 @@ let rec read t len =
     | `Eof -> return `Eof
     | `Ok | `Buffer_is_full -> read t len
 ;;
+
+let open_file ?buf_len filename =
+  let%map fd = Unix.openfile filename ~mode:[ `Rdonly ] in
+  create ?buf_len fd
+;;
+
+let with_file ?buf_len filename ~f =
+  let%bind t = open_file ?buf_len filename in
+  Monitor.protect ~run:`Now ~finally:(fun () -> close t) (fun () -> f t)
+;;
