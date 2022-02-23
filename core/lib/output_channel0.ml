@@ -1,7 +1,6 @@
 open! Core
 open! Async_kernel
 open Async_unix
-open Import
 module Unix = Core.Unix
 
 module Config = struct
@@ -65,7 +64,6 @@ type t =
 
 let create ?buf_len ?write_timeout fd =
   let config = Config.create ?buf_len ?write_timeout () in
-  set_nonblock fd;
   { fd
   ; config
   ; flushes = Queue.create ()
@@ -117,27 +115,25 @@ let dequeue_flushes t =
   done
 ;;
 
-let write t =
-  match Bytebuffer.write_assume_fd_is_nonblocking (Fd.file_descr_exn t.fd) t.buf with
-  | n ->
-    assert (n >= 0);
-    Bytebuffer.compact t.buf;
-    t.bytes_written <- Int63.( + ) t.bytes_written (Int63.of_int n);
-    dequeue_flushes t;
-    `Ok
-  | exception Unix.Unix_error ((EWOULDBLOCK | EAGAIN | EINTR), _, _) -> `Ok
-  | exception
-      Unix.Unix_error
-        ( ( EPIPE
-          | ECONNRESET
-          | EHOSTUNREACH
-          | ENETDOWN
-          | ENETRESET
-          | ENETUNREACH
-          | ETIMEDOUT )
-        , _
-        , _ ) -> `Eof
-  | exception exn -> raise exn
+let write_nonblocking t =
+  Fd.syscall_exn ~nonblocking:true t.fd (fun fd ->
+      match Bytebuffer.write_assume_fd_is_nonblocking fd t.buf with
+      | n ->
+        assert (n >= 0);
+        `Ok n
+      | exception Unix.Unix_error ((EWOULDBLOCK | EAGAIN | EINTR), _, _) -> `Ok 0
+      | exception
+          Unix.Unix_error
+            ( ( EPIPE
+              | ECONNRESET
+              | EHOSTUNREACH
+              | ENETDOWN
+              | ENETRESET
+              | ENETUNREACH
+              | ETIMEDOUT )
+            , _
+            , _ ) -> `Eof
+      | exception exn -> raise exn)
 ;;
 
 let close t =
@@ -161,26 +157,33 @@ module Single_write_result = struct
     | Stop
 end
 
-let single_write t =
-  if Bytebuffer.length t.buf > 0
-  then (
-    match write t with
-    | `Ok -> Single_write_result.Continue
-    | `Eof -> Stop)
-  else Continue
-;;
-
-let rec write_everything t =
-  match single_write t with
-  | Stop ->
+let rec process_write_result t = function
+  | `Eof ->
     Ivar.fill t.remote_closed ();
     stop_writer t
-  | Continue ->
+  | `Ok n ->
+    Bytebuffer.compact t.buf;
+    t.bytes_written <- Int63.( + ) t.bytes_written (Int63.of_int n);
+    dequeue_flushes t;
     if not (Bytebuffer.length t.buf > 0)
     then (
       t.writer_state <- Inactive;
       if is_closed t then stop_writer t)
     else wait_and_write_everything t
+
+and write_everything t =
+  if Bytebuffer.length t.buf < 0
+  then (
+    t.writer_state <- Inactive;
+    if is_closed t then stop_writer t);
+  if Fd.supports_nonblock t.fd
+  then process_write_result t (write_nonblocking t)
+  else
+    Fd.syscall_in_thread t.fd ~name:"write" (fun fd -> Bytebuffer.write fd t.buf)
+    >>> function
+    | `Error exn -> Exn.reraise exn "Error while writing"
+    | `Ok _ as res -> process_write_result t res
+    | `Already_closed -> process_write_result t `Eof
 
 and wait_and_write_everything t =
   Clock_ns.with_timeout t.config.write_timeout (Fd.ready_to t.fd `Write)
@@ -293,4 +296,18 @@ let pipe t =
   let reader, writer = Pipe.create () in
   don't_wait_for (write_from_pipe t reader);
   writer
+;;
+
+let open_file ?buf_len ?(append = false) filename =
+  let mode =
+    let base_mode = [ `Wronly; `Creat ] in
+    if append then `Append :: base_mode else base_mode
+  in
+  let%map fd = Async.Unix.openfile ~mode filename in
+  create ?buf_len fd
+;;
+
+let with_file ?buf_len ?append filename ~f =
+  let%bind t = open_file ?buf_len ?append filename in
+  Monitor.protect ~finally:(fun () -> close t) (fun () -> f t)
 ;;

@@ -3,8 +3,6 @@ open Async_kernel
 open Async_unix
 module Logger = Log.Make_global ()
 
-let set_nonblock fd = Fd.with_file_descr_exn fd ignore ~nonblocking:true
-
 type t =
   { fd : Fd.t
   ; mutable reading : bool
@@ -14,14 +12,17 @@ type t =
   }
 [@@deriving sexp_of]
 
-let create ?(buf_len = 64 * 1024) fd =
+let create ?buf_len fd =
   let buf_len =
-    if buf_len > 0
-    then buf_len
-    else
-      raise_s [%message "Reader.create got negative buf_len" (buf_len : int) (fd : Fd.t)]
+    match buf_len with
+    | None -> 64 * 1024
+    | Some buf_len ->
+      if buf_len > 0
+      then buf_len
+      else
+        raise_s
+          [%message "Reader.create got negative buf_len" (buf_len : int) (fd : Fd.t)]
   in
-  set_nonblock fd;
   { fd
   ; reading = false
   ; is_closed = false
@@ -42,13 +43,13 @@ let close t =
   closed t
 ;;
 
-let refill' t =
+let refill_nonblocking t =
   Bytebuffer.compact t.buf;
   if Bytebuffer.available_to_write t.buf = 0
   then `Buffer_is_full
   else (
     let result =
-      Fd.syscall_result_exn t.fd t.buf (fun fd buf ->
+      Fd.syscall_result_exn ~nonblocking:true t.fd t.buf (fun fd buf ->
           Bytebuffer.read_assume_fd_is_nonblocking fd buf)
     in
     if Unix.Syscall_result.Int.is_ok result
@@ -73,40 +74,47 @@ let view t =
   Core.Unix.IOVec.of_bigstring buf ~pos ~len
 ;;
 
-let ok = return `Ok
-let buffer_is_full = return `Buffer_is_full
-let eof = return `Eof
-
 let rec refill t =
-  match refill' t with
-  | `Read_some -> ok
-  | `Buffer_is_full -> buffer_is_full
-  | `Eof -> eof
-  | `Nothing_available ->
-    Fd.ready_to t.fd `Read
-    >>= (function
-    | `Ready -> refill t
-    | `Closed -> eof
-    | `Bad_fd ->
-      raise_s
-        [%message "Shuttle.Input_channel.read: bad file descriptor" ~fd:(t.fd : Fd.t)])
+  if Fd.supports_nonblock t.fd
+  then (
+    match refill_nonblocking t with
+    | `Read_some -> return `Ok
+    | `Buffer_is_full -> return `Buffer_is_full
+    | `Eof -> return `Eof
+    | `Nothing_available ->
+      Fd.ready_to t.fd `Read
+      >>= (function
+      | `Ready -> refill t
+      | `Closed -> return `Eof
+      | `Bad_fd ->
+        raise_s
+          [%message "Shuttle.Input_channel.read: bad file descriptor" ~fd:(t.fd : Fd.t)]))
+  else (
+    Bytebuffer.compact t.buf;
+    if Bytebuffer.available_to_write t.buf = 0
+    then return `Buffer_is_full
+    else (
+      match%map
+        Fd.syscall_in_thread t.fd ~name:"read" (fun fd ->
+            let count = Bytebuffer.read fd t.buf in
+            if count = 0 then `Eof else `Ok)
+      with
+      | `Already_closed -> `Eof
+      | `Error (Bigstring_unix.IOError (0, End_of_file)) -> `Eof
+      | `Error exn -> Exn.reraise exn "Error while performing a read syscall"
+      | `Ok c -> c))
 ;;
 
 let transfer t writer =
   let finished = Ivar.create () in
   upon (Pipe.closed writer) (fun () -> Ivar.fill_if_empty finished ());
   let rec loop () =
-    match refill' t with
+    refill t
+    >>> function
     | `Eof -> Ivar.fill_if_empty finished ()
-    | `Buffer_is_full | `Read_some ->
+    | `Buffer_is_full | `Ok ->
       let payload = Bytebuffer.Consume.stringo t.buf in
       Pipe.write writer payload >>> fun () -> loop ()
-    | `Nothing_available ->
-      Fd.ready_to t.fd `Read
-      >>> (function
-      | `Ready -> loop ()
-      | `Bad_fd -> raise_s [%message "Input_channel.pipe: Bad file descriptor" (t : t)]
-      | `Closed -> Ivar.fill_if_empty finished ())
   in
   loop ();
   Ivar.read finished
@@ -126,7 +134,7 @@ let rec read_line_slow t acc =
     match%bind refill t with
     | `Eof ->
       (match acc with
-      | [] -> eof
+      | [] -> return `Eof
       | xs -> return (`Eof_with_unconsumed xs))
     | `Buffer_is_full ->
       assert
@@ -210,4 +218,14 @@ let rec read t len =
     >>= function
     | `Eof -> return `Eof
     | `Ok | `Buffer_is_full -> read t len
+;;
+
+let open_file ?buf_len filename =
+  let%map fd = Unix.openfile filename ~mode:[ `Rdonly ] in
+  create ?buf_len fd
+;;
+
+let with_file ?buf_len filename ~f =
+  let%bind t = open_file ?buf_len filename in
+  Monitor.protect ~run:`Now ~finally:(fun () -> close t) (fun () -> f t)
 ;;
