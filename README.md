@@ -16,8 +16,7 @@ In such scenarios, it is possible to drop down to async's [Fd](https://github.co
 module and schedule reads and writes manually. This approach will give full control over how I/O operations are scheduled, but will come at a cost of more complexity
 as the user is now responsible for buffer management, and proper handling of syscall responses.
 
-Shuttle aims to provide a middle ground for a subset of use-cases handled by Reader/Writer. It covers fewer use-cases when
-compared to Reader/Writer, only supports file descriptors that support non-blocking system calls, and doesn't aim to support the full
+Shuttle aims to provide a middle ground for a subset of use-cases handled by Reader/Writer. It doesn't aim to support the full
 feature set of the reader/writes modules. In return, it allows for a high level api that pairs the ease of use of reader/writer modules with
 performance and latency curves that are closer to implementations with manual buffer management.
 
