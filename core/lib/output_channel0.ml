@@ -1,7 +1,7 @@
 open! Core
 open! Async_kernel
 open Async_unix
-module Unix = Core.Unix
+module Unix = Core_unix
 
 module Config = struct
   (* Same as the default value of [buffer_age_limit] for [Async_unix.Writer] *)

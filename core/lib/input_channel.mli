@@ -13,7 +13,7 @@ val is_closed : t -> bool
 val closed : t -> unit Deferred.t
 val close : t -> unit Deferred.t
 val refill : t -> [ `Ok | `Eof | `Buffer_is_full ] Deferred.t
-val view : t -> Bigstring.t Core.Unix.IOVec.t
+val view : t -> Bigstring.t Core_unix.IOVec.t
 val consume : t -> int -> unit
 
 (** [drain t] reads chunks of data from the reader and discards them. *)

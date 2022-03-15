@@ -19,4 +19,4 @@ let command =
       fun () -> run filename)
 ;;
 
-let () = Command.run command
+let () = Command_unix.run command

@@ -28,5 +28,5 @@ let () =
     Command.Let_syntax.(
       let%map_open sock = anon ("socket" %: string) in
       fun () -> run sock)
-  |> Command.run
+  |> Command_unix.run
 ;;

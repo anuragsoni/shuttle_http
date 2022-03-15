@@ -3,4 +3,4 @@
  (public_name shuttle)
  (preprocess
   (pps ppx_jane))
- (libraries core async))
+ (libraries core core_unix async))

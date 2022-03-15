@@ -71,7 +71,7 @@ let view t =
   let buf = Bytebuffer.unsafe_buf t.buf in
   let pos = Bytebuffer.pos t.buf in
   let len = Bytebuffer.length t.buf in
-  Core.Unix.IOVec.of_bigstring buf ~pos ~len
+  Core_unix.IOVec.of_bigstring buf ~pos ~len
 ;;
 
 let rec refill t =
