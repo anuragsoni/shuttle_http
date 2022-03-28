@@ -83,12 +83,15 @@ module Fill = struct
     t.pos_fill <- t.pos_fill + 1
   ;;
 
-  let add_gen t ?pos ?len ~total_length ~blit str =
-    let src_pos, len =
-      Ordered_collection_common.get_pos_len_exn ?pos ?len () ~total_length
+  let add_gen t ?(pos = 0) ?len ~total_length ~blit str =
+    let len =
+      match len with
+      | Some i -> i
+      | None -> total_length - pos
     in
+    Ordered_collection_common.check_pos_len_exn ~pos ~len ~total_length;
     if available_to_write t < len then resize t len;
-    blit ~src:str ~src_pos ~dst:t.buf ~dst_pos:t.pos_fill ~len;
+    blit ~src:str ~src_pos:pos ~dst:t.buf ~dst_pos:t.pos_fill ~len;
     t.pos_fill <- t.pos_fill + len
   ;;
 
