@@ -15,7 +15,7 @@ let command =
   Command.async
     ~summary:"cat"
     Command.Let_syntax.(
-      let%map_open filename = anon ("filename" %: Filename.arg_type) in
+      let%map_open filename = anon ("filename" %: Filename_unix.arg_type) in
       fun () -> run filename)
 ;;
 

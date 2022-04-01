@@ -61,9 +61,9 @@ let read_assume_fd_is_nonblocking fd t =
       ~pos:t.pos_fill
       ~len:(Bigstring.length t.buf - t.pos_fill)
   in
-  if Unix.Syscall_result.Int.is_ok res
+  if Core_unix.Syscall_result.Int.is_ok res
   then (
-    let count = Unix.Syscall_result.Int.ok_exn res in
+    let count = Core_unix.Syscall_result.Int.ok_exn res in
     if count > 0 then t.pos_fill <- t.pos_fill + count);
   res
 ;;

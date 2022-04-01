@@ -1,7 +1,6 @@
 open! Core
 open! Async
 open! Shuttle
-open! Expect_test_config_with_unit_expect
 
 let stdout = Lazy.force Writer.stdout
 
@@ -22,15 +21,13 @@ let%expect_test "create a pipe from an input_channel" =
        wr
        [ "Hello, World!"; " This is a line\nWith some more data as part of this chunk\n" ]
     >>= fun () -> Output_channel.close wr);
-  let%bind () =
+  let%map () =
     Pipe.iter_without_pushback pipe ~f:(fun payload -> Writer.write stdout payload)
   in
-  let%bind () =
-    [%expect
-      {|
+  [%expect
+    {|
     Hello, World! This is a line
-    With some more data as part of this chunk |}]
-  in
+    With some more data as part of this chunk |}];
   Writer.writef stdout "Input_channel closed? %b" (Input_channel.is_closed rd);
   [%expect {| Input_channel closed? true |}]
 ;;
@@ -48,7 +45,7 @@ let%expect_test "create a pipe from an output channel" =
        [ "Hello!!"; " This is another chunk.\n"; "Pushing to writer\n" ]
        ~f:(fun msg -> Pipe.write pipe_w msg)
     >>= fun () -> Output_channel.close wr);
-  let%bind () =
+  let%map () =
     Pipe.iter_without_pushback pipe_r ~f:(fun msg -> Writer.write stdout msg)
   in
   [%expect {|
@@ -61,7 +58,7 @@ let%expect_test "create input_channel from pipe" =
   Input_channel.of_pipe (Info.of_string "testing") p
   >>= fun rd ->
   let pipe_r = Input_channel.pipe rd in
-  let%bind () =
+  let%map () =
     Pipe.iter_without_pushback pipe_r ~f:(fun msg -> Writer.write stdout msg)
   in
   [%expect {|
@@ -79,7 +76,7 @@ let%expect_test "create output_channel from pipe" =
   Output_channel.writef t "Another line using writef %d %b\n" 12 false;
   Output_channel.schedule_flush t;
   don't_wait_for (Output_channel.flushed t >>= fun () -> Output_channel.close t);
-  let%bind () = Pipe.iter_without_pushback rd ~f:(fun msg -> Writer.write stdout msg) in
+  let%map () = Pipe.iter_without_pushback rd ~f:(fun msg -> Writer.write stdout msg) in
   [%expect {|
     Hello World!
     Another line using writef 12 false |}]
@@ -97,7 +94,7 @@ let%expect_test "can read lines from channel" =
   Output_channel.write wr " It keeps going";
   Output_channel.schedule_flush wr;
   don't_wait_for (Output_channel.flushed wr >>= fun () -> Output_channel.close wr);
-  let%bind () =
+  let%map () =
     Pipe.iter_without_pushback lines ~f:(fun msg -> Writer.write_line stdout msg)
   in
   [%expect {|
@@ -120,7 +117,7 @@ let%expect_test "can read lines with a small internal buffer" =
   Output_channel.write wr "this is a line that doesn't end";
   Output_channel.schedule_flush wr;
   don't_wait_for (Output_channel.flushed wr >>= fun () -> Output_channel.close wr);
-  let%bind () =
+  let%map () =
     Pipe.iter_without_pushback lines ~f:(fun msg ->
         Writer.writef stdout "%s (%d)\n" msg (String.length msg))
   in
