@@ -16,6 +16,7 @@ jobs:
           - ubuntu-latest
         ocaml-version:
           - 4.13.x
+          - 4.14.x
     steps:
       - uses: actions/checkout@v2
       - name: Setup OCaml ${{ matrix.ocaml-version }}
