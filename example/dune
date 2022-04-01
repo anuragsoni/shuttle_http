@@ -2,4 +2,11 @@
  (names redis_bench_async redis_bench_shuttle cat_shuttle)
  (preprocess
   (pps ppx_jane))
- (libraries core core_unix core_unix.command_unix async shuttle shuttle_ssl))
+ (libraries
+  core
+  core_unix
+  core_unix.filename_unix
+  core_unix.command_unix
+  async
+  shuttle
+  shuttle_ssl))

@@ -1,6 +1,7 @@
 open! Core
 open! Async
 open! Shuttle
+module Expect_test_config = Expect_test_config_with_unit_expect
 
 let stdout = Lazy.force Writer.stdout
 
