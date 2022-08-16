@@ -13,10 +13,10 @@ let run sock =
       ~on_handler_error:`Raise
       (Tcp.Where_to_listen.of_file sock)
       ~f:(fun _addr reader writer ->
-        let lines = Input_channel.lines reader in
-        Pipe.iter_without_pushback lines ~f:(fun _ ->
-            Output_channel.write writer "+PONG\r\n";
-            Output_channel.schedule_flush writer))
+      let lines = Input_channel.lines reader in
+      Pipe.iter_without_pushback lines ~f:(fun _ ->
+        Output_channel.write writer "+PONG\r\n";
+        Output_channel.schedule_flush writer))
   in
   ignore (host_and_port : (Socket.Address.Unix.t, string) Tcp.Server.t);
   Deferred.never ()

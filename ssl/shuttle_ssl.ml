@@ -11,34 +11,33 @@ let close_channels input_channel output_channel =
 let pipe_of_channels input_channel output_channel =
   let net_to_ssl, net_to_ssl_writer = Pipe.create () in
   upon (Input_channel.transfer input_channel net_to_ssl_writer) (fun () ->
-      close_channels input_channel output_channel
-      >>> fun () -> Pipe.close net_to_ssl_writer);
+    close_channels input_channel output_channel >>> fun () -> Pipe.close net_to_ssl_writer);
   let ssl_to_net = Output_channel.pipe output_channel in
   upon (Pipe.closed ssl_to_net) (fun () ->
-      choose
-        [ choice (after (Time.Span.of_sec 30.)) (fun () -> ())
-        ; choice (Pipe.downstream_flushed ssl_to_net) (fun (_ : Pipe.Flushed_result.t) ->
-              ())
-        ]
-      >>> fun () -> don't_wait_for (close_channels input_channel output_channel));
+    choose
+      [ choice (after (Time.Span.of_sec 30.)) (fun () -> ())
+      ; choice (Pipe.downstream_flushed ssl_to_net) (fun (_ : Pipe.Flushed_result.t) ->
+          ())
+      ]
+    >>> fun () -> don't_wait_for (close_channels input_channel output_channel));
   net_to_ssl, ssl_to_net
 ;;
 
 let upgrade_client_connection
-    ?version
-    ?options
-    ?name
-    ?hostname
-    ?allowed_ciphers
-    ?ca_file
-    ?ca_path
-    ?crt_file
-    ?key_file
-    ?verify_modes
-    ?session
-    ~f
-    input_channel
-    output_channel'
+  ?version
+  ?options
+  ?name
+  ?hostname
+  ?allowed_ciphers
+  ?ca_file
+  ?ca_path
+  ?crt_file
+  ?key_file
+  ?verify_modes
+  ?session
+  ~f
+  input_channel
+  output_channel'
   =
   let net_to_ssl, ssl_to_net = pipe_of_channels input_channel output_channel' in
   let app_to_ssl, app_writer = Pipe.create () in
@@ -89,22 +88,22 @@ let upgrade_client_connection
         ]
     in
     Monitor.protect ~run:`Now ~finally:shutdown (fun () ->
-        f conn input_channel output_channel)
+      f conn input_channel output_channel)
 ;;
 
 let upgrade_server_connection
-    ?version
-    ?options
-    ?name
-    ?allowed_ciphers
-    ?ca_file
-    ?ca_path
-    ?verify_modes
-    ~crt_file
-    ~key_file
-    ~f
-    input_channel
-    output_channel'
+  ?version
+  ?options
+  ?name
+  ?allowed_ciphers
+  ?ca_file
+  ?ca_path
+  ?verify_modes
+  ~crt_file
+  ~key_file
+  ~f
+  input_channel
+  output_channel'
   =
   let net_to_ssl, ssl_to_net = pipe_of_channels input_channel output_channel' in
   let app_to_ssl, app_writer = Pipe.create () in
@@ -156,22 +155,22 @@ let upgrade_server_connection
 ;;
 
 let listen
-    ?version
-    ?options
-    ?name
-    ?allowed_ciphers
-    ?ca_file
-    ?ca_path
-    ?verify_modes
-    ?max_connections
-    ?max_accepts_per_batch
-    ?backlog
-    ?socket
-    ~crt_file
-    ~key_file
-    ~on_handler_error
-    where_to_listen
-    ~f:handler
+  ?version
+  ?options
+  ?name
+  ?allowed_ciphers
+  ?ca_file
+  ?ca_path
+  ?verify_modes
+  ?max_connections
+  ?max_accepts_per_batch
+  ?backlog
+  ?socket
+  ~crt_file
+  ~key_file
+  ~on_handler_error
+  where_to_listen
+  ~f:handler
   =
   Connection.listen
     ?max_connections
@@ -181,39 +180,39 @@ let listen
     ~on_handler_error
     where_to_listen
     ~f:(fun addr input_channel output_channel ->
-      upgrade_server_connection
-        ?version
-        ?options
-        ?name
-        ?allowed_ciphers
-        ?ca_file
-        ?ca_path
-        ?verify_modes
-        ~crt_file
-        ~key_file
-        input_channel
-        output_channel
-        ~f:(handler addr))
+    upgrade_server_connection
+      ?version
+      ?options
+      ?name
+      ?allowed_ciphers
+      ?ca_file
+      ?ca_path
+      ?verify_modes
+      ~crt_file
+      ~key_file
+      input_channel
+      output_channel
+      ~f:(handler addr))
 ;;
 
 let with_connection
-    ?version
-    ?options
-    ?name
-    ?hostname
-    ?allowed_ciphers
-    ?ca_file
-    ?ca_path
-    ?crt_file
-    ?key_file
-    ?verify_modes
-    ?session
-    ?interrupt
-    ?timeout
-    ?input_buffer_size
-    ?output_buffer_size
-    ~f
-    where_to_connect
+  ?version
+  ?options
+  ?name
+  ?hostname
+  ?allowed_ciphers
+  ?ca_file
+  ?ca_path
+  ?crt_file
+  ?key_file
+  ?verify_modes
+  ?session
+  ?interrupt
+  ?timeout
+  ?input_buffer_size
+  ?output_buffer_size
+  ~f
+  where_to_connect
   =
   Connection.with_connection
     ?interrupt

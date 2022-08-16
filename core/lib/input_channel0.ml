@@ -50,7 +50,7 @@ let refill_nonblocking t =
   else (
     let result =
       Fd.syscall_result_exn ~nonblocking:true t.fd t.buf (fun fd buf ->
-          Bytebuffer.read_assume_fd_is_nonblocking fd buf)
+        Bytebuffer.read_assume_fd_is_nonblocking fd buf)
     in
     if Unix.Syscall_result.Int.is_ok result
     then (
@@ -96,8 +96,8 @@ let rec refill t =
     else (
       match%map
         Fd.syscall_in_thread t.fd ~name:"read" (fun fd ->
-            let count = Bytebuffer.read fd t.buf in
-            if count = 0 then `Eof else `Ok)
+          let count = Bytebuffer.read fd t.buf in
+          if count = 0 then `Eof else `Ok)
       with
       | `Already_closed -> `Eof
       | `Error (Bigstring_unix.IOError (0, End_of_file)) -> `Eof
@@ -134,8 +134,8 @@ let rec read_line_slow t acc =
     match%bind refill t with
     | `Eof ->
       (match acc with
-      | [] -> return `Eof
-      | xs -> return (`Eof_with_unconsumed xs))
+       | [] -> return `Eof
+       | xs -> return (`Eof_with_unconsumed xs))
     | `Buffer_is_full ->
       assert
         (* We should never reach this branch as only attempt to refill if the buffer is
@@ -190,16 +190,16 @@ let lines t =
   let r, w = Pipe.create () in
   let finished =
     Deferred.create (fun ivar ->
-        let rec loop t =
-          read_line t
-          >>> function
-          | `Eof -> Ivar.fill ivar ()
-          | `Ok v ->
-            if Pipe.is_closed w
-            then Ivar.fill ivar ()
-            else Pipe.write w v >>> fun () -> loop t
-        in
-        loop t)
+      let rec loop t =
+        read_line t
+        >>> function
+        | `Eof -> Ivar.fill ivar ()
+        | `Ok v ->
+          if Pipe.is_closed w
+          then Ivar.fill ivar ()
+          else Pipe.write w v >>> fun () -> loop t
+      in
+      loop t)
   in
   upon finished (fun () -> close t >>> fun () -> Pipe.close w);
   r

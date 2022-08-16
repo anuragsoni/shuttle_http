@@ -16,15 +16,15 @@ let collect_errors writer fn =
 ;;
 
 let listen
-    ?max_connections
-    ?max_accepts_per_batch
-    ?backlog
-    ?socket
-    ?input_buffer_size
-    ?output_buffer_size
-    ~on_handler_error
-    ~f:handler
-    where_to_listen
+  ?max_connections
+  ?max_accepts_per_batch
+  ?backlog
+  ?socket
+  ?input_buffer_size
+  ?output_buffer_size
+  ~on_handler_error
+  ~f:handler
+  where_to_listen
   =
   Tcp.Server.create_sock
     ?max_connections
@@ -34,30 +34,30 @@ let listen
     ~on_handler_error
     where_to_listen
     (fun addr socket ->
-      let fd = Socket.fd socket in
-      let input_channel = Input_channel.create ?buf_len:input_buffer_size fd in
-      let output_channel = Output_channel.create ?buf_len:output_buffer_size fd in
-      let%bind res =
-        Deferred.any
-          [ collect_errors output_channel (fun () ->
-                handler addr input_channel output_channel)
-          ; Output_channel.remote_closed output_channel |> Deferred.ok
-          ]
-      in
-      let%bind () = close_channels input_channel output_channel in
-      match res with
-      | Ok () -> Deferred.unit
-      | Error exn ->
-        Exn.reraise exn "Shuttle.Connection.create: exception from output_channel")
+    let fd = Socket.fd socket in
+    let input_channel = Input_channel.create ?buf_len:input_buffer_size fd in
+    let output_channel = Output_channel.create ?buf_len:output_buffer_size fd in
+    let%bind res =
+      Deferred.any
+        [ collect_errors output_channel (fun () ->
+            handler addr input_channel output_channel)
+        ; Output_channel.remote_closed output_channel |> Deferred.ok
+        ]
+    in
+    let%bind () = close_channels input_channel output_channel in
+    match res with
+    | Ok () -> Deferred.unit
+    | Error exn ->
+      Exn.reraise exn "Shuttle.Connection.create: exception from output_channel")
 ;;
 
 let with_connection
-    ?interrupt
-    ?timeout
-    ?input_buffer_size
-    ?output_buffer_size
-    ~f
-    where_to_connect
+  ?interrupt
+  ?timeout
+  ?input_buffer_size
+  ?output_buffer_size
+  ~f
+  where_to_connect
   =
   let%bind socket = Tcp.connect_sock ?interrupt ?timeout where_to_connect in
   let fd = Socket.fd socket in

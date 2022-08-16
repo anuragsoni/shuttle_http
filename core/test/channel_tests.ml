@@ -6,8 +6,8 @@ let stdout = Lazy.force Writer.stdout
 
 let write_chunks_to_chan wr chunks =
   Deferred.List.iter ~how:`Sequential chunks ~f:(fun chunk ->
-      Output_channel.write wr chunk;
-      Output_channel.flush wr)
+    Output_channel.write wr chunk;
+    Output_channel.flush wr)
 ;;
 
 let%expect_test "create a pipe from an input_channel" =
@@ -119,7 +119,7 @@ let%expect_test "can read lines with a small internal buffer" =
   don't_wait_for (Output_channel.flushed wr >>= fun () -> Output_channel.close wr);
   let%map () =
     Pipe.iter_without_pushback lines ~f:(fun msg ->
-        Writer.writef stdout "%s (%d)\n" msg (String.length msg))
+      Writer.writef stdout "%s (%d)\n" msg (String.length msg))
   in
   [%expect
     {|

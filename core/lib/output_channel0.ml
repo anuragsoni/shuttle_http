@@ -21,9 +21,9 @@ module Config = struct
   ;;
 
   let create
-      ?(buf_len = default_initial_buffer_size)
-      ?(write_timeout = default_write_timeout)
-      ()
+    ?(buf_len = default_initial_buffer_size)
+    ?(write_timeout = default_write_timeout)
+    ()
     =
     validate { initial_buffer_size = buf_len; write_timeout }
   ;;
@@ -117,35 +117,35 @@ let dequeue_flushes t =
 
 let write_nonblocking t =
   Fd.syscall_exn ~nonblocking:true t.fd (fun fd ->
-      match Bytebuffer.write_assume_fd_is_nonblocking fd t.buf with
-      | n ->
-        assert (n >= 0);
-        `Ok n
-      | exception Unix.Unix_error ((EWOULDBLOCK | EAGAIN | EINTR), _, _) -> `Ok 0
-      | exception
-          Unix.Unix_error
-            ( ( EPIPE
-              | ECONNRESET
-              | EHOSTUNREACH
-              | ENETDOWN
-              | ENETRESET
-              | ENETUNREACH
-              | ETIMEDOUT )
-            , _
-            , _ ) -> `Eof
-      | exception exn -> raise exn)
+    match Bytebuffer.write_assume_fd_is_nonblocking fd t.buf with
+    | n ->
+      assert (n >= 0);
+      `Ok n
+    | exception Unix.Unix_error ((EWOULDBLOCK | EAGAIN | EINTR), _, _) -> `Ok 0
+    | exception
+        Unix.Unix_error
+          ( ( EPIPE
+            | ECONNRESET
+            | EHOSTUNREACH
+            | ENETDOWN
+            | ENETRESET
+            | ENETUNREACH
+            | ETIMEDOUT )
+          , _
+          , _ ) -> `Eof
+    | exception exn -> raise exn)
 ;;
 
 let close t =
   (match t.close_state with
-  | Closed | Start_close -> ()
-  | Open ->
-    t.close_state <- Start_close;
-    Ivar.fill t.close_started ();
-    Deferred.any_unit [ after (Time.Span.of_sec 5.); flushed t ]
-    >>> fun () ->
-    t.close_state <- Closed;
-    Fd.close t.fd >>> fun () -> Ivar.fill t.close_finished ());
+   | Closed | Start_close -> ()
+   | Open ->
+     t.close_state <- Start_close;
+     Ivar.fill t.close_started ();
+     Deferred.any_unit [ after (Time.Span.of_sec 5.); flushed t ]
+     >>> fun () ->
+     t.close_state <- Closed;
+     Fd.close t.fd >>> fun () -> Ivar.fill t.close_finished ());
   close_finished t
 ;;
 
@@ -263,8 +263,8 @@ let write_from_pipe t reader =
     (* Add a consumer so the pipe will take the output_channel into account when it checks
        if the reader contents have been flushed. *)
     Pipe.add_consumer reader ~downstream_flushed:(fun () ->
-        let%map () = flushed t in
-        `Ok)
+      let%map () = flushed t in
+      `Ok)
   in
   let rec loop () =
     if can_write t && is_open t
