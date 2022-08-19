@@ -12,7 +12,7 @@ type t =
   }
 [@@deriving sexp_of]
 
-let create ?buf_len fd =
+let create ?max_buffer_size ?buf_len fd =
   let buf_len =
     match buf_len with
     | None -> 64 * 1024
@@ -27,7 +27,7 @@ let create ?buf_len fd =
   ; reading = false
   ; is_closed = false
   ; closed = Ivar.create ()
-  ; buf = Bytebuffer.create buf_len
+  ; buf = Bytebuffer.create ?max_buffer_size buf_len
   }
 ;;
 
@@ -46,25 +46,24 @@ let close t =
 let refill_nonblocking t =
   Bytebuffer.compact t.buf;
   if Bytebuffer.available_to_write t.buf = 0
-  then `Buffer_is_full
+  then Bytebuffer.maybe_grow_buffer t.buf (Bytebuffer.length t.buf + 1);
+  let result =
+    Fd.syscall_result_exn ~nonblocking:true t.fd t.buf (fun fd buf ->
+      Bytebuffer.read_assume_fd_is_nonblocking fd buf)
+  in
+  if Unix.Syscall_result.Int.is_ok result
+  then (
+    match Unix.Syscall_result.Int.ok_exn result with
+    | 0 -> `Eof
+    | n ->
+      assert (n > 0);
+      `Read_some)
   else (
-    let result =
-      Fd.syscall_result_exn ~nonblocking:true t.fd t.buf (fun fd buf ->
-        Bytebuffer.read_assume_fd_is_nonblocking fd buf)
-    in
-    if Unix.Syscall_result.Int.is_ok result
-    then (
-      match Unix.Syscall_result.Int.ok_exn result with
-      | 0 -> `Eof
-      | n ->
-        assert (n > 0);
-        `Read_some)
-    else (
-      match Unix.Syscall_result.Int.error_exn result with
-      | EAGAIN | EWOULDBLOCK | EINTR -> `Nothing_available
-      | EPIPE | ECONNRESET | EHOSTUNREACH | ENETDOWN | ENETRESET | ENETUNREACH | ETIMEDOUT
-        -> `Eof
-      | error -> raise (Unix.Unix_error (error, "read", ""))))
+    match Unix.Syscall_result.Int.error_exn result with
+    | EAGAIN | EWOULDBLOCK | EINTR -> `Nothing_available
+    | EPIPE | ECONNRESET | EHOSTUNREACH | ENETDOWN | ENETRESET | ENETUNREACH | ETIMEDOUT
+      -> `Eof
+    | error -> raise (Unix.Unix_error (error, "read", "")))
 ;;
 
 let view t =
@@ -79,7 +78,6 @@ let rec refill t =
   then (
     match refill_nonblocking t with
     | `Read_some -> return `Ok
-    | `Buffer_is_full -> return `Buffer_is_full
     | `Eof -> return `Eof
     | `Nothing_available ->
       Fd.ready_to t.fd `Read
@@ -92,17 +90,16 @@ let rec refill t =
   else (
     Bytebuffer.compact t.buf;
     if Bytebuffer.available_to_write t.buf = 0
-    then return `Buffer_is_full
-    else (
-      match%map
-        Fd.syscall_in_thread t.fd ~name:"read" (fun fd ->
-          let count = Bytebuffer.read fd t.buf in
-          if count = 0 then `Eof else `Ok)
-      with
-      | `Already_closed -> `Eof
-      | `Error (Bigstring_unix.IOError (0, End_of_file)) -> `Eof
-      | `Error exn -> Exn.reraise exn "Error while performing a read syscall"
-      | `Ok c -> c))
+    then Bytebuffer.maybe_grow_buffer t.buf (Bytebuffer.length t.buf + 1);
+    match%map
+      Fd.syscall_in_thread t.fd ~name:"read" (fun fd ->
+        let count = Bytebuffer.read fd t.buf in
+        if count = 0 then `Eof else `Ok)
+    with
+    | `Already_closed -> `Eof
+    | `Error (Bigstring_unix.IOError (0, End_of_file)) -> `Eof
+    | `Error exn -> Exn.reraise exn "Error while performing a read syscall"
+    | `Ok c -> c)
 ;;
 
 let transfer t writer =
@@ -112,7 +109,7 @@ let transfer t writer =
     refill t
     >>> function
     | `Eof -> Ivar.fill_if_empty finished ()
-    | `Buffer_is_full | `Ok ->
+    | `Ok ->
       let payload = Bytebuffer.Consume.stringo t.buf in
       Pipe.write writer payload >>> fun () -> loop ()
   in
@@ -136,11 +133,6 @@ let rec read_line_slow t acc =
       (match acc with
        | [] -> return `Eof
        | xs -> return (`Eof_with_unconsumed xs))
-    | `Buffer_is_full ->
-      assert
-        (* We should never reach this branch as only attempt to refill if the buffer is
-           empty *)
-        false
     | `Ok -> read_line_slow t acc)
   else (
     let idx = Bytebuffer.index t.buf '\n' in
@@ -217,7 +209,7 @@ let rec read t len =
     refill t
     >>= function
     | `Eof -> return `Eof
-    | `Ok | `Buffer_is_full -> read t len
+    | `Ok -> read t len
 ;;
 
 let open_file ?buf_len filename =

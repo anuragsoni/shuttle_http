@@ -1,3 +1,6 @@
+# next
+* Remove Buffer_is_full in favor of Bytebuffers that can grow upto a user provided max size
+
 # 0.4.0
 * Remove Bytebuffer from public api
 * Deprecate `schedule_bigstring`, `write_string`
