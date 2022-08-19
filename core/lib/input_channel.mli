@@ -8,11 +8,11 @@ open Async_unix
 
 type t [@@deriving sexp_of]
 
-val create : ?buf_len:int -> Fd.t -> t
+val create : ?max_buffer_size:int -> ?buf_len:int -> Fd.t -> t
 val is_closed : t -> bool
 val closed : t -> unit Deferred.t
 val close : t -> unit Deferred.t
-val refill : t -> [ `Ok | `Eof | `Buffer_is_full ] Deferred.t
+val refill : t -> [ `Ok | `Eof ] Deferred.t
 val view : t -> Bigstring.t Core_unix.IOVec.t
 val consume : t -> int -> unit
 

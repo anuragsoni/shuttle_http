@@ -7,15 +7,19 @@ module Config = struct
   (* Same as the default value of [buffer_age_limit] for [Async_unix.Writer] *)
   let default_write_timeout = Time_ns.Span.of_min 2.
   let default_initial_buffer_size = 64 * 1024
+  let default_max_buffer_size = Int.max_value
 
   type t =
     { initial_buffer_size : int
     ; write_timeout : Time_ns.Span.t
+    ; max_buffer_size : int
     }
   [@@deriving sexp_of]
 
   let validate t =
-    if t.initial_buffer_size <= 0 || Time_ns.Span.( <= ) t.write_timeout Time_ns.Span.zero
+    if t.initial_buffer_size <= 0
+       || Time_ns.Span.( <= ) t.write_timeout Time_ns.Span.zero
+       || t.initial_buffer_size > t.max_buffer_size
     then raise_s [%sexp "Shuttle.Config.validate: invalid config", { t : t }];
     t
   ;;
@@ -23,9 +27,10 @@ module Config = struct
   let create
     ?(buf_len = default_initial_buffer_size)
     ?(write_timeout = default_write_timeout)
+    ?(max_buffer_size = default_max_buffer_size)
     ()
     =
-    validate { initial_buffer_size = buf_len; write_timeout }
+    validate { initial_buffer_size = buf_len; write_timeout; max_buffer_size }
   ;;
 end
 
@@ -62,13 +67,14 @@ type t =
   }
 [@@deriving sexp_of]
 
-let create ?buf_len ?write_timeout fd =
-  let config = Config.create ?buf_len ?write_timeout () in
+let create ?max_buffer_size ?buf_len ?write_timeout fd =
+  let config = Config.create ?max_buffer_size ?buf_len ?write_timeout () in
   { fd
   ; config
   ; flushes = Queue.create ()
   ; writer_state = Inactive
-  ; buf = Bytebuffer.create config.initial_buffer_size
+  ; buf =
+      Bytebuffer.create ~max_buffer_size:config.max_buffer_size config.initial_buffer_size
   ; monitor = Monitor.create ()
   ; close_state = Open
   ; remote_closed = Ivar.create ()

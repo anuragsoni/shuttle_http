@@ -4,12 +4,25 @@ type t =
   { mutable buf : (Bigstring.t[@sexp.opaque])
   ; mutable pos_read : int
   ; mutable pos_fill : int
+  ; max_buffer_size : int
   }
 [@@deriving sexp_of]
 
-let create size =
+let create ?max_buffer_size size =
+  let max_buffer_size =
+    match max_buffer_size with
+    | None -> Int.max_value
+    | Some s -> s
+  in
+  if size > max_buffer_size
+  then
+    raise_s
+      [%message
+        "Invalid buffer size"
+          ~requested_size:(size : int)
+          ~max_buffer_size:(max_buffer_size : int)];
   let buf = Bigstring.create size in
-  { buf; pos_read = 0; pos_fill = 0 }
+  { buf; pos_read = 0; pos_fill = 0; max_buffer_size }
 ;;
 
 let unsafe_buf t = t.buf
@@ -29,9 +42,14 @@ let can_reclaim_space t = t.pos_read > 0
 let capacity t = Bigstring.length t.buf
 let available_to_write t = Bigstring.length t.buf - t.pos_fill
 
-let resize t size =
-  let new_len = (Bigstring.length t.buf + size) * 2 in
-  t.buf <- Bigstring.unsafe_destroy_and_resize t.buf ~len:new_len
+let maybe_grow_buffer t new_length =
+  if new_length > t.max_buffer_size
+  then
+    raise_s
+      [%message
+        "Cannot grow Bytebuffer" ~t:(t : t) ~new_length_requested:(new_length : int)];
+  let len = Int.min t.max_buffer_size (Int.ceil_pow2 new_length) in
+  t.buf <- Bigstring.unsafe_destroy_and_resize t.buf ~len
 ;;
 
 let drop t len =
@@ -78,7 +96,7 @@ let write_assume_fd_is_nonblocking fd t =
 
 module Fill = struct
   let char t ch =
-    if available_to_write t < 1 then resize t 1;
+    if available_to_write t < 1 then maybe_grow_buffer t (Bigstring.length t.buf + 1);
     Bigstring.set t.buf t.pos_fill ch;
     t.pos_fill <- t.pos_fill + 1
   ;;
@@ -90,7 +108,7 @@ module Fill = struct
       | None -> total_length - pos
     in
     Ordered_collection_common.check_pos_len_exn ~pos ~len ~total_length;
-    if available_to_write t < len then resize t len;
+    if available_to_write t < len then maybe_grow_buffer t (Bigstring.length t.buf + len);
     blit ~src:str ~src_pos:pos ~dst:t.buf ~dst_pos:t.pos_fill ~len;
     t.pos_fill <- t.pos_fill + len
   ;;
