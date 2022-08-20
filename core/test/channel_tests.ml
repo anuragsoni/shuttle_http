@@ -128,3 +128,35 @@ let%expect_test "can read lines with a small internal buffer" =
     World (5)
     this is a line that doesn't end (31) |}]
 ;;
+
+let%expect_test "Internal buffer automatically increases in size" =
+  Unix.pipe (Info.of_string "test input_channel")
+  >>= fun (`Reader reader, `Writer writer) ->
+  let rd = Input_channel.create ~buf_len:16 reader in
+  let wr = Output_channel.create writer in
+  don't_wait_for
+    (Output_channel.write wr "hello World ";
+     Output_channel.write wr "this is another block of text";
+     Output_channel.write wr (String.init 54 ~f:(fun _ -> 'a'));
+     Output_channel.flush wr >>= fun () -> Output_channel.close wr);
+  let%map () =
+    Deferred.create (fun ivar ->
+      let rec loop () =
+        Input_channel.refill rd
+        >>> function
+        | `Eof -> Ivar.fill ivar ()
+        | `Ok -> loop ()
+      in
+      loop ())
+  in
+  let view = Input_channel.view rd in
+  let content = Bigstring.to_string view.buf ~pos:view.pos ~len:view.len in
+  Writer.writef
+    stdout
+    "Content: %s\n Internal buffer length: %d\n"
+    content
+    (Bigstring.length view.buf);
+  [%expect {|
+      Content: hello World this is another block of textaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+       Internal buffer length: 128 |}]
+;;
