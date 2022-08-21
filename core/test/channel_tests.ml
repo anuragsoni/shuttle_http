@@ -156,7 +156,49 @@ let%expect_test "Internal buffer automatically increases in size" =
     "Content: %s\n Internal buffer length: %d\n"
     content
     (Bigstring.length view.buf);
-  [%expect {|
+  [%expect
+    {|
       Content: hello World this is another block of textaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
        Internal buffer length: 128 |}]
+;;
+
+let%expect_test "Flush operation reports when the remote peer is closed" =
+  let reader_fd, writer_fd = Unix.socketpair () in
+  let _reader = Input_channel.create reader_fd in
+  let writer = Output_channel.create writer_fd in
+  (* Suppress exceptions as we want to test the flush behavior in this test. Without this,
+     there is a race condition between the exception that'll be raised because of
+     attempting to write to a closed FD, and the deferred value being resolved. *)
+  Monitor.detach_and_iter_errors (Output_channel.monitor writer) ~f:(fun _error -> ());
+  Output_channel.write writer "Hello World";
+  (* Flush operation can respond if previous writes were successful *)
+  let%bind flush_result = Output_channel.flush_or_fail writer in
+  Writer.writef stdout !"%{sexp: Output_channel.Flush_result.t}" flush_result;
+  [%expect {| Flushed |}];
+  (* Close the reader end so the next flush operation results in an error *)
+  let%bind () = Fd.close reader_fd in
+  Output_channel.write writer "foo bar";
+  let%map flush_result = Output_channel.flush_or_fail writer in
+  Writer.writef stdout !"%{sexp: Output_channel.Flush_result.t}" flush_result;
+  [%expect {| Remote_closed |}]
+;;
+
+let%expect_test "Flush operation reports when attempting to write on a closed FD" =
+  let _reader_fd, writer_fd = Unix.socketpair () in
+  let writer = Output_channel.create writer_fd in
+  (* Suppress exceptions as we want to test the flush behavior in this test. Without this,
+     there is a race condition between the exception that'll be raised because of
+     attempting to write to a closed FD, and the deferred value being resolved. *)
+  Monitor.detach_and_iter_errors (Output_channel.monitor writer) ~f:(fun _error -> ());
+  Output_channel.write writer "Hello World";
+  (* Flush operation can respond if previous writes were successful *)
+  let%bind flush_result = Output_channel.flush_or_fail writer in
+  Writer.writef stdout !"%{sexp: Output_channel.Flush_result.t}" flush_result;
+  [%expect {| Flushed |}];
+  (* Close the writer end so the next flush operation results in an error *)
+  let%bind () = Fd.close writer_fd in
+  Output_channel.write writer "foo bar";
+  let%map flush_result = Output_channel.flush_or_fail writer in
+  Writer.writef stdout !"%{sexp: Output_channel.Flush_result.t}" flush_result;
+  [%expect {| Error |}]
 ;;

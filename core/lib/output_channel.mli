@@ -59,12 +59,43 @@ val close : t -> unit Deferred.t
 (** [schedule_flush] will schedule a write system call if one is needed. *)
 val schedule_flush : t -> unit
 
-(** [flushed t f] deferred that will get resolved when all prior writes have finished. *)
+module Flush_result : sig
+  (** [t] Result of a flush operation.
+
+      - [Flushed] indicates all prior writes at the time [flush] was call have finished
+        without any errors.
+
+      - [Remote_closed] indicates that the consumer that's reading the bytes written to
+        the Output_channel is closed, i.e. the channel has received an EPIPE or ECONNRESET
+        when it attempts to perform a write.
+
+      - [Error] indicates that the write operation was interrupted by an unhandled
+        exception, or a timeout. *)
+  type t =
+    | Flushed
+    | Remote_closed
+    | Error
+  [@@deriving sexp_of]
+end
+
+(** [flushed_or_fail t] returns a Deferred that is resolved when all previous writes
+    complete, or if any of the write operations fail. *)
+val flushed_or_fail : t -> Flush_result.t Deferred.t
+
+(** [flushed t] returns a deferred that will get resolved when all previous writes have
+    finished. Unlike [flushed_or_fail] if a write call fails then the deferred will never
+    be resolved. *)
 val flushed : t -> unit Deferred.t
 
-(** [flush] schedules a write system call if one is needed and returns a deferred that
-    will get resolved when all prior writes have finished. *)
+(** [flush] schedules a write system call if one is needed and returns a deferred that is
+    resolved when all prior writes have finished. If a write call fails then the deferred
+    will never be resolved. *)
 val flush : t -> unit Deferred.t
+
+(** [flush_or_fail] schedules a write system call if one is needed and returns a deferred
+    that is resolved when all previous writes complete, or if any of the write operations
+    fail. *)
+val flush_or_fail : t -> Flush_result.t Deferred.t
 
 val pipe : t -> string Pipe.Writer.t
 val of_pipe : Info.t -> string Pipe.Writer.t -> (t * unit Deferred.t) Deferred.t
