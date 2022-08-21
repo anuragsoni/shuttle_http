@@ -1,5 +1,7 @@
 # next
 * Remove Buffer_is_full in favor of Bytebuffers that can grow upto a user provided max size
+* Flush operations reports if the write operations encountered an error
+* Reliably wakeup pending flushes when there is an error encountered while flushing pending bytes
 
 # 0.4.0
 * Remove Bytebuffer from public api
