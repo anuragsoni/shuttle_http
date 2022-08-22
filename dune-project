@@ -24,13 +24,9 @@
   (shuttle
    (= :version))
   (ppx_jane
-   (and
-    (>= v0.14)
-    (< v0.16)))
+   (>= v0.14))
   (async_ssl
-   (and
-    (>= v0.14)
-    (< v0.16)))))
+   (>= v0.14))))
 
 (package
  (name shuttle)
