@@ -6,13 +6,14 @@ authors: ["Anurag Soni"]
 license: "MIT"
 tags: ["async" "reader" "writer" "ssl"]
 homepage: "https://github.com/anuragsoni/shuttle"
+doc: "https://anuragsoni.github.io/shuttle/"
 bug-reports: "https://github.com/anuragsoni/shuttle/issues"
 depends: [
   "dune" {>= "2.8"}
   "ocaml" {>= "4.11.0"}
   "shuttle" {= version}
-  "ppx_jane" {>= "v0.14"}
-  "async_ssl" {>= "v0.14"}
+  "ppx_jane" {>= "v0.15.0"}
+  "async_ssl" {>= "v0.15.0"}
   "odoc" {with-doc}
 ]
 build: [

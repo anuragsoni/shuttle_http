@@ -6,14 +6,15 @@ authors: ["Anurag Soni"]
 license: "MIT"
 tags: ["async" "reader" "writer"]
 homepage: "https://github.com/anuragsoni/shuttle"
+doc: "https://anuragsoni.github.io/shuttle/"
 bug-reports: "https://github.com/anuragsoni/shuttle/issues"
 depends: [
   "dune" {>= "2.8"}
   "ocaml" {>= "4.11.0"}
-  "async" {>= "v0.14"}
-  "core" {>= "v0.14"}
-  "core_unix" {>= "v0.14"}
-  "ppx_jane" {>= "v0.14"}
+  "async" {>= "v0.15.0"}
+  "core" {>= "v0.15.0"}
+  "core_unix" {>= "v0.15.0"}
+  "ppx_jane" {>= "v0.15.0"}
   "odoc" {with-doc}
 ]
 build: [

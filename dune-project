@@ -9,6 +9,8 @@
 
 (maintainers "Anurag Soni <anurag@sonianurag.com>")
 
+(documentation "https://anuragsoni.github.io/shuttle/")
+
 (authors "Anurag Soni")
 
 (license MIT)
@@ -24,9 +26,9 @@
   (shuttle
    (= :version))
   (ppx_jane
-   (>= v0.14))
+   (>= v0.15.0))
   (async_ssl
-   (>= v0.14))))
+   (>= v0.15.0))))
 
 (package
  (name shuttle)
@@ -37,10 +39,10 @@
   (ocaml
    (>= 4.11.0))
   (async
-   (>= v0.14))
+   (>= v0.15.0))
   (core
-   (>= v0.14))
+   (>= v0.15.0))
   (core_unix
-   (>= v0.14))
+   (>= v0.15.0))
   (ppx_jane
-   (>= v0.14))))
+   (>= v0.15.0))))

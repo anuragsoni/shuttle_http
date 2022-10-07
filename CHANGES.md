@@ -1,3 +1,6 @@
+# 0.6.0
+* Increase upper bound for core/async to 0.15.0
+
 # 0.5.0
 * Remove Buffer_is_full in favor of Bytebuffers that can grow upto a user provided max size
 * Flush operations reports if the write operations encountered an error
