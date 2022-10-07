@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml"><head><title>Shuttle_ssl (shuttle_ssl.Shuttle_ssl)</title><link rel="stylesheet" href="../../odoc.css"/><meta charset="utf-8"/><meta name="generator" content="odoc 2.1.0-97-ga52dd8e"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/><script src="../../highlight.pack.js"></script><script>hljs.initHighlightingOnLoad();</script></head><body class="odoc"><nav class="odoc-nav"><a href="../index.html">Up</a> – <a href="../index.html">shuttle_ssl</a> &#x00BB; Shuttle_ssl</nav><header class="odoc-preamble"><h1>Module <code><span>Shuttle_ssl</span></code></h1></header><div class="odoc-content"><div class="odoc-spec"><div class="spec value anchored" id="val-upgrade_server_connection"><a href="#val-upgrade_server_connection" class="anchor"></a><code><span><span class="keyword">val</span> upgrade_server_connection : 
+  <span>?version:<span class="xref-unresolved">Async_ssl</span>.Version.t <span class="arrow">&#45;&gt;</span></span>
+  <span>?options:<span><span class="xref-unresolved">Async_ssl</span>.Opt.t list</span> <span class="arrow">&#45;&gt;</span></span>
+  <span>?name:string <span class="arrow">&#45;&gt;</span></span>
+  <span>?allowed_ciphers:<span>[ <span>`Only of <span>string list</span></span> <span>| `Openssl_default</span> <span>| `Secure</span> ]</span> <span class="arrow">&#45;&gt;</span></span>
+  <span>?ca_file:string <span class="arrow">&#45;&gt;</span></span>
+  <span>?ca_path:string <span class="arrow">&#45;&gt;</span></span>
+  <span>?verify_modes:<span><span class="xref-unresolved">Async_ssl</span>.Verify_mode.t list</span> <span class="arrow">&#45;&gt;</span></span>
+  <span>crt_file:string <span class="arrow">&#45;&gt;</span></span>
+  <span>key_file:string <span class="arrow">&#45;&gt;</span></span>
+  <span>f:
+    <span>(<span><a href="../../shuttle/Shuttle/Input_channel/index.html#type-t">Shuttle.Input_channel.t</a> <span class="arrow">&#45;&gt;</span></span>
+      <span><a href="../../shuttle/Shuttle/Output_channel/index.html#type-t">Shuttle.Output_channel.t</a> <span class="arrow">&#45;&gt;</span></span>
+      <span><span class="type-var">'a</span> <span class="xref-unresolved">Async</span>.Deferred.t</span>)</span> <span class="arrow">&#45;&gt;</span></span>
+  <span><a href="../../shuttle/Shuttle/Input_channel/index.html#type-t">Shuttle.Input_channel.t</a> <span class="arrow">&#45;&gt;</span></span>
+  <span><a href="../../shuttle/Shuttle/Output_channel/index.html#type-t">Shuttle.Output_channel.t</a> <span class="arrow">&#45;&gt;</span></span>
+  <span><span class="type-var">'a</span> <span class="xref-unresolved">Async</span>.Deferred.t</span></span></code></div><div class="spec-doc"><p><code>upgrade_server_connection</code> performs TLS negotiation and if it succeeds, applies <code>f</code> to the new encrypted channels. When the deferred returned by <code>f</code> resolves, the TLS connection is shutdown, and the channels are closed.</p></div></div><div class="odoc-spec"><div class="spec value anchored" id="val-listen"><a href="#val-listen" class="anchor"></a><code><span><span class="keyword">val</span> listen : 
+  <span>?version:<span class="xref-unresolved">Async_ssl</span>.Version.t <span class="arrow">&#45;&gt;</span></span>
+  <span>?options:<span><span class="xref-unresolved">Async_ssl</span>.Opt.t list</span> <span class="arrow">&#45;&gt;</span></span>
+  <span>?name:string <span class="arrow">&#45;&gt;</span></span>
+  <span>?allowed_ciphers:<span>[ <span>`Only of <span>string list</span></span> <span>| `Openssl_default</span> <span>| `Secure</span> ]</span> <span class="arrow">&#45;&gt;</span></span>
+  <span>?ca_file:string <span class="arrow">&#45;&gt;</span></span>
+  <span>?ca_path:string <span class="arrow">&#45;&gt;</span></span>
+  <span>?verify_modes:<span><span class="xref-unresolved">Async_ssl</span>.Verify_mode.t list</span> <span class="arrow">&#45;&gt;</span></span>
+  <span>?max_connections:int <span class="arrow">&#45;&gt;</span></span>
+  <span>?max_accepts_per_batch:int <span class="arrow">&#45;&gt;</span></span>
+  <span>?backlog:int <span class="arrow">&#45;&gt;</span></span>
+  <span>?socket:
+    <span><span>(<span>[ `Unconnected ]</span>, <span>[&lt; <span class="xref-unresolved">Async</span>.Socket.Address.t ]</span> <span class="keyword">as</span> 'address)</span> <span class="xref-unresolved">Async</span>.Socket.t</span> <span class="arrow">&#45;&gt;</span></span>
+  <span>crt_file:string <span class="arrow">&#45;&gt;</span></span>
+  <span>key_file:string <span class="arrow">&#45;&gt;</span></span>
+  <span>on_handler_error:<span>[ <span>`Call of <span><span class="type-var">'address</span> <span class="arrow">&#45;&gt;</span></span> <span>exn <span class="arrow">&#45;&gt;</span></span> unit</span> <span>| `Ignore</span> <span>| `Raise</span> ]</span> <span class="arrow">&#45;&gt;</span></span>
+  <span><span><span>(<span class="type-var">'address</span>, <span class="type-var">'listening_on</span>)</span> <span class="xref-unresolved">Async</span>.Tcp.Where_to_listen.t</span> <span class="arrow">&#45;&gt;</span></span>
+  <span>f:
+    <span>(<span><span class="type-var">'address</span> <span class="arrow">&#45;&gt;</span></span>
+      <span><a href="../../shuttle/Shuttle/Input_channel/index.html#type-t">Shuttle.Input_channel.t</a> <span class="arrow">&#45;&gt;</span></span>
+      <span><a href="../../shuttle/Shuttle/Output_channel/index.html#type-t">Shuttle.Output_channel.t</a> <span class="arrow">&#45;&gt;</span></span>
+      <span>unit <span class="xref-unresolved">Async</span>.Deferred.t</span>)</span> <span class="arrow">&#45;&gt;</span></span>
+  <span><span><span>(<span class="type-var">'address</span>, <span class="type-var">'listening_on</span>)</span> <span class="xref-unresolved">Async</span>.Tcp.Server.t</span> <span class="xref-unresolved">Async</span>.Deferred.t</span></span></code></div><div class="spec-doc"><p><code>listen</code> accepts new TCP connections, performs TLS negotiation and then calls <code>f</code> with the encrypted channels. Once the deferred returned by <code>f</code> resolves, the connection is shutdown.</p></div></div><div class="odoc-spec"><div class="spec value anchored" id="val-upgrade_client_connection"><a href="#val-upgrade_client_connection" class="anchor"></a><code><span><span class="keyword">val</span> upgrade_client_connection : 
+  <span>?version:<span class="xref-unresolved">Async_ssl</span>.Version.t <span class="arrow">&#45;&gt;</span></span>
+  <span>?options:<span><span class="xref-unresolved">Async_ssl</span>.Opt.t list</span> <span class="arrow">&#45;&gt;</span></span>
+  <span>?name:string <span class="arrow">&#45;&gt;</span></span>
+  <span>?hostname:string <span class="arrow">&#45;&gt;</span></span>
+  <span>?allowed_ciphers:<span>[ <span>`Only of <span>string list</span></span> <span>| `Openssl_default</span> <span>| `Secure</span> ]</span> <span class="arrow">&#45;&gt;</span></span>
+  <span>?ca_file:string <span class="arrow">&#45;&gt;</span></span>
+  <span>?ca_path:string <span class="arrow">&#45;&gt;</span></span>
+  <span>?crt_file:string <span class="arrow">&#45;&gt;</span></span>
+  <span>?key_file:string <span class="arrow">&#45;&gt;</span></span>
+  <span>?verify_modes:<span><span class="xref-unresolved">Async_ssl</span>.Verify_mode.t list</span> <span class="arrow">&#45;&gt;</span></span>
+  <span>?session:<span class="xref-unresolved">Async_ssl</span>.Ssl.Session.t <span class="arrow">&#45;&gt;</span></span>
+  <span>f:
+    <span>(<span><span class="xref-unresolved">Async_ssl</span>.Ssl.Connection.t <span class="arrow">&#45;&gt;</span></span>
+      <span><a href="../../shuttle/Shuttle/Input_channel/index.html#type-t">Shuttle.Input_channel.t</a> <span class="arrow">&#45;&gt;</span></span>
+      <span><a href="../../shuttle/Shuttle/Output_channel/index.html#type-t">Shuttle.Output_channel.t</a> <span class="arrow">&#45;&gt;</span></span>
+      <span><span class="type-var">'a</span> <span class="xref-unresolved">Async</span>.Deferred.t</span>)</span> <span class="arrow">&#45;&gt;</span></span>
+  <span><a href="../../shuttle/Shuttle/Input_channel/index.html#type-t">Shuttle.Input_channel.t</a> <span class="arrow">&#45;&gt;</span></span>
+  <span><a href="../../shuttle/Shuttle/Output_channel/index.html#type-t">Shuttle.Output_channel.t</a> <span class="arrow">&#45;&gt;</span></span>
+  <span><span class="type-var">'a</span> <span class="xref-unresolved">Async</span>.Deferred.t</span></span></code></div></div><div class="odoc-spec"><div class="spec value anchored" id="val-with_connection"><a href="#val-with_connection" class="anchor"></a><code><span><span class="keyword">val</span> with_connection : 
+  <span>?version:<span class="xref-unresolved">Async_ssl</span>.Version.t <span class="arrow">&#45;&gt;</span></span>
+  <span>?options:<span><span class="xref-unresolved">Async_ssl</span>.Opt.t list</span> <span class="arrow">&#45;&gt;</span></span>
+  <span>?name:string <span class="arrow">&#45;&gt;</span></span>
+  <span>?hostname:string <span class="arrow">&#45;&gt;</span></span>
+  <span>?allowed_ciphers:<span>[ <span>`Only of <span>string list</span></span> <span>| `Openssl_default</span> <span>| `Secure</span> ]</span> <span class="arrow">&#45;&gt;</span></span>
+  <span>?ca_file:string <span class="arrow">&#45;&gt;</span></span>
+  <span>?ca_path:string <span class="arrow">&#45;&gt;</span></span>
+  <span>?crt_file:string <span class="arrow">&#45;&gt;</span></span>
+  <span>?key_file:string <span class="arrow">&#45;&gt;</span></span>
+  <span>?verify_modes:<span><span class="xref-unresolved">Async_ssl</span>.Verify_mode.t list</span> <span class="arrow">&#45;&gt;</span></span>
+  <span>?session:<span class="xref-unresolved">Async_ssl</span>.Ssl.Session.t <span class="arrow">&#45;&gt;</span></span>
+  <span>?interrupt:<span>unit <span class="xref-unresolved">Async</span>.Deferred.t</span> <span class="arrow">&#45;&gt;</span></span>
+  <span>?timeout:<span class="xref-unresolved">Core</span>.Time.Span.t <span class="arrow">&#45;&gt;</span></span>
+  <span>?input_buffer_size:int <span class="arrow">&#45;&gt;</span></span>
+  <span>?output_buffer_size:int <span class="arrow">&#45;&gt;</span></span>
+  <span>f:
+    <span>(<span><span class="xref-unresolved">Async_ssl</span>.Ssl.Connection.t <span class="arrow">&#45;&gt;</span></span>
+      <span><a href="../../shuttle/Shuttle/Input_channel/index.html#type-t">Shuttle.Input_channel.t</a> <span class="arrow">&#45;&gt;</span></span>
+      <span><a href="../../shuttle/Shuttle/Output_channel/index.html#type-t">Shuttle.Output_channel.t</a> <span class="arrow">&#45;&gt;</span></span>
+      <span><span class="type-var">'a</span> <span class="xref-unresolved">Async</span>.Deferred.t</span>)</span> <span class="arrow">&#45;&gt;</span></span>
+  <span><span><span>[&lt; <span class="xref-unresolved">Async</span>.Socket.Address.t ]</span> <span class="xref-unresolved">Async</span>.Tcp.Where_to_connect.t</span> <span class="arrow">&#45;&gt;</span></span>
+  <span><span class="type-var">'a</span> <span class="xref-unresolved">Async</span>.Deferred.t</span></span></code></div></div></div></body></html>
