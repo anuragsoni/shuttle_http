@@ -154,7 +154,7 @@ let write_nonblocking t =
   | n ->
     assert (n >= 0);
     `Ok n
-  | exception Unix.Unix_error ((EWOULDBLOCK | EAGAIN | EINTR), _, _) -> `Ok 0
+  | exception Unix.Unix_error ((EWOULDBLOCK | EAGAIN | EINTR), _, _) -> `Poll_again
   | exception
       Unix.Unix_error
         ( ( EPIPE
@@ -195,6 +195,7 @@ let rec process_write_result t = function
   | `Eof ->
     Ivar.fill t.remote_closed ();
     stop_writer t Flush_result.Remote_closed
+  | `Poll_again -> wait_and_write_everything t
   | `Ok n ->
     Bytebuffer.compact t.buf;
     t.bytes_written <- Int63.( + ) t.bytes_written (Int63.of_int n);
