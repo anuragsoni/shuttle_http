@@ -149,7 +149,7 @@ let dequeue_flushes t =
 let write_nonblocking t =
   match
     Fd.syscall_exn ~nonblocking:true t.fd (fun fd ->
-      Bytebuffer.write_assume_fd_is_nonblocking fd t.buf)
+      Bytebuffer.write_assume_fd_is_nonblocking t.buf fd)
   with
   | n ->
     assert (n >= 0);
@@ -209,7 +209,7 @@ and write_everything t =
   if Fd.supports_nonblock t.fd
   then process_write_result t (write_nonblocking t)
   else
-    Fd.syscall_in_thread t.fd ~name:"write" (fun fd -> Bytebuffer.write fd t.buf)
+    Fd.syscall_in_thread t.fd ~name:"write" (fun fd -> Bytebuffer.write t.buf fd)
     >>> function
     | `Error exn ->
       stop_writer t Flush_result.Error;
@@ -279,14 +279,19 @@ let can_write t =
 
 let write_bigstring t ?pos ?len buf =
   ensure_can_write t;
-  Bytebuffer.Fill.bigstring t.buf buf ?pos ?len
+  Bytebuffer.add_bigstring t.buf buf ?pos ?len
+;;
+
+let write_bytebuffer t buf =
+  ensure_can_write t;
+  Bytebuffer.add_bytebuffer t.buf buf
 ;;
 
 let schedule_bigstring t ?pos ?len buf = write_bigstring t ?pos ?len buf
 
 let write t ?pos ?len buf =
   ensure_can_write t;
-  Bytebuffer.Fill.string t.buf buf ?pos ?len
+  Bytebuffer.add_string t.buf buf ?pos ?len
 ;;
 
 let write_string t ?pos ?len buf = write t ?pos ?len buf
@@ -294,7 +299,7 @@ let writef t fmt = ksprintf (fun str -> write t str) fmt
 
 let write_char t ch =
   ensure_can_write t;
-  Bytebuffer.Fill.char t.buf ch
+  Bytebuffer.add_char t.buf ch
 ;;
 
 let write_from_pipe t reader =

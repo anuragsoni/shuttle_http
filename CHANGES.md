@@ -1,3 +1,6 @@
+# 0.7.0
+* Add bytebuffer to public api
+
 # 0.6.0
 * Increase upper bound for core/async to 0.15.0
 

@@ -37,6 +37,8 @@ val close_finished : t -> unit Deferred.t
     to modify the bigstring once [write_bigstring] returns. *)
 val write_bigstring : t -> ?pos:int -> ?len:int -> Bigstring.t -> unit
 
+val write_bytebuffer : t -> Bytebuffer.t -> unit
+
 val schedule_bigstring : t -> ?pos:int -> ?len:int -> Bigstring.t -> unit
   [@@deprecated
     "schedule_bigstring will be removed in a future release. Use [write_bigstring] \

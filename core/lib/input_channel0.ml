@@ -31,9 +31,9 @@ let create ?max_buffer_size ?buf_len fd =
   }
 ;;
 
-let consume t n = Bytebuffer.drop t.buf n
 let is_closed t = t.is_closed
 let closed t = Ivar.read t.closed
+let unsafe_buf t = t.buf
 
 let close t =
   if not t.is_closed
@@ -45,11 +45,10 @@ let close t =
 
 let refill_nonblocking t =
   Bytebuffer.compact t.buf;
-  if Bytebuffer.available_to_write t.buf = 0
-  then Bytebuffer.maybe_grow_buffer t.buf (Bytebuffer.length t.buf + 1);
+  if Bytebuffer.available_to_write t.buf = 0 then Bytebuffer.ensure_space t.buf 1;
   let result =
     Fd.syscall_result_exn ~nonblocking:true t.fd t.buf (fun fd buf ->
-      Bytebuffer.read_assume_fd_is_nonblocking fd buf)
+      Bytebuffer.read_assume_fd_is_nonblocking buf fd)
   in
   if Unix.Syscall_result.Int.is_ok result
   then (
@@ -66,18 +65,11 @@ let refill_nonblocking t =
     | error -> raise (Unix.Unix_error (error, "read", "")))
 ;;
 
-let view t =
-  let buf = Bytebuffer.unsafe_buf t.buf in
-  let pos = Bytebuffer.pos t.buf in
-  let len = Bytebuffer.length t.buf in
-  Core_unix.IOVec.of_bigstring buf ~pos ~len
-;;
-
 let rec refill t =
   if Fd.supports_nonblock t.fd
   then (
     match refill_nonblocking t with
-    | `Read_some -> return `Ok
+    | `Read_some -> return (`Ok t.buf)
     | `Eof -> return `Eof
     | `Nothing_available ->
       Fd.ready_to t.fd `Read
@@ -89,12 +81,11 @@ let rec refill t =
           [%message "Shuttle.Input_channel.read: bad file descriptor" ~fd:(t.fd : Fd.t)]))
   else (
     Bytebuffer.compact t.buf;
-    if Bytebuffer.available_to_write t.buf = 0
-    then Bytebuffer.maybe_grow_buffer t.buf (Bytebuffer.length t.buf + 1);
+    if Bytebuffer.available_to_write t.buf = 0 then Bytebuffer.ensure_space t.buf 1;
     match%map
       Fd.syscall_in_thread t.fd ~name:"read" (fun fd ->
-        let count = Bytebuffer.read fd t.buf in
-        if count = 0 then `Eof else `Ok)
+        let count = Bytebuffer.read t.buf fd in
+        if count = 0 then `Eof else `Ok t.buf)
     with
     | `Already_closed -> `Eof
     | `Error (Bigstring_unix.IOError (0, End_of_file)) -> `Eof
@@ -109,8 +100,9 @@ let transfer t writer =
     refill t
     >>> function
     | `Eof -> Ivar.fill_if_empty finished ()
-    | `Ok ->
-      let payload = Bytebuffer.Consume.stringo t.buf in
+    | `Ok buf ->
+      let payload = Bytebuffer.to_string buf in
+      Bytebuffer.drop buf (String.length payload);
       Pipe.write writer payload >>> fun () -> loop ()
   in
   loop ();
@@ -133,13 +125,12 @@ let rec read_line_slow t acc =
       (match acc with
        | [] -> return `Eof
        | xs -> return (`Eof_with_unconsumed xs))
-    | `Ok -> read_line_slow t acc)
+    | `Ok _ -> read_line_slow t acc)
   else (
-    let idx = Bytebuffer.index t.buf '\n' in
+    let idx = Bytebuffer.unsafe_index t.buf '\n' in
     if idx > -1
     then (
-      let buf = Bytebuffer.unsafe_buf t.buf in
-      let pos = Bytebuffer.pos t.buf in
+      let { Bytebuffer.Slice.buf; pos; _ } = Bytebuffer.unsafe_peek t.buf in
       let len = idx in
       if len >= 1 && Char.equal (Bigstring.get buf (pos + idx - 1)) '\r'
       then (
@@ -151,16 +142,16 @@ let rec read_line_slow t acc =
         Bytebuffer.drop t.buf (len + 1);
         return (`Ok (line :: acc))))
     else (
-      let curr = Bytebuffer.Consume.stringo t.buf in
+      let curr = Bytebuffer.to_string t.buf in
+      Bytebuffer.drop t.buf (String.length curr);
       read_line_slow t (curr :: acc)))
 ;;
 
 let read_line t =
-  let idx = Bytebuffer.index t.buf '\n' in
+  let idx = Bytebuffer.unsafe_index t.buf '\n' in
   if idx > -1
   then (
-    let buf = Bytebuffer.unsafe_buf t.buf in
-    let pos = Bytebuffer.pos t.buf in
+    let { Bytebuffer.Slice.buf; pos; _ } = Bytebuffer.unsafe_peek t.buf in
     let len = idx in
     if len >= 1 && Char.equal (Bigstring.get buf (pos + idx - 1)) '\r'
     then (
@@ -198,18 +189,18 @@ let lines t =
 ;;
 
 let rec read t len =
-  let view = view t in
+  let view = Bytebuffer.unsafe_peek t.buf in
   if view.len > 0
   then (
     let to_read = min view.len len in
     let buf = Bigstring.to_string view.buf ~pos:view.pos ~len:to_read in
-    consume t to_read;
+    Bytebuffer.drop t.buf to_read;
     return (`Ok buf))
   else
     refill t
     >>= function
     | `Eof -> return `Eof
-    | `Ok -> read t len
+    | `Ok _ -> read t len
 ;;
 
 let open_file ?buf_len filename =
