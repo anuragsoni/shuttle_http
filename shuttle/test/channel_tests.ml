@@ -150,12 +150,12 @@ let%expect_test "Internal buffer automatically increases in size" =
       loop ())
   in
   let view = Input_channel.view rd in
-  let content = Bigstring.to_string view.buf ~pos:view.pos ~len:view.len in
+  let content = Bytes.To_string.sub view.buf ~pos:view.pos ~len:view.len in
   Writer.writef
     stdout
     "Content: %s\n Internal buffer length: %d\n"
     content
-    (Bigstring.length view.buf);
+    (Bytes.length view.buf);
   [%expect
     {|
       Content: hello World this is another block of textaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
