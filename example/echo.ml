@@ -9,13 +9,13 @@ let run sock =
       ~output_buffer_size:0x1000
       ~on_handler_error:`Raise
       (Tcp.Where_to_listen.of_port sock)
-      ~f:(fun _addr reader writer ->
+      (fun _addr reader writer ->
       Deferred.create (fun ivar ->
         let rec loop () =
           Input_channel.refill reader
           >>> function
           | `Eof -> Ivar.fill ivar ()
-          | `Ok ->
+          | `Ok _ ->
             let view = Input_channel.view reader in
             Output_channel.write_bytes writer view.buf ~pos:view.pos ~len:view.len;
             Input_channel.consume reader view.len;

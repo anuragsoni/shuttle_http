@@ -25,8 +25,8 @@ let listen
   ?output_buffer_size
   ?max_output_buffer_size
   ~on_handler_error
-  ~f:handler
   where_to_listen
+  handler
   =
   Tcp.Server.create_sock
     ?max_connections
@@ -70,8 +70,8 @@ let with_connection
   ?max_input_buffer_size
   ?output_buffer_size
   ?max_output_buffer_size
-  ~f
   where_to_connect
+  f
   =
   let%bind socket = Tcp.connect_sock ?interrupt ?timeout where_to_connect in
   let fd = Socket.fd socket in

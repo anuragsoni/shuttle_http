@@ -18,7 +18,7 @@ let create ?max_buffer_size ?buf_len fd =
     | None -> 64 * 1024
     | Some buf_len ->
       if buf_len > 0
-      then buf_len
+      then Int.ceil_pow2 buf_len
       else
         raise_s
           [%message "Reader.create got negative buf_len" (buf_len : int) (fd : Fd.t)]
@@ -52,7 +52,7 @@ let refill_nonblocking t =
     | 0 -> `Eof
     | n ->
       assert (n > 0);
-      `Read_some)
+      `Ok (Bytebuffer.unsafe_peek t.buf))
   else (
     match Unix.Syscall_result.Int.error_exn result with
     | EAGAIN | EWOULDBLOCK | EINTR -> `Nothing_available
@@ -65,7 +65,7 @@ let view t = Bytebuffer.unsafe_peek t.buf
 
 let rec refill t =
   match refill_nonblocking t with
-  | `Read_some -> return `Ok
+  | `Ok _ as result -> return result
   | `Eof -> return `Eof
   | `Nothing_available ->
     Fd.ready_to t.fd `Read
@@ -84,8 +84,8 @@ let transfer t writer =
     refill t
     >>> function
     | `Eof -> Ivar.fill_if_empty finished ()
-    | `Ok ->
-      let payload = Bytebuffer.to_string t.buf in
+    | `Ok view ->
+      let payload = Bytes.To_string.sub view.buf ~pos:view.pos ~len:view.len in
       Bytebuffer.drop t.buf (String.length payload);
       Pipe.write writer payload >>> fun () -> loop ()
   in
@@ -109,7 +109,7 @@ let rec read_line_slow t acc =
       (match acc with
        | [] -> return `Eof
        | xs -> return (`Eof_with_unconsumed xs))
-    | `Ok -> read_line_slow t acc)
+    | `Ok _ -> read_line_slow t acc)
   else (
     let idx = Bytebuffer.unsafe_index t.buf '\n' in
     if idx > -1
@@ -184,5 +184,5 @@ let rec read t len =
     refill t
     >>= function
     | `Eof -> return `Eof
-    | `Ok -> read t len
+    | `Ok _ -> read t len
 ;;

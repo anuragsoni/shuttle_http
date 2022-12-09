@@ -39,7 +39,7 @@ val listen
   -> key_file:string
   -> on_handler_error:[ `Call of 'address -> exn -> unit | `Ignore | `Raise ]
   -> ('address, 'listening_on) Tcp.Where_to_listen.t
-  -> f:('address -> Input_channel.t -> Output_channel.t -> unit Deferred.t)
+  -> ('address -> Input_channel.t -> Output_channel.t -> unit Deferred.t)
   -> ('address, 'listening_on) Tcp.Server.t Deferred.t
 
 val upgrade_client_connection
@@ -79,10 +79,6 @@ val with_connection
   -> ?timeout:Time.Span.t
   -> ?input_buffer_size:int
   -> ?output_buffer_size:int
-  -> f:
-       (Async_ssl.Ssl.Connection.t
-        -> Input_channel.t
-        -> Output_channel.t
-        -> 'a Deferred.t)
   -> [< Socket.Address.t ] Tcp.Where_to_connect.t
+  -> (Async_ssl.Ssl.Connection.t -> Input_channel.t -> Output_channel.t -> 'a Deferred.t)
   -> 'a Deferred.t

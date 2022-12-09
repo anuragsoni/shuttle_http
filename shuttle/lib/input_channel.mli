@@ -18,7 +18,7 @@ val create : ?max_buffer_size:int -> ?buf_len:int -> Fd.t -> t
 val is_closed : t -> bool
 val closed : t -> unit Deferred.t
 val close : t -> unit Deferred.t
-val refill : t -> [ `Ok | `Eof ] Deferred.t
+val refill : t -> [ `Ok of slice | `Eof ] Deferred.t
 val view : t -> slice
 val consume : t -> int -> unit
 

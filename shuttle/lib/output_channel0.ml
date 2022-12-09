@@ -270,14 +270,11 @@ let write_bytes t ?pos ?len buf =
   Bytebuffer.add_bytes t.buf buf ?pos ?len
 ;;
 
-let schedule_bigstring t ?pos ?len buf = write_bigstring t ?pos ?len buf
-
 let write t ?pos ?len buf =
   ensure_can_write t;
   Bytebuffer.add_string t.buf buf ?pos ?len
 ;;
 
-let write_string t ?pos ?len buf = write t ?pos ?len buf
 let writef t fmt = ksprintf (fun str -> write t str) fmt
 
 let write_char t ch =

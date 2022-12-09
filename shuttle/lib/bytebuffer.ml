@@ -21,6 +21,7 @@ type t =
   ; mutable pos_read : int
   ; mutable pos_fill : int
   ; max_buffer_size : int
+  ; original_capacity : int
   }
 [@@deriving sexp_of]
 
@@ -46,7 +47,7 @@ let create ?max_buffer_size size =
           ~requested_size:(size : int)
           ~max_buffer_size:(max_buffer_size : int)];
   let buf = Bytes.create size in
-  { buf; pos_read = 0; pos_fill = 0; max_buffer_size }
+  { buf; pos_read = 0; pos_fill = 0; max_buffer_size; original_capacity = size }
 ;;
 
 let compact t =

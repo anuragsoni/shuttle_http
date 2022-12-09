@@ -170,7 +170,7 @@ let listen
   ~key_file
   ~on_handler_error
   where_to_listen
-  ~f:handler
+  handler
   =
   Connection.listen
     ?max_connections
@@ -179,7 +179,7 @@ let listen
     ?socket
     ~on_handler_error
     where_to_listen
-    ~f:(fun addr input_channel output_channel ->
+    (fun addr input_channel output_channel ->
     upgrade_server_connection
       ?version
       ?options
@@ -211,29 +211,29 @@ let with_connection
   ?timeout
   ?input_buffer_size
   ?output_buffer_size
-  ~f
   where_to_connect
+  f
   =
   Connection.with_connection
     ?interrupt
     ?timeout
     ?input_buffer_size
     ?output_buffer_size
-    ~f:(fun input_channel output_channel ->
-      upgrade_client_connection
-        ?version
-        ?options
-        ?name
-        ?hostname
-        ?allowed_ciphers
-        ?ca_file
-        ?ca_path
-        ?crt_file
-        ?key_file
-        ?verify_modes
-        ?session
-        ~f
-        input_channel
-        output_channel)
     where_to_connect
+    (fun input_channel output_channel ->
+    upgrade_client_connection
+      ?version
+      ?options
+      ?name
+      ?hostname
+      ?allowed_ciphers
+      ?ca_file
+      ?ca_path
+      ?crt_file
+      ?key_file
+      ?verify_modes
+      ?session
+      ~f
+      input_channel
+      output_channel)
 ;;

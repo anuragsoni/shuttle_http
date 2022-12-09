@@ -145,7 +145,7 @@ let%expect_test "Internal buffer automatically increases in size" =
         Input_channel.refill rd
         >>> function
         | `Eof -> Ivar.fill ivar ()
-        | `Ok -> loop ()
+        | `Ok _ -> loop ()
       in
       loop ())
   in
