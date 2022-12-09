@@ -145,17 +145,17 @@ let%expect_test "Internal buffer automatically increases in size" =
         Input_channel.refill rd
         >>> function
         | `Eof -> Ivar.fill ivar ()
-        | `Ok _ -> loop ()
+        | `Ok -> loop ()
       in
       loop ())
   in
-  let buf = Input_channel.unsafe_buf rd in
-  let content = Bytebuffer.to_string buf in
+  let view = Input_channel.view rd in
+  let content = Bigstring.to_string view.buf ~pos:view.pos ~len:view.len in
   Writer.writef
     stdout
     "Content: %s\n Internal buffer length: %d\n"
     content
-    (Bytebuffer.capacity buf);
+    (Bigstring.length view.buf);
   [%expect
     {|
       Content: hello World this is another block of textaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa

@@ -6,7 +6,7 @@ let unlink f = Deferred.ignore_m (Monitor.try_with (fun () -> Unix.unlink f))
 
 let run sock =
   let%bind () = unlink sock in
-  let%bind server =
+  let%bind host_and_port =
     Connection.listen
       ~input_buffer_size:0x1000
       ~output_buffer_size:0x1000
@@ -18,10 +18,8 @@ let run sock =
         Output_channel.write writer "+PONG\r\n";
         Output_channel.schedule_flush writer))
   in
-  Deferred.forever () (fun () ->
-    let%map.Deferred () = after Time.Span.(of_sec 0.5) in
-    Log.Global.printf "Active connections: %d" (Tcp.Server.num_connections server));
-  Tcp.Server.close_finished_and_handlers_determined server
+  ignore (host_and_port : (Socket.Address.Unix.t, string) Tcp.Server.t);
+  Deferred.never ()
 ;;
 
 let () =
