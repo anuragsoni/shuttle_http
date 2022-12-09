@@ -45,11 +45,10 @@ let close t =
 
 let refill_nonblocking t =
   Bytebuffer.compact t.buf;
-  if Bytebuffer.available_to_write t.buf = 0
-  then Bytebuffer.maybe_grow_buffer t.buf (Bytebuffer.length t.buf + 1);
+  if Bytebuffer.available_to_write t.buf = 0 then Bytebuffer.ensure_space t.buf 1;
   let result =
     Fd.syscall_result_exn ~nonblocking:true t.fd t.buf (fun fd buf ->
-      Bytebuffer.read_assume_fd_is_nonblocking fd buf)
+      Bytebuffer.read_assume_fd_is_nonblocking buf fd)
   in
   if Unix.Syscall_result.Int.is_ok result
   then (
@@ -66,12 +65,7 @@ let refill_nonblocking t =
     | error -> raise (Unix.Unix_error (error, "read", "")))
 ;;
 
-let view t =
-  let buf = Bytebuffer.unsafe_buf t.buf in
-  let pos = Bytebuffer.pos t.buf in
-  let len = Bytebuffer.length t.buf in
-  Core_unix.IOVec.of_bigstring buf ~pos ~len
-;;
+let view t = Bytebuffer.unsafe_peek t.buf
 
 let rec refill t =
   if Fd.supports_nonblock t.fd
@@ -89,11 +83,10 @@ let rec refill t =
           [%message "Shuttle.Input_channel.read: bad file descriptor" ~fd:(t.fd : Fd.t)]))
   else (
     Bytebuffer.compact t.buf;
-    if Bytebuffer.available_to_write t.buf = 0
-    then Bytebuffer.maybe_grow_buffer t.buf (Bytebuffer.length t.buf + 1);
+    if Bytebuffer.available_to_write t.buf = 0 then Bytebuffer.ensure_space t.buf 1;
     match%map
       Fd.syscall_in_thread t.fd ~name:"read" (fun fd ->
-        let count = Bytebuffer.read fd t.buf in
+        let count = Bytebuffer.read t.buf fd in
         if count = 0 then `Eof else `Ok)
     with
     | `Already_closed -> `Eof
@@ -110,7 +103,8 @@ let transfer t writer =
     >>> function
     | `Eof -> Ivar.fill_if_empty finished ()
     | `Ok ->
-      let payload = Bytebuffer.Consume.stringo t.buf in
+      let payload = Bytebuffer.to_string t.buf in
+      Bytebuffer.drop t.buf (String.length payload);
       Pipe.write writer payload >>> fun () -> loop ()
   in
   loop ();
@@ -135,11 +129,10 @@ let rec read_line_slow t acc =
        | xs -> return (`Eof_with_unconsumed xs))
     | `Ok -> read_line_slow t acc)
   else (
-    let idx = Bytebuffer.index t.buf '\n' in
+    let idx = Bytebuffer.unsafe_index t.buf '\n' in
     if idx > -1
     then (
-      let buf = Bytebuffer.unsafe_buf t.buf in
-      let pos = Bytebuffer.pos t.buf in
+      let { Bytebuffer.Slice.buf; pos; _ } = Bytebuffer.unsafe_peek t.buf in
       let len = idx in
       if len >= 1 && Char.equal (Bigstring.get buf (pos + idx - 1)) '\r'
       then (
@@ -151,16 +144,16 @@ let rec read_line_slow t acc =
         Bytebuffer.drop t.buf (len + 1);
         return (`Ok (line :: acc))))
     else (
-      let curr = Bytebuffer.Consume.stringo t.buf in
+      let curr = Bytebuffer.to_string t.buf in
+      Bytebuffer.drop t.buf (String.length curr);
       read_line_slow t (curr :: acc)))
 ;;
 
 let read_line t =
-  let idx = Bytebuffer.index t.buf '\n' in
+  let idx = Bytebuffer.unsafe_index t.buf '\n' in
   if idx > -1
   then (
-    let buf = Bytebuffer.unsafe_buf t.buf in
-    let pos = Bytebuffer.pos t.buf in
+    let { Bytebuffer.Slice.buf; pos; _ } = Bytebuffer.unsafe_peek t.buf in
     let len = idx in
     if len >= 1 && Char.equal (Bigstring.get buf (pos + idx - 1)) '\r'
     then (
