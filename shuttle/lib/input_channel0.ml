@@ -5,7 +5,6 @@ module Logger = Log.Make_global ()
 
 type t =
   { fd : Fd.t
-  ; mutable reading : bool
   ; mutable is_closed : bool
   ; closed : unit Ivar.t
   ; buf : Bytebuffer.t
@@ -13,6 +12,7 @@ type t =
 [@@deriving sexp_of]
 
 let create ?max_buffer_size ?buf_len fd =
+  Fd.with_file_descr_exn fd ignore ~nonblocking:true;
   let buf_len =
     match buf_len with
     | None -> 64 * 1024
@@ -24,7 +24,6 @@ let create ?max_buffer_size ?buf_len fd =
           [%message "Reader.create got negative buf_len" (buf_len : int) (fd : Fd.t)]
   in
   { fd
-  ; reading = false
   ; is_closed = false
   ; closed = Ivar.create ()
   ; buf = Bytebuffer.create ?max_buffer_size buf_len
@@ -46,10 +45,7 @@ let close t =
 let refill_nonblocking t =
   Bytebuffer.compact t.buf;
   if Bytebuffer.available_to_write t.buf = 0 then Bytebuffer.ensure_space t.buf 1;
-  let result =
-    Fd.syscall_result_exn ~nonblocking:true t.fd t.buf (fun fd buf ->
-      Bytebuffer.read_assume_fd_is_nonblocking buf fd)
-  in
+  let result = Bytebuffer.read_assume_fd_is_nonblocking t.buf (Fd.file_descr_exn t.fd) in
   if Unix.Syscall_result.Int.is_ok result
   then (
     match Unix.Syscall_result.Int.ok_exn result with
@@ -68,31 +64,17 @@ let refill_nonblocking t =
 let view t = Bytebuffer.unsafe_peek t.buf
 
 let rec refill t =
-  if Fd.supports_nonblock t.fd
-  then (
-    match refill_nonblocking t with
-    | `Read_some -> return `Ok
-    | `Eof -> return `Eof
-    | `Nothing_available ->
-      Fd.ready_to t.fd `Read
-      >>= (function
-      | `Ready -> refill t
-      | `Closed -> return `Eof
-      | `Bad_fd ->
-        raise_s
-          [%message "Shuttle.Input_channel.read: bad file descriptor" ~fd:(t.fd : Fd.t)]))
-  else (
-    Bytebuffer.compact t.buf;
-    if Bytebuffer.available_to_write t.buf = 0 then Bytebuffer.ensure_space t.buf 1;
-    match%map
-      Fd.syscall_in_thread t.fd ~name:"read" (fun fd ->
-        let count = Bytebuffer.read t.buf fd in
-        if count = 0 then `Eof else `Ok)
-    with
-    | `Already_closed -> `Eof
-    | `Error (Bigstring_unix.IOError (0, End_of_file)) -> `Eof
-    | `Error exn -> Exn.reraise exn "Error while performing a read syscall"
-    | `Ok c -> c)
+  match refill_nonblocking t with
+  | `Read_some -> return `Ok
+  | `Eof -> return `Eof
+  | `Nothing_available ->
+    Fd.ready_to t.fd `Read
+    >>= (function
+    | `Ready -> refill t
+    | `Closed -> return `Eof
+    | `Bad_fd ->
+      raise_s
+        [%message "Shuttle.Input_channel.read: bad file descriptor" ~fd:(t.fd : Fd.t)])
 ;;
 
 let transfer t writer =
@@ -203,14 +185,4 @@ let rec read t len =
     >>= function
     | `Eof -> return `Eof
     | `Ok -> read t len
-;;
-
-let open_file ?buf_len filename =
-  let%map fd = Unix.openfile filename ~mode:[ `Rdonly ] in
-  create ?buf_len fd
-;;
-
-let with_file ?buf_len filename ~f =
-  let%bind t = open_file ?buf_len filename in
-  Monitor.protect ~run:`Now ~finally:(fun () -> close t) (fun () -> f t)
 ;;

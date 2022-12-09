@@ -99,18 +99,3 @@ val flush_or_fail : t -> Flush_result.t Deferred.t
 
 val pipe : t -> string Pipe.Writer.t
 val of_pipe : Info.t -> string Pipe.Writer.t -> (t * unit Deferred.t) Deferred.t
-
-(** [open_file ?buf_len ?append filename] opens a new file and returns a channel that can
-    be used to write content to the file. [buf_len] is an optional input and can be used
-    to control the channel's buffer size. *)
-val open_file : ?buf_len:int -> ?append:bool -> Filename.t -> t Deferred.t
-
-(** [with_file ?buf_len ?append filename ~f] opens a new file and forwards the channel to
-    the user provided callback. Once [f] returns the channel and the underlying file is
-    closed. *)
-val with_file
-  :  ?buf_len:int
-  -> ?append:bool
-  -> Filename.t
-  -> f:(t -> 'a Deferred.t)
-  -> 'a Deferred.t
