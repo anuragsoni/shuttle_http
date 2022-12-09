@@ -4,7 +4,7 @@ include Input_channel0
 module Output_channel = Output_channel0
 
 type slice = Bytebuffer.Slice.t = private
-  { buf : Bigstring.t
+  { buf : Bytes.t
   ; pos : int
   ; len : int
   }

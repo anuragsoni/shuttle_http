@@ -3,4 +3,7 @@
  (public_name shuttle)
  (preprocess
   (pps ppx_jane))
+ (foreign_stubs
+  (language c)
+  (names shuttle_stubs))
  (libraries core core_unix async))

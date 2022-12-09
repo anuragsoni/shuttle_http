@@ -9,7 +9,7 @@ open Async_unix
 type t [@@deriving sexp_of]
 
 type slice = private
-  { buf : Bigstring.t
+  { buf : Bytes.t
   ; pos : int
   ; len : int
   }

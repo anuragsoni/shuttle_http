@@ -17,7 +17,7 @@ let run sock =
           | `Eof -> Ivar.fill ivar ()
           | `Ok ->
             let view = Input_channel.view reader in
-            Output_channel.write_bigstring writer view.buf ~pos:view.pos ~len:view.len;
+            Output_channel.write_bytes writer view.buf ~pos:view.pos ~len:view.len;
             Input_channel.consume reader view.len;
             Output_channel.flush writer >>> fun () -> loop ()
         in

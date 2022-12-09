@@ -46,6 +46,8 @@ val schedule_bigstring : t -> ?pos:int -> ?len:int -> Bigstring.t -> unit
     the next time the writer schedules a write. *)
 val write : t -> ?pos:int -> ?len:int -> string -> unit
 
+val write_bytes : t -> ?pos:int -> ?len:int -> bytes -> unit
+
 val write_string : t -> ?pos:int -> ?len:int -> string -> unit
   [@@deprecated "write_string will be removed in a future release. Use [write] instead. "]
 

@@ -116,13 +116,13 @@ let rec read_line_slow t acc =
     then (
       let { Bytebuffer.Slice.buf; pos; _ } = Bytebuffer.unsafe_peek t.buf in
       let len = idx in
-      if len >= 1 && Char.equal (Bigstring.get buf (pos + idx - 1)) '\r'
+      if len >= 1 && Char.equal (Bytes.get buf (pos + idx - 1)) '\r'
       then (
-        let line = Bigstring.To_string.sub buf ~pos ~len:(idx - 1) in
+        let line = Bytes.To_string.sub buf ~pos ~len:(idx - 1) in
         Bytebuffer.drop t.buf (len + 1);
         return (`Ok (line :: acc)))
       else (
-        let line = Bigstring.To_string.sub buf ~pos ~len in
+        let line = Bytes.To_string.sub buf ~pos ~len in
         Bytebuffer.drop t.buf (len + 1);
         return (`Ok (line :: acc))))
     else (
@@ -137,13 +137,13 @@ let read_line t =
   then (
     let { Bytebuffer.Slice.buf; pos; _ } = Bytebuffer.unsafe_peek t.buf in
     let len = idx in
-    if len >= 1 && Char.equal (Bigstring.get buf (pos + idx - 1)) '\r'
+    if len >= 1 && Char.equal (Bytes.get buf (pos + idx - 1)) '\r'
     then (
-      let line = Bigstring.To_string.sub buf ~pos ~len:(idx - 1) in
+      let line = Bytes.To_string.sub buf ~pos ~len:(idx - 1) in
       Bytebuffer.drop t.buf (len + 1);
       return (`Ok line))
     else (
-      let line = Bigstring.To_string.sub buf ~pos ~len in
+      let line = Bytes.To_string.sub buf ~pos ~len in
       Bytebuffer.drop t.buf (len + 1);
       return (`Ok line)))
   else (
@@ -177,7 +177,7 @@ let rec read t len =
   if view.len > 0
   then (
     let to_read = min view.len len in
-    let buf = Bigstring.to_string view.buf ~pos:view.pos ~len:to_read in
+    let buf = Bytes.To_string.sub view.buf ~pos:view.pos ~len:to_read in
     consume t to_read;
     return (`Ok buf))
   else

@@ -16,37 +16,21 @@ val ensure_space : t -> int -> unit
 (** [length] returns the number of characters in the bytebuffer. *)
 val length : t -> int
 
-(** [capacity] is the size of the underlying bigstring. *)
+(** [capacity] is the size of the underlying bytearray. *)
 val capacity : t -> int
 
 (** [drop n] removes [n] bytes from the beginning of the bytebuffer. This is usually
     called after a user processes some data from the buffer using a view into the internal
-    bigstring via [unsafe_peek].
+    bytearray via [unsafe_peek].
 
     Raises [invalid_arg] if [n] is greater than the buffer's length. *)
 val drop : t -> int -> unit
-
-(** [read buf fd] reads bytes from the file descriptor [fd] and appends them to the end of
-    the bytebuffer. Returns the number of bytes actually read.
-
-    Raises [Bigstring_unix.IOError] in the case of input errors, or on EOF. *)
-val read : t -> Core_unix.File_descr.t -> int
-
-(** [write buf fd] reads data from the beginning of the buffer and writes them to the file
-    descriptor [fd].
-
-    Returns the number of bytes actually written.
-
-    Raises [Core_unix.Unix_error] in case of i/o errors. *)
-val write : t -> Core_unix.File_descr.t -> int
 
 (** [read_assume_fd_is_nonblocking buf fd] is similar to [read] but it performs the read
     without yielding to other OCaml-threads. This function should only be called for
     non-blocking file-descriptors.
 
-    Returns the number of bytes actually read.
-
-    Raises Invalid_argument if the designated range is out of bounds. *)
+    Returns the number of bytes actually read. *)
 val read_assume_fd_is_nonblocking
   :  t
   -> Core_unix.File_descr.t
@@ -83,7 +67,7 @@ val unsafe_index : t -> char -> int
 
 module Slice : sig
   type t = private
-    { buf : Bigstring.t
+    { buf : Bytes.t
     ; pos : int
     ; len : int
     }
