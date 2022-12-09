@@ -40,12 +40,3 @@ val of_pipe : Info.t -> string Pipe.Reader.t -> t Deferred.t
 val read_line : t -> [ `Ok of string | `Eof ] Deferred.t
 val lines : t -> string Pipe.Reader.t
 val read : t -> int -> [ `Ok of string | `Eof ] Deferred.t
-
-(** [open_file ?buf_len filename] opens [filename] and returns an [Input_channel] that can
-    be used to read from the file. [buf_len] is an optional input and can be used to
-    control the channel's buffer size. *)
-val open_file : ?buf_len:int -> Filename.t -> t Deferred.t
-
-(** [with_file ?buf_len filename ~f] opens [filename], creates a new channel and passes it
-    to [f]. Once [f] returns, the channel and the underlying file is closed. *)
-val with_file : ?buf_len:int -> Filename.t -> f:(t -> 'a Deferred.t) -> 'a Deferred.t

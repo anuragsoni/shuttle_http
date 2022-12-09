@@ -1,3 +1,6 @@
+# 0.7.0
+* Remove support for blocking file descriptors
+
 # 0.6.0
 * Increase upper bound for core/async to 0.15.0
 
