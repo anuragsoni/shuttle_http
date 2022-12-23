@@ -1,13 +1,13 @@
 open! Core
 open! Async
-open Shuttle
+open Shuttle.Std
 
 let unlink f = Deferred.ignore_m (Monitor.try_with (fun () -> Unix.unlink f))
 
 let run sock =
   let%bind () = unlink sock in
   let%bind server =
-    Connection.listen
+    Shuttle.Connection.listen
       ~input_buffer_size:0x1000
       ~output_buffer_size:0x1000
       ~on_handler_error:`Raise

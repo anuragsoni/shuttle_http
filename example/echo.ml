@@ -1,10 +1,10 @@
 open! Core
 open! Async
-open Shuttle
+open Shuttle.Std
 
 let run sock =
   let%bind server =
-    Connection.listen
+    Shuttle.Connection.listen
       ~input_buffer_size:0x1000
       ~output_buffer_size:0x1000
       ~on_handler_error:`Raise
