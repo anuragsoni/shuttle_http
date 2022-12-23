@@ -4,37 +4,6 @@ open Async_unix
 module Unix = Core_unix
 open! Async_kernel_require_explicit_time_source
 
-module Config = struct
-  (* Same as the default value of [buffer_age_limit] for [Async_unix.Writer] *)
-  let default_write_timeout = Time_ns.Span.of_min 2.
-  let default_initial_buffer_size = 64 * 1024
-  let default_max_buffer_size = Int.max_value
-
-  type t =
-    { initial_buffer_size : int
-    ; write_timeout : Time_ns.Span.t
-    ; max_buffer_size : int
-    }
-  [@@deriving sexp_of]
-
-  let validate t =
-    if t.initial_buffer_size <= 0
-       || Time_ns.Span.( <= ) t.write_timeout Time_ns.Span.zero
-       || t.initial_buffer_size > t.max_buffer_size
-    then raise_s [%sexp "Shuttle.Config.validate: invalid config", { t : t }];
-    t
-  ;;
-
-  let create
-    ?(buf_len = default_initial_buffer_size)
-    ?(write_timeout = default_write_timeout)
-    ?(max_buffer_size = default_max_buffer_size)
-    ()
-    =
-    validate { initial_buffer_size = buf_len; write_timeout; max_buffer_size }
-  ;;
-end
-
 module Flush_result = struct
   type t =
     | Flushed
@@ -63,7 +32,7 @@ type writer_state =
 
 type t =
   { fd : Fd.t
-  ; config : Config.t
+  ; write_timeout : Time_ns.Span.t
   ; buf : Bytebuffer.t
   ; monitor : Monitor.t
   ; flushes : flush Queue.t
@@ -77,20 +46,33 @@ type t =
   }
 [@@deriving sexp_of]
 
+let default_write_timeout = Time_ns.Span.of_min 2.
+
 let create ?max_buffer_size ?buf_len ?write_timeout ?time_source fd =
   Fd.with_file_descr_exn fd ignore ~nonblocking:true;
-  let config = Config.create ?max_buffer_size ?buf_len ?write_timeout () in
+  let buf_len =
+    match buf_len with
+    | None -> 64 * 1024
+    | Some v -> v
+  in
+  if buf_len <= 0 then raise_s [%sexp "Buffer size must be greater than 0"];
   let time_source =
     match time_source with
     | None -> Time_source.wall_clock ()
     | Some t -> Time_source.read_only t
   in
+  let write_timeout =
+    match write_timeout with
+    | Some v -> v
+    | None -> default_write_timeout
+  in
+  if Time_ns.Span.( <= ) write_timeout Time_ns.Span.zero
+  then raise_s [%message "Write timeout cannot be less than zero"];
   { fd
-  ; config
   ; flushes = Queue.create ()
+  ; write_timeout
   ; writer_state = Inactive
-  ; buf =
-      Bytebuffer.create ~max_buffer_size:config.max_buffer_size config.initial_buffer_size
+  ; buf = Bytebuffer.create ?max_buffer_size buf_len
   ; monitor = Monitor.create ()
   ; close_state = Open
   ; remote_closed = Ivar.create ()
@@ -216,7 +198,7 @@ let rec write_everything t =
       else wait_and_write_everything t)
 
 and wait_and_write_everything t =
-  Time_source.with_timeout t.time_source t.config.write_timeout (Fd.ready_to t.fd `Write)
+  Time_source.with_timeout t.time_source t.write_timeout (Fd.ready_to t.fd `Write)
   >>> fun result ->
   match result with
   | `Result `Ready -> write_everything t
@@ -226,7 +208,7 @@ and wait_and_write_everything t =
       [%message
         "Shuttle.Output_channel timed out waiting to write on file descriptor. Closing \
          the writer."
-          ~timeout:(t.config.write_timeout : Time_ns.Span.t)
+          ~timeout:(t.write_timeout : Time_ns.Span.t)
           (t : t)];
     stop_writer t Flush_result.Error
   | `Result ((`Bad_fd | `Closed) as result) ->
