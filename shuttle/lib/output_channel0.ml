@@ -107,23 +107,11 @@ let wakeup_flushes_with_error t error =
   done
 ;;
 
-let stop_writer t reason =
-  wakeup_flushes_with_error t reason;
-  t.writer_state <- Stopped
-;;
-
-let monitor t = t.monitor
-let remote_closed t = Ivar.read t.remote_closed
-
 let is_closed t =
   match t.close_state with
   | Open -> false
   | Closed | Start_close -> true
 ;;
-
-let close_started t = Ivar.read t.close_started
-let close_finished t = Ivar.read t.close_finished
-let is_open = Fn.non is_closed
 
 let flushed_or_fail t =
   if Bytebuffer.length t.buf = 0
@@ -145,6 +133,39 @@ let flushed t =
   | Flush_result.Flushed -> Deferred.unit
   | Error | Remote_closed -> Deferred.never ()
 ;;
+
+let close_started t = Ivar.read t.close_started
+let close_finished t = Ivar.read t.close_finished
+
+let close' t =
+  match t.close_state with
+  | Closed | Start_close -> ()
+  | Open ->
+    t.close_state <- Start_close;
+    Ivar.fill t.close_started ();
+    Deferred.any_unit
+      [ Time_source.after t.time_source (Time_ns.Span.of_sec 5.)
+      ; Deferred.ignore_m (flushed_or_fail t)
+      ]
+    >>> fun () ->
+    t.close_state <- Closed;
+    Fd.close t.fd >>> fun () -> Ivar.fill t.close_finished ()
+;;
+
+let close t =
+  close' t;
+  close_finished t
+;;
+
+let stop_writer t reason =
+  wakeup_flushes_with_error t reason;
+  t.writer_state <- Stopped;
+  close' t
+;;
+
+let monitor t = t.monitor
+let remote_closed t = Ivar.read t.remote_closed
+let is_open = Fn.non is_closed
 
 let dequeue_flushes t =
   while
@@ -175,22 +196,6 @@ let write_nonblocking t =
   | exception exn ->
     stop_writer t Flush_result.Error;
     raise exn
-;;
-
-let close t =
-  (match t.close_state with
-   | Closed | Start_close -> ()
-   | Open ->
-     t.close_state <- Start_close;
-     Ivar.fill t.close_started ();
-     Deferred.any_unit
-       [ Time_source.after t.time_source (Time_ns.Span.of_sec 5.)
-       ; Deferred.ignore_m (flushed_or_fail t)
-       ]
-     >>> fun () ->
-     t.close_state <- Closed;
-     Fd.close t.fd >>> fun () -> Ivar.fill t.close_finished ());
-  close_finished t
 ;;
 
 let rec write_everything t =
