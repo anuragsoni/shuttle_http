@@ -3,6 +3,7 @@ open! Async_kernel
 open Async_unix
 module Unix = Core_unix
 open! Async_kernel_require_explicit_time_source
+module Logger = Log.Make_global ()
 
 module Flush_result = struct
   type t =
@@ -203,7 +204,7 @@ and wait_and_write_everything t =
   match result with
   | `Result `Ready -> write_everything t
   | `Timeout ->
-    Log.Global.sexp
+    Logger.sexp
       ~level:`Error
       [%message
         "Shuttle.Output_channel timed out waiting to write on file descriptor. Closing \

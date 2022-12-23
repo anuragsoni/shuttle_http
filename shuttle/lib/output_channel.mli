@@ -5,6 +5,7 @@
 open! Core
 open! Async_kernel
 open Async_unix
+module Logger : Log.Global_intf
 
 type t [@@deriving sexp_of]
 

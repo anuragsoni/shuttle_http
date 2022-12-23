@@ -1,7 +1,6 @@
 open Core
 open Async_kernel
 open Async_unix
-module Logger = Log.Make_global ()
 
 type t =
   { fd : Fd.t
