@@ -24,6 +24,7 @@ let listen
   ?max_input_buffer_size
   ?output_buffer_size
   ?max_output_buffer_size
+  ?write_timeout
   ~on_handler_error
   ~f:handler
   where_to_listen
@@ -47,6 +48,7 @@ let listen
       Output_channel.create
         ?max_buffer_size:max_output_buffer_size
         ?buf_len:output_buffer_size
+        ?write_timeout
         fd
     in
     let%bind res =

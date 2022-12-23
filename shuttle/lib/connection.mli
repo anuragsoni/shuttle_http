@@ -16,6 +16,7 @@ val listen
   -> ?max_input_buffer_size:int
   -> ?output_buffer_size:int
   -> ?max_output_buffer_size:int
+  -> ?write_timeout:Time_ns.Span.t
   -> on_handler_error:[ `Call of 'address -> exn -> unit | `Ignore | `Raise ]
   -> f:('address -> Input_channel.t -> Output_channel.t -> unit Deferred.t)
   -> ('address, 'listening_on) Tcp.Where_to_listen.t
