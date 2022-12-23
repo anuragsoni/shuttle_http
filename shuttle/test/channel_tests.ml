@@ -82,53 +82,6 @@ let%expect_test "create output_channel from pipe" =
     Another line using writef 12 false |}]
 ;;
 
-let%expect_test "can read lines from channel" =
-  Unix.pipe (Info.of_string "test input_channel")
-  >>= fun (`Reader reader, `Writer writer) ->
-  let rd = Input_channel.create reader in
-  let wr = Output_channel.create writer in
-  let lines = Input_channel.lines rd in
-  Output_channel.write wr "Hello\r\n";
-  Output_channel.write wr "World\n";
-  Output_channel.write wr "this is a line that doesn't end.";
-  Output_channel.write wr " It keeps going";
-  Output_channel.schedule_flush wr;
-  don't_wait_for (Output_channel.flushed wr >>= fun () -> Output_channel.close wr);
-  let%map () =
-    Pipe.iter_without_pushback lines ~f:(fun msg -> Writer.write_line stdout msg)
-  in
-  [%expect {|
-    Hello
-    World
-    this is a line that doesn't end. It keeps going |}]
-;;
-
-let%expect_test "can read lines with a small internal buffer" =
-  Unix.pipe (Info.of_string "test input_channel")
-  >>= fun (`Reader reader, `Writer writer) ->
-  let rd = Input_channel.create ~buf_len:16 reader in
-  let wr = Output_channel.create writer in
-  let lines = Input_channel.lines rd in
-  Output_channel.write wr (String.init 32 ~f:(fun _ -> 'a'));
-  Output_channel.write wr (String.init 32 ~f:(fun _ -> 'b'));
-  Output_channel.write_char wr '\n';
-  Output_channel.write wr "Hello\r\n";
-  Output_channel.write wr "World\n";
-  Output_channel.write wr "this is a line that doesn't end";
-  Output_channel.schedule_flush wr;
-  don't_wait_for (Output_channel.flushed wr >>= fun () -> Output_channel.close wr);
-  let%map () =
-    Pipe.iter_without_pushback lines ~f:(fun msg ->
-      Writer.writef stdout "%s (%d)\n" msg (String.length msg))
-  in
-  [%expect
-    {|
-    aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb (64)
-    Hello (5)
-    World (5)
-    this is a line that doesn't end (31) |}]
-;;
-
 let%expect_test "Internal buffer automatically increases in size" =
   Unix.pipe (Info.of_string "test input_channel")
   >>= fun (`Reader reader, `Writer writer) ->
