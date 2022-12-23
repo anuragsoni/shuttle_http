@@ -2,6 +2,7 @@ open! Core
 open! Async_kernel
 open Async_unix
 module Unix = Core_unix
+open! Async_kernel_require_explicit_time_source
 
 module Config = struct
   (* Same as the default value of [buffer_age_limit] for [Async_unix.Writer] *)
@@ -72,12 +73,18 @@ type t =
   ; remote_closed : unit Ivar.t
   ; mutable writer_state : writer_state
   ; mutable bytes_written : Int63.t
+  ; time_source : Time_source.t
   }
 [@@deriving sexp_of]
 
-let create ?max_buffer_size ?buf_len ?write_timeout fd =
+let create ?max_buffer_size ?buf_len ?write_timeout ?time_source fd =
   Fd.with_file_descr_exn fd ignore ~nonblocking:true;
   let config = Config.create ?max_buffer_size ?buf_len ?write_timeout () in
+  let time_source =
+    match time_source with
+    | None -> Time_source.wall_clock ()
+    | Some t -> Time_source.read_only t
+  in
   { fd
   ; config
   ; flushes = Queue.create ()
@@ -90,6 +97,7 @@ let create ?max_buffer_size ?buf_len ?write_timeout fd =
   ; close_started = Ivar.create ()
   ; close_finished = Ivar.create ()
   ; bytes_written = Int63.zero
+  ; time_source
   }
 ;;
 
@@ -176,7 +184,9 @@ let close t =
      t.close_state <- Start_close;
      Ivar.fill t.close_started ();
      Deferred.any_unit
-       [ after (Time.Span.of_sec 5.); Deferred.ignore_m (flushed_or_fail t) ]
+       [ Time_source.after t.time_source (Time_ns.Span.of_sec 5.)
+       ; Deferred.ignore_m (flushed_or_fail t)
+       ]
      >>> fun () ->
      t.close_state <- Closed;
      Fd.close t.fd >>> fun () -> Ivar.fill t.close_finished ());
@@ -201,7 +211,7 @@ let rec write_everything t =
       else wait_and_write_everything t)
 
 and wait_and_write_everything t =
-  Clock_ns.with_timeout t.config.write_timeout (Fd.ready_to t.fd `Write)
+  Time_source.with_timeout t.time_source t.config.write_timeout (Fd.ready_to t.fd `Write)
   >>> fun result ->
   match result with
   | `Result `Ready -> write_everything t

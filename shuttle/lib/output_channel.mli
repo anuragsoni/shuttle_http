@@ -16,6 +16,7 @@ val create
   :  ?max_buffer_size:int
   -> ?buf_len:int
   -> ?write_timeout:Time_ns.Span.t
+  -> ?time_source:[> read ] Time_source.T1.t
   -> Fd.t
   -> t
 
