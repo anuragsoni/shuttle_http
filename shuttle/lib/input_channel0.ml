@@ -42,40 +42,57 @@ let close t =
   closed t
 ;;
 
-let refill_nonblocking t =
+let refill t =
   Bytebuffer.compact t.buf;
   if Bytebuffer.available_to_write t.buf = 0 then Bytebuffer.ensure_space t.buf 1;
   let result = Bytebuffer.read_assume_fd_is_nonblocking t.buf (Fd.file_descr_exn t.fd) in
   if Unix.Syscall_result.Int.is_ok result
   then (
     match Unix.Syscall_result.Int.ok_exn result with
-    | 0 -> `Eof
+    | 0 -> return `Eof
     | n ->
       assert (n > 0);
-      `Read_some)
+      return `Ok)
   else (
     match Unix.Syscall_result.Int.error_exn result with
-    | EAGAIN | EWOULDBLOCK | EINTR -> `Nothing_available
+    | EAGAIN | EWOULDBLOCK | EINTR ->
+      let rec loop t =
+        Fd.ready_to t.fd `Read
+        >>= function
+        | `Ready ->
+          let result =
+            Bytebuffer.read_assume_fd_is_nonblocking t.buf (Fd.file_descr_exn t.fd)
+          in
+          if Unix.Syscall_result.Int.is_ok result
+          then (
+            match Unix.Syscall_result.Int.ok_exn result with
+            | 0 -> return `Eof
+            | n ->
+              assert (n > 0);
+              return `Ok)
+          else (
+            match Unix.Syscall_result.Int.error_exn result with
+            | EAGAIN | EWOULDBLOCK | EINTR -> loop t
+            | EPIPE
+            | ECONNRESET
+            | EHOSTUNREACH
+            | ENETDOWN
+            | ENETRESET
+            | ENETUNREACH
+            | ETIMEDOUT -> return `Eof
+            | error -> raise (Unix.Unix_error (error, "read", "")))
+        | `Closed -> return `Eof
+        | `Bad_fd ->
+          raise_s
+            [%message "Shuttle.Input_channel.read: bad file descriptor" ~fd:(t.fd : Fd.t)]
+      in
+      loop t
     | EPIPE | ECONNRESET | EHOSTUNREACH | ENETDOWN | ENETRESET | ENETUNREACH | ETIMEDOUT
-      -> `Eof
+      -> return `Eof
     | error -> raise (Unix.Unix_error (error, "read", "")))
 ;;
 
 let view t = Bytebuffer.unsafe_peek t.buf
-
-let rec refill t =
-  match refill_nonblocking t with
-  | `Read_some -> return `Ok
-  | `Eof -> return `Eof
-  | `Nothing_available ->
-    Fd.ready_to t.fd `Read
-    >>= (function
-    | `Ready -> refill t
-    | `Closed -> return `Eof
-    | `Bad_fd ->
-      raise_s
-        [%message "Shuttle.Input_channel.read: bad file descriptor" ~fd:(t.fd : Fd.t)])
-;;
 
 let transfer t writer =
   let finished = Ivar.create () in
