@@ -1,7 +1,3 @@
-(** Alternative to
-    {{:https://github.com/janestreet/async_unix/blob/cdd9aba67eec2f30bb3a7a22f92c056742073726/src/writer.mli}
-    Async_unix.Writer}, based on the low latency transport in async_rpc. *)
-
 open! Core
 open! Async_kernel
 open Async_unix

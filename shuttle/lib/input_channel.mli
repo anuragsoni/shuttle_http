@@ -1,7 +1,3 @@
-(** Alternative to
-    {{:https://github.com/janestreet/async_unix/blob/cdd9aba67eec2f30bb3a7a22f92c056742073726/src/reader.mli}
-    Async_unix.Reader}, based on the low latency transport in async_rpc. *)
-
 open! Core
 open! Async_kernel
 open Async_unix
@@ -14,11 +10,21 @@ type slice = private
   ; len : int
   }
 
-val create : ?max_buffer_size:int -> ?buf_len:int -> Fd.t -> t
+val create
+  :  ?max_buffer_size:int
+  -> ?buf_len:int
+  -> ?time_source:[> read ] Time_source.T1.t
+  -> Fd.t
+  -> t
+
 val is_closed : t -> bool
 val closed : t -> unit Deferred.t
 val close : t -> unit Deferred.t
 val refill : t -> [ `Ok | `Eof ] Deferred.t
+
+exception Timeout
+
+val refill_with_timeout : t -> Time_ns.Span.t -> [ `Ok | `Eof ] Deferred.t
 val view : t -> slice
 val consume : t -> int -> unit
 

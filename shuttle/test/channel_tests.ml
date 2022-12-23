@@ -155,3 +155,32 @@ let%expect_test "Flush operation reports when attempting to write on a closed FD
   Writer.writef stdout !"%{sexp: Output_channel.Flush_result.t}" flush_result;
   [%expect {| Error |}]
 ;;
+
+let%expect_test "Support timeouts for refill operation" =
+  Unix.pipe (Info.of_string "test input_channel")
+  >>= fun (`Reader reader, `Writer writer) ->
+  let time_source = Time_source.create ~now:(Time_ns.now ()) () in
+  let reader = Input_channel.create ~time_source reader in
+  let%map () =
+    Monitor.protect
+      ~finally:(fun () -> Fd.close writer >>= fun () -> Input_channel.close reader)
+      (fun () ->
+        let monitor = Monitor.create () in
+        let next_error = Monitor.detach_and_get_next_error monitor in
+        let result =
+          Scheduler.within' ~monitor (fun () ->
+            Input_channel.refill_with_timeout reader (Time_ns.Span.of_sec 15.0))
+        in
+        Time_source.advance_directly_by time_source (Time_ns.Span.of_sec 30.0);
+        choose [ choice next_error (fun e -> Error e); choice result (fun e -> Ok e) ]
+        >>= function
+        | Ok _ -> Deferred.unit
+        | Error exn ->
+          (match Monitor.extract_exn exn with
+           | Input_channel.Timeout ->
+             Writer.write_line stdout "TIMEOUT";
+             Writer.flushed stdout
+           | exn -> raise exn))
+  in
+  [%expect {| TIMEOUT |}]
+;;

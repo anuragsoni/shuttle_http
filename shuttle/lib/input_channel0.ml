@@ -1,17 +1,24 @@
 open Core
 open Async_kernel
 open Async_unix
+open! Async_kernel_require_explicit_time_source
 
 type t =
   { fd : Fd.t
   ; mutable is_closed : bool
   ; closed : unit Ivar.t
   ; buf : Bytebuffer.t
+  ; time_source : Time_source.t
   }
 [@@deriving sexp_of]
 
-let create ?max_buffer_size ?buf_len fd =
+let create ?max_buffer_size ?buf_len ?time_source fd =
   Fd.with_file_descr_exn fd ignore ~nonblocking:true;
+  let time_source =
+    match time_source with
+    | None -> Time_source.wall_clock ()
+    | Some t -> Time_source.read_only t
+  in
   let buf_len =
     match buf_len with
     | None -> 64 * 1024
@@ -26,6 +33,7 @@ let create ?max_buffer_size ?buf_len fd =
   ; is_closed = false
   ; closed = Ivar.create ()
   ; buf = Bytebuffer.create ?max_buffer_size buf_len
+  ; time_source
   }
 ;;
 
@@ -39,6 +47,66 @@ let close t =
     t.is_closed <- true;
     Fd.close t.fd >>> fun () -> Ivar.fill t.closed ());
   closed t
+;;
+
+exception Timeout
+
+let refill_with_timeout t span =
+  Bytebuffer.compact t.buf;
+  if Bytebuffer.available_to_write t.buf = 0 then Bytebuffer.ensure_space t.buf 1;
+  let result = Bytebuffer.read_assume_fd_is_nonblocking t.buf (Fd.file_descr_exn t.fd) in
+  if Unix.Syscall_result.Int.is_ok result
+  then (
+    match Unix.Syscall_result.Int.ok_exn result with
+    | 0 -> return `Eof
+    | n ->
+      assert (n > 0);
+      return `Ok)
+  else (
+    match Unix.Syscall_result.Int.error_exn result with
+    | EAGAIN | EWOULDBLOCK | EINTR ->
+      let rec loop t =
+        Fd.ready_to t.fd `Read
+        >>= function
+        | `Ready ->
+          let result =
+            Bytebuffer.read_assume_fd_is_nonblocking t.buf (Fd.file_descr_exn t.fd)
+          in
+          if Unix.Syscall_result.Int.is_ok result
+          then (
+            match Unix.Syscall_result.Int.ok_exn result with
+            | 0 -> return `Eof
+            | n ->
+              assert (n > 0);
+              return `Ok)
+          else (
+            match Unix.Syscall_result.Int.error_exn result with
+            | EAGAIN | EWOULDBLOCK | EINTR -> loop t
+            | EPIPE
+            | ECONNRESET
+            | EHOSTUNREACH
+            | ENETDOWN
+            | ENETRESET
+            | ENETUNREACH
+            | ETIMEDOUT -> return `Eof
+            | error -> raise (Unix.Unix_error (error, "read", "")))
+        | `Closed -> return `Eof
+        | `Bad_fd ->
+          let%bind () = close t in
+          raise_s
+            [%message
+              "Shuttle.Input_channel.refill_with_timeout: bad file descriptor"
+                ~fd:(t.fd : Fd.t)]
+      in
+      Time_source.with_timeout t.time_source span (loop t)
+      >>= (function
+      | `Timeout ->
+        let%bind () = close t in
+        raise Timeout
+      | `Result x -> return x)
+    | EPIPE | ECONNRESET | EHOSTUNREACH | ENETDOWN | ENETRESET | ENETUNREACH | ETIMEDOUT
+      -> return `Eof
+    | error -> raise (Unix.Unix_error (error, "read", "")))
 ;;
 
 let refill t =
