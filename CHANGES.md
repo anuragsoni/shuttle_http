@@ -1,6 +1,9 @@
 # 0.7.0
 * Remove support for blocking file descriptors
 * Output_channel accepts an optional user-provided Async Time_source
+* Input_channel accepts an optional user-provided Async Time_source
+* Support timeouts for Input_channel.refill
+* Remove `read`, `read_line`, `lines` from Input_channel
 
 # 0.6.0
 * Increase upper bound for core/async to 0.15.0
