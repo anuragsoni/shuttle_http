@@ -65,9 +65,23 @@ let refill_with_timeout t span =
   else (
     match Unix.Syscall_result.Int.error_exn result with
     | EAGAIN | EWOULDBLOCK | EINTR ->
+      let event = Time_source.Event.after t.time_source span in
+      let interrupt =
+        match%bind Time_source.Event.fired event with
+        | Time_source.Event.Fired.Aborted () -> Deferred.never ()
+        | Time_source.Event.Fired.Happened () -> Deferred.unit
+      in
       let rec loop t =
-        Fd.ready_to t.fd `Read
+        Fd.interruptible_ready_to ~interrupt t.fd `Read
         >>= function
+        | `Interrupted ->
+          (match Time_source.Event.abort event () with
+           | Time_source.Event.Abort_result.Previously_happened () -> raise Timeout
+           | Ok | Previously_aborted () ->
+             raise_s
+               [%message
+                 "Input_channel.refill_with_timeout bug. Timeout event can't be aborted \
+                  if Fd is interrupted"])
         | `Ready ->
           let result =
             Bytebuffer.read_assume_fd_is_nonblocking t.buf (Fd.file_descr_exn t.fd)
@@ -75,9 +89,12 @@ let refill_with_timeout t span =
           if Unix.Syscall_result.Int.is_ok result
           then (
             match Unix.Syscall_result.Int.ok_exn result with
-            | 0 -> return `Eof
+            | 0 ->
+              Time_source.Event.abort_if_possible event ();
+              return `Eof
             | n ->
               assert (n > 0);
+              Time_source.Event.abort_if_possible event ();
               return `Ok)
           else (
             match Unix.Syscall_result.Int.error_exn result with
@@ -88,22 +105,24 @@ let refill_with_timeout t span =
             | ENETDOWN
             | ENETRESET
             | ENETUNREACH
-            | ETIMEDOUT -> return `Eof
-            | error -> raise (Unix.Unix_error (error, "read", "")))
-        | `Closed -> return `Eof
+            | ETIMEDOUT ->
+              Time_source.Event.abort_if_possible event ();
+              return `Eof
+            | error ->
+              Time_source.Event.abort_if_possible event ();
+              raise (Unix.Unix_error (error, "read", "")))
+        | `Closed ->
+          Time_source.Event.abort_if_possible event ();
+          return `Eof
         | `Bad_fd ->
           let%bind () = close t in
+          Time_source.Event.abort_if_possible event ();
           raise_s
             [%message
               "Shuttle.Input_channel.refill_with_timeout: bad file descriptor"
                 ~fd:(t.fd : Fd.t)]
       in
-      Time_source.with_timeout t.time_source span (loop t)
-      >>= (function
-      | `Timeout ->
-        let%bind () = close t in
-        raise Timeout
-      | `Result x -> return x)
+      loop t
     | EPIPE | ECONNRESET | EHOSTUNREACH | ENETDOWN | ENETRESET | ENETUNREACH | ETIMEDOUT
       -> return `Eof
     | error -> raise (Unix.Unix_error (error, "read", "")))
