@@ -12,3 +12,4 @@ val version : t -> Version.t
 val status : t -> Status.t
 val reason_phrase : t -> string
 val headers : t -> Headers.t
+val body : t -> Body.t

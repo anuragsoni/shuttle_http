@@ -24,3 +24,4 @@ let version t = t.version
 let status t = t.status
 let reason_phrase t = t.reason_phrase
 let headers t = t.headers
+let body t = t.body
