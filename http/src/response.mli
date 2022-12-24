@@ -1,9 +1,10 @@
-type t [@@deriving sexp]
+type t [@@deriving sexp_of]
 
 val create
   :  ?version:Version.t
   -> ?reason_phrase:string
   -> ?headers:Headers.t
+  -> ?body:Body.t
   -> Status.t
   -> t
 
