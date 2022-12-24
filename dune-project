@@ -46,3 +46,10 @@
    (>= v0.15.0))
   (ppx_jane
    (>= v0.15.0))))
+
+(package
+ (name shuttle_http)
+ (depends
+  (shuttle
+   (= :version))
+  http))

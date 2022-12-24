@@ -17,6 +17,7 @@ val listen
   -> ?output_buffer_size:int
   -> ?max_output_buffer_size:int
   -> ?write_timeout:Time_ns.Span.t
+  -> ?time_source:[> read ] Time_source.T1.t
   -> on_handler_error:[ `Call of 'address -> exn -> unit | `Ignore | `Raise ]
   -> f:('address -> Input_channel.t -> Output_channel.t -> unit Deferred.t)
   -> ('address, 'listening_on) Tcp.Where_to_listen.t
@@ -32,6 +33,7 @@ val with_connection
   -> ?max_input_buffer_size:int
   -> ?output_buffer_size:int
   -> ?max_output_buffer_size:int
+  -> ?time_source:[> read ] Time_source.T1.t
   -> f:(Input_channel.t -> Output_channel.t -> 'res Deferred.t)
   -> [< Socket.Address.t ] Tcp.Where_to_connect.t
   -> 'res Async_kernel__Types.Deferred.t
