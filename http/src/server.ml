@@ -72,7 +72,13 @@ let write_response t res =
     Deferred.repeat_until_finished () (fun () ->
       M.read ()
       >>= function
-      | `Eof -> return (`Finished ())
+      | `Eof ->
+        if is_chunked
+        then (
+          Output_channel.write t.writer "0\r\n\r\n";
+          let%map () = Output_channel.flush t.writer in
+          `Finished ())
+        else return (`Finished ())
       | `Ok v ->
         if String.is_empty v
         then return (`Repeat ())
