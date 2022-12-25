@@ -21,20 +21,11 @@ type t =
   ; reader : Input_channel.t
   ; writer : Output_channel.t
   ; error_handler : error_handler
+  ; handler : handler
   }
 [@@deriving sexp_of]
 
 let closed t = Ivar.read t.closed
-
-let respond_stream t ?(headers = []) ?(status = `Ok) stream =
-  let module M = (val stream : Stream_intf.S) in
-  upon (Ivar.read t.closed) (fun () -> M.close ());
-  return
-    (Response.create
-       ~headers:(Headers.of_rev_list headers)
-       ~body:(Body.stream (module M))
-       status)
-;;
 
 let write_response t res =
   Output_channel.write t.writer (Version.to_string (Response.version res));
@@ -55,6 +46,7 @@ let write_response t res =
       , false )
     | Body.Stream stream ->
       let module M = (val stream : Stream_intf.S) in
+      upon (Output_channel.remote_closed t.writer) (fun () -> M.close ());
       (match M.encoding () with
        | `Chunked ->
          Headers.add_unless_exists headers ~key:"Transfer-Encoding" ~data:"chunked", true
@@ -106,13 +98,14 @@ let write_response t res =
           `Repeat ()))
 ;;
 
-let create ?(error_handler = default_error_handler) reader writer =
+let create ?(error_handler = default_error_handler) reader writer handler =
   let t =
     { closed = Ivar.create ()
     ; monitor = Monitor.create ()
     ; reader
     ; writer
     ; error_handler
+    ; handler
     }
   in
   upon (Output_channel.remote_closed writer) (fun () -> Ivar.fill_if_empty t.closed ());
@@ -209,7 +202,7 @@ let parse_request_body t request =
   | `Bad_request -> Or_error.error_s [%sexp "Invalid transfer encoding"]
 ;;
 
-let run t handler =
+let run t =
   let rec loop t =
     let view = Input_channel.view t.reader in
     match Parser.parse_request view.buf ~pos:view.pos ~len:view.len with
@@ -229,7 +222,7 @@ let run t handler =
          >>> fun response -> write_response t response >>> fun () -> Ivar.fill t.closed ()
        | Ok req_body ->
          Request.set_body req req_body;
-         handler req
+         t.handler req
          >>> fun response ->
          let is_keep_alive =
            keep_alive (Request.headers req) && keep_alive (Response.headers response)
