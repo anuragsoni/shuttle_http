@@ -24,6 +24,19 @@ type t =
   }
 [@@deriving sexp_of]
 
+let respond_string _ ?reason_phrase ?headers ?(status = `Ok) body =
+  Response.create ?reason_phrase ?headers ~body:(Body.string body) status
+;;
+
+let respond_empty _ ?reason_phrase ?headers status =
+  Response.create ?reason_phrase ?headers ~body:Body.empty status
+;;
+
+let respond_stream t ?reason_phrase ?headers ?(status = `Ok) (module M : Stream_intf.S) =
+  upon (Output_channel.remote_closed t.writer) (fun () -> M.close ());
+  Response.create ?reason_phrase ?headers ~body:(Body.stream (module M)) status
+;;
+
 let closed t = Ivar.read t.closed
 
 let write_response t res =

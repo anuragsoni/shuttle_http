@@ -30,6 +30,8 @@ let text =
    the well, and noticed that they were filled with cupboards......"
 ;;
 
+let handler ctx _request = return (Server.respond_string ctx text)
+
 let run sock =
   let%bind server =
     Shuttle.Connection.listen
@@ -40,8 +42,7 @@ let run sock =
       (Tcp.Where_to_listen.of_port sock)
       ~f:(fun _addr reader writer ->
       let server = Shuttle_http.Server.create reader writer in
-      let handler _request = return (Response.create ~body:(Body.string text) `Ok) in
-      Server.run server handler)
+      Server.run server (handler server))
   in
   Log.Global.info
     !"Server listening on: %s"
