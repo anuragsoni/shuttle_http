@@ -25,6 +25,8 @@ let stream_of_pipe encoding reader =
     let read_started () = t.read_started
     let read () = Pipe.read t.reader
     let close () = Pipe.close_read t.reader
+    let drain () = Pipe.drain t.reader
+    let start_read () = t.read_started <- true
   end
   in
   (module M : Stream_intf.S)
