@@ -142,7 +142,7 @@ let run t =
       write_response t response
       >>> fun () -> if is_keep_alive then loop t else Ivar.fill t.closed ()
   in
-  loop t;
+  Scheduler.within ~priority:Priority.normal ~monitor:t.monitor (fun () -> loop t);
   handle_error t;
   Ivar.read t.closed
 ;;
