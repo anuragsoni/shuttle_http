@@ -45,7 +45,6 @@ let write_response t res =
       , false )
     | Body.Stream stream ->
       let module M = (val stream : Stream_intf.S) in
-      upon (Output_channel.remote_closed t.writer) (fun () -> M.close ());
       (match M.encoding () with
        | `Chunked ->
          Headers.add_unless_exists headers ~key:"Transfer-Encoding" ~data:"chunked", true
@@ -222,13 +221,23 @@ let run t handler =
          >>> fun response -> write_response t response >>> fun () -> Ivar.fill t.closed ()
        | Ok req_body ->
          Request.set_body req req_body;
-         handler req
-         >>> fun response ->
-         let is_keep_alive =
-           keep_alive (Request.headers req) && keep_alive (Response.headers response)
-         in
-         write_response t response
-         >>> fun () -> if is_keep_alive then loop t else Ivar.fill t.closed ())
+         let promise = handler req in
+         if Deferred.is_determined promise
+         then write_response_and_continue t req (Deferred.value_exn promise)
+         else promise >>> fun response -> write_response_and_continue t req response)
+  and write_response_and_continue t req response =
+    let is_keep_alive =
+      keep_alive (Request.headers req) && keep_alive (Response.headers response)
+    in
+    write_response t response
+    >>> fun () ->
+    if is_keep_alive
+    then (
+      match Response.body response with
+      | Body.Empty | Body.Fixed _ -> loop t
+      | Body.Stream (module M : Stream_intf.S) ->
+        (if M.read_started () then M.closed () else M.drain ()) >>> fun () -> loop t)
+    else Ivar.fill t.closed ()
   in
   Scheduler.within ~priority:Priority.normal ~monitor:t.monitor (fun () -> loop t);
   handle_error t;
