@@ -39,11 +39,9 @@ let run sock =
       ~on_handler_error:`Raise
       (Tcp.Where_to_listen.of_port sock)
       ~f:(fun _addr reader writer ->
-      let server =
-        Shuttle_http.Server.create reader writer (fun _request ->
-          return (Response.create ~body:(Body.string text) `Ok))
-      in
-      Server.run server)
+      let server = Shuttle_http.Server.create reader writer in
+      let handler _request = return (Response.create ~body:(Body.string text) `Ok) in
+      Server.run server handler)
   in
   Log.Global.info
     !"Server listening on: %s"

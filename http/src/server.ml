@@ -21,7 +21,6 @@ type t =
   ; reader : Input_channel.t
   ; writer : Output_channel.t
   ; error_handler : error_handler
-  ; handler : handler
   }
 [@@deriving sexp_of]
 
@@ -100,14 +99,13 @@ let write_response t res =
           `Repeat ()))
 ;;
 
-let create ?(error_handler = default_error_handler) reader writer handler =
+let create ?(error_handler = default_error_handler) reader writer =
   let t =
     { closed = Ivar.create ()
     ; monitor = Monitor.create ()
     ; reader
     ; writer
     ; error_handler
-    ; handler
     }
   in
   upon (Output_channel.remote_closed writer) (fun () -> Ivar.fill_if_empty t.closed ());
@@ -204,7 +202,7 @@ let parse_request_body t request =
   | `Bad_request -> Or_error.error_s [%sexp "Invalid transfer encoding"]
 ;;
 
-let run t =
+let run t handler =
   let rec loop t =
     let view = Input_channel.view t.reader in
     match Parser.parse_request view.buf ~pos:view.pos ~len:view.len with
@@ -224,7 +222,7 @@ let run t =
          >>> fun response -> write_response t response >>> fun () -> Ivar.fill t.closed ()
        | Ok req_body ->
          Request.set_body req req_body;
-         t.handler req
+         handler req
          >>> fun response ->
          let is_keep_alive =
            keep_alive (Request.headers req) && keep_alive (Response.headers response)
