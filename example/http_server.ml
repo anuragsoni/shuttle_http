@@ -1,6 +1,6 @@
 open! Core
 open! Async
-open Shuttle.Std
+open Shuttle_http
 
 let text =
   "CHAPTER I. Down the Rabbit-Hole  Alice was beginning to get very tired of sitting by \
@@ -40,10 +40,11 @@ let run sock =
       (Tcp.Where_to_listen.of_port sock)
       ~f:(fun _addr reader writer ->
       let server = Shuttle_http.Server.create reader writer in
-      let handler _ =
-        return (Shuttle_http.Response.create ~body:(Shuttle_http.Body.string text) `Ok)
+      let handler request =
+        let body = Request.body request in
+        Server.respond_stream server (Body.to_stream body)
       in
-      Shuttle_http.Server.run server handler)
+      Server.run server handler)
   in
   Log.Global.info
     !"Server listening on: %s"
