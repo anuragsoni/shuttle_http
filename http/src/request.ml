@@ -24,3 +24,5 @@ let meth t = t.meth
 let path t = t.path
 let version t = t.version
 let headers t = t.headers
+let body t = t.body
+let set_body t body = t.body <- body

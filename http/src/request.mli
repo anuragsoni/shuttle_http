@@ -12,3 +12,5 @@ val meth : t -> Meth.t
 val path : t -> string
 val version : t -> Version.t
 val headers : t -> Headers.t
+val body : t -> Body.t
+val set_body : t -> Body.t -> unit

@@ -21,9 +21,20 @@ type t =
   ; reader : Input_channel.t
   ; writer : Output_channel.t
   ; error_handler : error_handler
-  ; handler : handler
   }
 [@@deriving sexp_of]
+
+let closed t = Ivar.read t.closed
+
+let respond_stream t ?(headers = []) ?(status = `Ok) stream =
+  let module M = (val stream : Stream_intf.S) in
+  upon (Ivar.read t.closed) (fun () -> M.close ());
+  return
+    (Response.create
+       ~headers:(Headers.of_rev_list headers)
+       ~body:(Body.stream (module M))
+       status)
+;;
 
 let write_response t res =
   Output_channel.write t.writer (Version.to_string (Response.version res));
@@ -95,14 +106,17 @@ let write_response t res =
           `Repeat ()))
 ;;
 
-let create ?(error_handler = default_error_handler) reader writer handler =
-  { closed = Ivar.create ()
-  ; monitor = Monitor.create ()
-  ; reader
-  ; writer
-  ; error_handler
-  ; handler
-  }
+let create ?(error_handler = default_error_handler) reader writer =
+  let t =
+    { closed = Ivar.create ()
+    ; monitor = Monitor.create ()
+    ; reader
+    ; writer
+    ; error_handler
+    }
+  in
+  upon (Output_channel.remote_closed writer) (fun () -> Ivar.fill_if_empty t.closed ());
+  t
 ;;
 
 let handle_error t =
@@ -120,7 +134,7 @@ let keep_alive headers =
   | _ -> true
 ;;
 
-let run t =
+let run t handler =
   let rec loop t =
     let view = Input_channel.view t.reader in
     match Parser.parse_request view.buf ~pos:view.pos ~len:view.len with
@@ -134,7 +148,7 @@ let run t =
       >>> fun response -> write_response t response >>> fun () -> Ivar.fill t.closed ()
     | Ok (req, consumed) ->
       Input_channel.consume t.reader consumed;
-      t.handler req
+      handler req
       >>> fun response ->
       let is_keep_alive =
         keep_alive (Request.headers req) && keep_alive (Response.headers response)
