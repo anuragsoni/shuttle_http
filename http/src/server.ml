@@ -81,7 +81,9 @@ let write_response t res =
           Output_channel.write t.writer "0\r\n\r\n";
           let%map () = Output_channel.flush t.writer in
           `Finished ())
-        else return (`Finished ())
+        else (
+          let%map () = Output_channel.flush t.writer in
+          `Finished ())
       | `Ok v ->
         if String.is_empty v
         then return (`Repeat ())
