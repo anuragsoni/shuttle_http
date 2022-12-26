@@ -13,7 +13,7 @@ let default_error_handler ?exn:_ ?request:_ status =
        status)
 ;;
 
-type handler = Request.t -> Response.t Deferred.t [@@deriving sexp_of]
+type service = Request.t -> Response.t Deferred.t [@@deriving sexp_of]
 
 type t =
   { closed : unit Ivar.t
