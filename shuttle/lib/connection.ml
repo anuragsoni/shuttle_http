@@ -25,6 +25,7 @@ let listen
   ?output_buffer_size
   ?max_output_buffer_size
   ?write_timeout
+  ?time_source
   ~on_handler_error
   ~f:handler
   where_to_listen
@@ -34,6 +35,7 @@ let listen
     ?max_accepts_per_batch
     ?backlog
     ?socket
+    ?time_source
     ~on_handler_error
     where_to_listen
     (fun addr socket ->
@@ -42,6 +44,7 @@ let listen
       Input_channel.create
         ?max_buffer_size:max_input_buffer_size
         ?buf_len:input_buffer_size
+        ?time_source
         fd
     in
     let output_channel =
@@ -49,6 +52,7 @@ let listen
         ?max_buffer_size:max_output_buffer_size
         ?buf_len:output_buffer_size
         ?write_timeout
+        ?time_source
         fd
     in
     let%bind res =
@@ -72,21 +76,24 @@ let with_connection
   ?max_input_buffer_size
   ?output_buffer_size
   ?max_output_buffer_size
+  ?time_source
   ~f
   where_to_connect
   =
-  let%bind socket = Tcp.connect_sock ?interrupt ?timeout where_to_connect in
+  let%bind socket = Tcp.connect_sock ?interrupt ?timeout ?time_source where_to_connect in
   let fd = Socket.fd socket in
   let input_channel =
     Input_channel.create
       ?max_buffer_size:max_input_buffer_size
       ?buf_len:input_buffer_size
+      ?time_source
       fd
   in
   let output_channel =
     Output_channel.create
       ?max_buffer_size:max_output_buffer_size
       ?buf_len:output_buffer_size
+      ?time_source
       fd
   in
   let res = collect_errors output_channel (fun () -> f input_channel output_channel) in

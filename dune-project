@@ -46,3 +46,15 @@
    (>= v0.15.0))
   (ppx_jane
    (>= v0.15.0))))
+
+(package
+ (name shuttle_http)
+ (tags
+  (http-server http http1.1 async))
+ (synopsis "Async library for HTTP/1.1 servers")
+ (description
+  "Shuttle_http is a low level library for implementing HTTP/1.1 web services in OCaml.")
+ (depends
+  (shuttle
+   (= :version))
+  http))

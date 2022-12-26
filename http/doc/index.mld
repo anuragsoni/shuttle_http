@@ -1,0 +1,64 @@
+{0 Shuttle_http}
+
+Shuttle_http is a low level library for implementing HTTP/1.1 web services in OCaml using the {{: https://opensource.janestreet.com/async/} Async} library for lightweight concurrency. It allows defining services as simple OCaml {{!Shuttle_http.Server.service} functions}, and supports streaming bodies to allow working with large bodies incrementally.
+
+It supports error reporting using {{!Shuttle_http.Server.error_handler} error handlers} and provides a default implementation that responds with the error status code and an empty response body. Users can provide their own error handler implementation when creating a {{!Shuttle_http.Server.create} server handle}. The library however only considers unhandled exceptions, and errors encountered while parsing the wire payload as use-cases that invoke the error handler. The expectation is that application specific errors will be dealt with by the user within their service definition.
+
+{1 Tutorial}
+
+{2 Basics}
+
+Shuttle_http is not a framework and hence doesn't ship with any abstractions beyond service definitions needing to be a function that accept a request and return a deferred response.
+
+A service definition in its most simple form might look like:
+
+{[
+open Shuttle_http
+
+let my_service (request : Request.t) =
+  return (Response.create ~body:(Body.string "Hello World") `Ok)
+;;
+]}
+
+{2 Streaming response }
+
+We saw how to define services that don't require any information from the server handle to prepare responses. For some use-cases (Specially when working with streaming bodies that hold onto external resources), one might want to access the server handle within the service. This might look like:
+
+{[
+open Shuttle_http
+
+let my_service (ctx : Server.t) (request : Request.t) =
+  let%map reader =
+    (* This an example to show a stream that works with an external resource. *)
+    Reader.open_file "<some file path>"
+  in
+  (* Create a pipe from the reader that we will use as a streaming response body. *)
+  let reader_pipe = Reader.pipe reader in
+  (* Register a callback that's called when the server handler is closed that will also
+     close the pipe, in-turn closing the Reader and the underlying file descriptor. This
+     is useful in scenarios where the connection is interrupted before the response body
+     is fully exhausted and helps avoid resource leaks. This example is demonstrating how
+     to do this manually using the server handler. Creating a response via
+     [Server.respond_stream] will automatically register the action to close a stream on
+     Server connection closing. *)
+  upon (Server.closed ctx) (fun () -> Pipe.close_read reader_pipe);
+  let response_stream = Body.of_pipe `Chunked reader_pipe in
+  Response.create ~body:response_stream `Ok
+;;
+]}
+
+{1 API docs}
+
+The following modules are part of the library:
+
+{!modules:
+Shuttle_http.Headers
+Shuttle_http.Meth
+Shuttle_http.Version
+Shuttle_http.Stream_intf
+Shuttle_http.Body
+Shuttle_http.Request
+Shuttle_http.Status
+Shuttle_http.Response
+Shuttle_http.Server
+}
