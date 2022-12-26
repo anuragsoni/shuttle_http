@@ -45,6 +45,11 @@ let my_service (ctx : Server.t) (request : Request.t) =
   let response_stream = Body.of_pipe `Chunked reader_pipe in
   Response.create ~body:response_stream `Ok
 ;;
+
+let main reader writer =
+  let server = Server.create reader writer in
+  Server.run server (my_service server)
+;;
 ]}
 
 {1 API docs}
