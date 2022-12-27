@@ -13,7 +13,7 @@ type t =
 let create
   ?(version = Version.Http_1_1)
   ?(headers = Headers.empty)
-  ?(body = Body.Empty)
+  ?(body = Body.empty)
   meth
   path
   =

@@ -162,14 +162,14 @@ let get_transfer_encoding headers =
 
 let parse_request_body t request =
   match get_transfer_encoding (Request.headers request) with
-  | `Fixed 0 -> Ok Body.Empty
+  | `Fixed 0 -> Ok Body.empty
   | `Fixed len ->
     let view = Input_channel.view t.reader in
     if view.len >= len
     then (
       let chunk = Bigstring.to_string view.buf ~pos:view.pos ~len in
       Input_channel.consume t.reader len;
-      Ok (Body.Fixed chunk))
+      Ok (Body.string chunk))
     else (
       let pipe =
         Pipe.create_reader ~close_on_exception:false (fun writer ->
