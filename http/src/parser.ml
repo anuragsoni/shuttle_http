@@ -334,5 +334,5 @@ let parse_chunk_length ?pos ?len buf = run_parser ?pos ?len buf chunk_length
 let parse_chunk ?pos ?len buf chunk_kind = run_parser ?pos ?len buf (chunk chunk_kind)
 
 module Private = struct
-  let parse_method payload = run_parser (Bigstring.of_string payload) meth
+  let parse_method ?pos ?len buf = run_parser ?pos ?len buf meth
 end

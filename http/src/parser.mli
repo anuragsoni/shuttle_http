@@ -28,5 +28,5 @@ val parse_chunk
   -> (chunk_parser_result * int, error) result
 
 module Private : sig
-  val parse_method : string -> (Meth.t * int, error) result
+  val parse_method : ?pos:int -> ?len:int -> Bigstring.t -> (Meth.t * int, error) result
 end

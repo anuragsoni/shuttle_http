@@ -1,0 +1,7 @@
+(library
+ (name test_shuttle_http)
+ (package shuttle_http)
+ (preprocess
+  (pps ppx_jane))
+ (inline_tests)
+ (libraries shuttle_http))
