@@ -246,7 +246,7 @@ let run t handler =
     >>> fun () ->
     if is_keep_alive
     then (
-      match Response.body response with
+      match Request.body req with
       | Body.Empty | Body.Fixed _ -> loop t
       | Body.Stream (module M : Stream_intf.S) ->
         (if M.read_started () then M.closed () else M.drain ()) >>> fun () -> loop t)
