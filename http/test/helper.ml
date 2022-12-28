@@ -1,8 +1,6 @@
 open! Core
 open! Async
 
-let launch path = Process.create_exn ~prog:"./bin/http_server.exe" ~args:[ path ] ()
-
 let rec connect path =
   match%bind
     Monitor.try_with (fun () -> Tcp.connect (Tcp.Where_to_connect.of_file path))
@@ -27,6 +25,16 @@ let with_client path ~f =
 ;;
 
 let with_server path ~f =
-  let%bind process = launch path in
+  let%bind process = Process.create_exn ~prog:"./bin/http_server.exe" ~args:[ path ] () in
+  Monitor.protect ~finally:(fun () -> cleanup process) (fun () -> f ())
+;;
+
+let with_server_custom_error_handler path ~f =
+  let%bind process =
+    Process.create_exn
+      ~prog:"./bin/http_server_custom_error_handler.exe"
+      ~args:[ path ]
+      ()
+  in
   Monitor.protect ~finally:(fun () -> cleanup process) (fun () -> f ())
 ;;
