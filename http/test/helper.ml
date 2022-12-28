@@ -38,3 +38,11 @@ let with_server_custom_error_handler path ~f =
   in
   Monitor.protect ~finally:(fun () -> cleanup process) (fun () -> f ())
 ;;
+
+let send_request_and_log_response r w req =
+  Writer.write w req;
+  let reader = Reader.pipe r in
+  let buf = Buffer.create 128 in
+  let%map () = Pipe.iter_without_pushback reader ~f:(Buffer.add_string buf) in
+  printf "%S" (Buffer.contents buf)
+;;

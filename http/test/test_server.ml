@@ -15,13 +15,9 @@ let%expect_test "Simple http endpoint" =
          \r\n\
          Hello\r\n"
       in
-      Writer.write w test_post_req_with_fixed_body;
-      let reader = Reader.pipe r in
-      let buf = Buffer.create 64 in
       let%map () =
-        Pipe.iter_without_pushback reader ~f:(fun v -> Buffer.add_string buf v)
+        Helper.send_request_and_log_response r w test_post_req_with_fixed_body
       in
-      printf "%S" (Buffer.contents buf);
       [%expect {| "HTTP/1.1 200 \r\nContent-Length: 11\r\n\r\nHello World" |}]))
 ;;
 
@@ -29,14 +25,9 @@ let%expect_test "Test default error handler" =
   let path = Filename_unix.temp_file "shuttle" "sock" in
   Helper.with_server path ~f:(fun () ->
     Helper.with_client path ~f:(fun r w ->
-      let test_req = "GET /error HTTP/1.1\r\n\r\n" in
-      Writer.write w test_req;
-      let reader = Reader.pipe r in
-      let buf = Buffer.create 64 in
       let%map () =
-        Pipe.iter_without_pushback reader ~f:(fun v -> Buffer.add_string buf v)
+        Helper.send_request_and_log_response r w "GET /error HTTP/1.1\r\n\r\n"
       in
-      printf "%S" (Buffer.contents buf);
       [%expect {| "HTTP/1.1 500 \r\nConnection: close\r\nContent-Length: 0\r\n\r\n" |}]))
 ;;
 
@@ -45,14 +36,7 @@ let%expect_test "Test custom error handler" =
   Helper.with_server_custom_error_handler path ~f:(fun () ->
     let%bind () =
       Helper.with_client path ~f:(fun r w ->
-        let test_req = "GET / HTTP/1.1\r\n\r\n" in
-        Writer.write w test_req;
-        let reader = Reader.pipe r in
-        let buf = Buffer.create 64 in
-        let%map () =
-          Pipe.iter_without_pushback reader ~f:(fun v -> Buffer.add_string buf v)
-        in
-        printf "%S" (Buffer.contents buf);
+        let%map () = Helper.send_request_and_log_response r w "GET / HTTP/1.1\r\n\r\n" in
         [%expect
           {| "HTTP/1.1 500 \r\nContent-Length: 22\r\n\r\nSomething bad happened" |}])
     in
@@ -65,13 +49,9 @@ let%expect_test "Test custom error handler" =
        Hello\r\n"
     in
     Helper.with_client path ~f:(fun r w ->
-      Writer.write w test_post_req_with_invalid_body_length;
-      let reader = Reader.pipe r in
-      let buf = Buffer.create 64 in
       let%map () =
-        Pipe.iter_without_pushback reader ~f:(fun v -> Buffer.add_string buf v)
+        Helper.send_request_and_log_response r w test_post_req_with_invalid_body_length
       in
-      printf "%S" (Buffer.contents buf);
       [%expect
         {| "HTTP/1.1 400 \r\nContent-Length: 40\r\n\r\nSomething bad happened in request /hello" |}]))
 ;;
@@ -91,13 +71,9 @@ let%expect_test "Can read chunked bodies" =
   let path = Filename_unix.temp_file "shuttle" "sock" in
   Helper.with_server path ~f:(fun () ->
     Helper.with_client path ~f:(fun r w ->
-      Writer.write w test_post_req_with_chunked_body;
-      let reader = Reader.pipe r in
-      let buf = Buffer.create 64 in
       let%map () =
-        Pipe.iter_without_pushback reader ~f:(fun v -> Buffer.add_string buf v)
+        Helper.send_request_and_log_response r w test_post_req_with_chunked_body
       in
-      printf "%S" (Buffer.contents buf);
       [%expect
         {| "HTTP/1.1 200 \r\nTransfer-Encoding: chunked\r\n\r\n5\r\nHello\r\n0\r\n\r\n" |}]))
 ;;
@@ -113,12 +89,8 @@ let%expect_test "Can catch bat transfer encoding header" =
   let path = Filename_unix.temp_file "shuttle" "sock" in
   Helper.with_server path ~f:(fun () ->
     Helper.with_client path ~f:(fun r w ->
-      Writer.write w test_post_req_with_bad_transfer_encoding;
-      let reader = Reader.pipe r in
-      let buf = Buffer.create 64 in
       let%map () =
-        Pipe.iter_without_pushback reader ~f:(fun v -> Buffer.add_string buf v)
+        Helper.send_request_and_log_response r w test_post_req_with_bad_transfer_encoding
       in
-      printf "%S" (Buffer.contents buf);
       [%expect {| "HTTP/1.1 400 \r\nConnection: close\r\nContent-Length: 0\r\n\r\n" |}]))
 ;;
