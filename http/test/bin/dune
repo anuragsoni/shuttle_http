@@ -1,0 +1,5 @@
+(executable
+ (name http_server)
+ (preprocess
+  (pps ppx_jane))
+ (libraries shuttle_http core_unix.command_unix))

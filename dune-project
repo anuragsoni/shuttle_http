@@ -57,4 +57,4 @@
  (depends
   (shuttle
    (= :version))
-  http))
+  (core_unix :with-test)))

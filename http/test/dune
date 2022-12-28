@@ -3,5 +3,6 @@
  (package shuttle_http)
  (preprocess
   (pps ppx_jane))
- (inline_tests)
+ (inline_tests
+  (deps ./bin/http_server.exe))
  (libraries shuttle_http))
