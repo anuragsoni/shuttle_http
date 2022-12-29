@@ -10,6 +10,7 @@
   <span>?output_buffer_size:int <span class="arrow">&#45;&gt;</span></span>
   <span>?max_output_buffer_size:int <span class="arrow">&#45;&gt;</span></span>
   <span>?write_timeout:<span class="xref-unresolved">Core</span>.Time_ns.Span.t <span class="arrow">&#45;&gt;</span></span>
+  <span>?time_source:<span><span>[&gt; <span class="xref-unresolved">Core</span>.read ]</span> <span class="xref-unresolved">Async</span>.Time_source.T1.t</span> <span class="arrow">&#45;&gt;</span></span>
   <span>on_handler_error:<span>[ <span>`Call of <span><span class="type-var">'address</span> <span class="arrow">&#45;&gt;</span></span> <span>exn <span class="arrow">&#45;&gt;</span></span> unit</span> <span>| `Ignore</span> <span>| `Raise</span> ]</span> <span class="arrow">&#45;&gt;</span></span>
   <span>f:<span>(<span><span class="type-var">'address</span> <span class="arrow">&#45;&gt;</span></span> <span><a href="../Input_channel/index.html#type-t">Input_channel.t</a> <span class="arrow">&#45;&gt;</span></span> <span><a href="../Output_channel/index.html#type-t">Output_channel.t</a> <span class="arrow">&#45;&gt;</span></span> <span>unit <span class="xref-unresolved">Async</span>.Deferred.t</span>)</span> <span class="arrow">&#45;&gt;</span></span>
   <span><span><span>(<span class="type-var">'address</span>, <span class="type-var">'listening_on</span>)</span> <span class="xref-unresolved">Async</span>.Tcp.Where_to_listen.t</span> <span class="arrow">&#45;&gt;</span></span>
@@ -20,6 +21,7 @@
   <span>?max_input_buffer_size:int <span class="arrow">&#45;&gt;</span></span>
   <span>?output_buffer_size:int <span class="arrow">&#45;&gt;</span></span>
   <span>?max_output_buffer_size:int <span class="arrow">&#45;&gt;</span></span>
+  <span>?time_source:<span><span>[&gt; <span class="xref-unresolved">Core</span>.read ]</span> <span class="xref-unresolved">Async</span>.Time_source.T1.t</span> <span class="arrow">&#45;&gt;</span></span>
   <span>f:<span>(<span><a href="../Input_channel/index.html#type-t">Input_channel.t</a> <span class="arrow">&#45;&gt;</span></span> <span><a href="../Output_channel/index.html#type-t">Output_channel.t</a> <span class="arrow">&#45;&gt;</span></span> <span><span class="type-var">'res</span> <span class="xref-unresolved">Async</span>.Deferred.t</span>)</span> <span class="arrow">&#45;&gt;</span></span>
   <span><span><span>[&lt; <span class="xref-unresolved">Async</span>.Socket.Address.t ]</span> <span class="xref-unresolved">Async</span>.Tcp.Where_to_connect.t</span> <span class="arrow">&#45;&gt;</span></span>
   <span><span class="type-var">'res</span> <span class="xref-unresolved">Async_kernel__Types</span>.Deferred.t</span></span></code></div><div class="spec-doc"><p><code>with_connection</code> is a wrapper for <code>Async.Tcp.connect_sock</code>. It uses async to setup a tcp client, and creates a new <code>Input_channel</code> and <code>Output_channel</code> to forward to the user provided handler.</p></div></div></div></body></html>
