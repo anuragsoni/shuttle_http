@@ -1,3 +1,6 @@
+# 0.8.0
+* Revive the http codec as a new shuttle_http package
+
 # 0.7.0
 * Remove support for blocking file descriptors
 * Output_channel accepts an optional user-provided Async Time_source
