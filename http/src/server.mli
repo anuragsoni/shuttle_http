@@ -19,6 +19,9 @@ type t [@@deriving sexp_of]
     closed. *)
 val closed : t -> unit Deferred.t
 
+(** [close] shuts down the http connection. *)
+val close : t -> unit
+
 (** [create ?error_handler reader writer] creates a new server handle that can be used to
     drive the HTTP request/response server loop. *)
 val create : ?error_handler:error_handler -> Input_channel.t -> Output_channel.t -> t

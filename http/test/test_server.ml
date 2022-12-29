@@ -78,7 +78,7 @@ let%expect_test "Can read chunked bodies" =
         {| "HTTP/1.1 200 \r\nTransfer-Encoding: chunked\r\n\r\n5\r\nHello\r\n0\r\n\r\n" |}]))
 ;;
 
-let%expect_test "Can catch bat transfer encoding header" =
+let%expect_test "Can catch bad transfer encoding header" =
   let test_post_req_with_bad_transfer_encoding =
     "POST /hello HTTP/1.1\r\n\
      Host: www.example.com   \r\n\

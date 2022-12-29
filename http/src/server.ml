@@ -38,6 +38,7 @@ let respond_stream t ?reason_phrase ?headers ?(status = `Ok) (module M : Stream_
 ;;
 
 let closed t = Ivar.read t.closed
+let close t = if Ivar.is_empty t.closed then Ivar.fill t.closed ()
 
 let write_response t res =
   Output_channel.write t.writer (Version.to_string (Response.version res));
