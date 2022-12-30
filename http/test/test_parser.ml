@@ -232,8 +232,16 @@ let%expect_test "unexpected exception in to_string_trim caught via afl-fuzz" =
     ; "./id_000004,sig_06,src_000000,time_9755,execs_2148,op_havoc,rep_2"
     ]
   in
-  List.iter payloads ~f:(fun payload ->
+  List.iteri payloads ~f:(fun idx payload ->
     printf
-      !"%{sexp: Request.t success Or_error.t}\n"
-      (parse_or_error Parser.parse_request payload))
+      !"(%d) %{sexp: Request.t success Or_error.t}\n"
+      (idx + 1)
+      (parse_or_error Parser.parse_request payload));
+  [%expect
+    {|
+    (1) (Error Partial)
+    (2) (Error Partial)
+    (3) (Error Partial)
+    (4) (Error Partial)
+    (5) (Error Partial) |}]
 ;;
