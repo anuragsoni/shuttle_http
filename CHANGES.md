@@ -1,3 +1,9 @@
+# 0.8.1
+
+**Bugfixes**
+
+* Fix a bug in the http request parser that could cause unhandled exception when attempting to parse certain malformed payloads.
+
 # 0.8.0
 * Revive the http codec as a new shuttle_http package
 

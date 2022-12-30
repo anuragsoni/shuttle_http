@@ -58,10 +58,10 @@ module Source = struct
   let[@inline always] to_string_trim t ~pos ~len =
     let last = ref (t.pos + len - 1) in
     let pos = ref (t.pos + pos) in
-    while is_space (Bigstring.get t.buffer !pos) do
+    while is_space (Bigstring.get t.buffer !pos) && !pos < !last do
       incr pos
     done;
-    while is_space (Bigstring.get t.buffer !last) do
+    while is_space (Bigstring.get t.buffer !last) && !last > !pos do
       decr last
     done;
     let len = !last - !pos + 1 in
