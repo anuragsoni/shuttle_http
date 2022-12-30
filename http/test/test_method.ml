@@ -10,3 +10,10 @@ let%test_unit "Http Methods can be coverted to strings and back" =
   in
   [%test_result: Meth.t list] ~expect:a b
 ;;
+
+let%test_unit "Meth.of_string (Meth.to_string m) is never none" =
+  Quickcheck.test ~sexp_of:[%sexp_of: Meth.t] Meth.quickcheck_generator ~f:(fun meth ->
+    [%test_result: Meth.t option]
+      ~expect:(Some meth)
+      (Meth.of_string (Meth.to_string meth)))
+;;
