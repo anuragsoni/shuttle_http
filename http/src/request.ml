@@ -4,7 +4,7 @@ type t =
   { meth : Meth.t
   ; path : string
   ; version : Version.t
-  ; headers : Headers.t
+  ; mutable headers : Headers.t
   ; mutable context : (Univ_map.t[@sexp.opaque])
   ; mutable body : Body.t
   }
@@ -26,3 +26,4 @@ let version t = t.version
 let headers t = t.headers
 let body t = t.body
 let set_body t body = t.body <- body
+let set_headers t headers = t.headers <- headers

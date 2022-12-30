@@ -26,3 +26,5 @@ val body : t -> Body.t
 
 (** [set_body] stores a body payload within the request. *)
 val set_body : t -> Body.t -> unit
+
+val set_headers : t -> Headers.t -> unit

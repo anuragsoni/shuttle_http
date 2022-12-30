@@ -4,7 +4,7 @@ type t =
   { version : Version.t
   ; status : Status.t
   ; reason_phrase : string
-  ; headers : Headers.t
+  ; mutable headers : Headers.t
   ; mutable body : Body.t
   }
 [@@deriving sexp_of]
@@ -25,3 +25,4 @@ let status t = t.status
 let reason_phrase t = t.reason_phrase
 let headers t = t.headers
 let body t = t.body
+let set_headers t headers = t.headers <- headers
