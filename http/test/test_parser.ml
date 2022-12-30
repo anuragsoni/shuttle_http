@@ -222,3 +222,18 @@ let chunk_length_parse_case_insensitive () =
       run_test num (String.uppercase payload);
       run_test num (String.lowercase payload))
 ;;
+
+let%expect_test "unexpected exception in to_string_trim caught via afl-fuzz" =
+  let payloads =
+    [ "./id_000000,sig_06,src_000000,time_3062,execs_583,op_havoc,rep_2"
+    ; "./id_000001,sig_06,src_000000,time_4184,execs_831,op_havoc,rep_8"
+    ; "./id_000002,sig_06,src_000000,time_5043,execs_1025,op_havoc,rep_2"
+    ; "./id_000003,sig_06,src_000000,time_5674,execs_1176,op_havoc,rep_2"
+    ; "./id_000004,sig_06,src_000000,time_9755,execs_2148,op_havoc,rep_2"
+    ]
+  in
+  List.iter payloads ~f:(fun payload ->
+    printf
+      !"%{sexp: Request.t success Or_error.t}\n"
+      (parse_or_error Parser.parse_request payload))
+;;
