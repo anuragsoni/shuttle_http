@@ -14,7 +14,7 @@ module T = struct
     | (* https://datatracker.ietf.org/doc/html/rfc5789 *)
       `PATCH
     ]
-  [@@deriving sexp, compare, hash, enumerate]
+  [@@deriving sexp, compare, hash, enumerate, quickcheck]
 end
 
 include T
