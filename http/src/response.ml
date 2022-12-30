@@ -4,8 +4,8 @@ type t =
   { version : Version.t
   ; status : Status.t
   ; reason_phrase : string
-  ; mutable headers : Headers.t
-  ; mutable body : Body.t
+  ; headers : Headers.t
+  ; body : Body.t
   }
 [@@deriving sexp_of]
 
@@ -25,4 +25,7 @@ let status t = t.status
 let reason_phrase t = t.reason_phrase
 let headers t = t.headers
 let body t = t.body
-let set_headers t headers = t.headers <- headers
+
+let with_headers t headers =
+  if phys_equal t.headers headers then t else { t with headers }
+;;

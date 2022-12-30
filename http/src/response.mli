@@ -24,4 +24,4 @@ val headers : t -> Headers.t
 (** [body] returns the body payload of this response. *)
 val body : t -> Body.t
 
-val set_headers : t -> Headers.t -> unit
+val with_headers : t -> Headers.t -> t

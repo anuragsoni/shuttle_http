@@ -24,7 +24,10 @@ val headers : t -> Headers.t
 (** [body] returns the body payload of this request. *)
 val body : t -> Body.t
 
-(** [set_body] stores a body payload within the request. *)
-val set_body : t -> Body.t -> unit
+(** [with_body] returns a new request where every value is the same as the input request
+    but the body is replaced with the function input. *)
+val with_body : t -> Body.t -> t
 
-val set_headers : t -> Headers.t -> unit
+(** [with_headers] returns a new request where every value is the same as the input
+    request but headers are replaced with the function input. *)
+val with_headers : t -> Headers.t -> t

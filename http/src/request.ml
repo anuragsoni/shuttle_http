@@ -4,9 +4,9 @@ type t =
   { meth : Meth.t
   ; path : string
   ; version : Version.t
-  ; mutable headers : Headers.t
-  ; mutable context : (Univ_map.t[@sexp.opaque])
-  ; mutable body : Body.t
+  ; headers : Headers.t
+  ; context : (Univ_map.t[@sexp.opaque])
+  ; body : Body.t
   }
 [@@deriving sexp_of]
 
@@ -25,5 +25,8 @@ let path t = t.path
 let version t = t.version
 let headers t = t.headers
 let body t = t.body
-let set_body t body = t.body <- body
-let set_headers t headers = t.headers <- headers
+let with_body t body = if phys_equal t.body body then t else { t with body }
+
+let with_headers t headers =
+  if phys_equal t.headers headers then t else { t with headers }
+;;

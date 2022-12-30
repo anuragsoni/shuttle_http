@@ -234,7 +234,7 @@ let run t handler =
          t.error_handler ~exn:(Error.to_exn e) ~request:req `Bad_request
          >>> fun response -> write_response t response >>> fun () -> Ivar.fill t.closed ()
        | Ok req_body ->
-         Request.set_body req req_body;
+         let req = Request.with_body req req_body in
          let promise = handler req in
          if Deferred.is_determined promise
          then write_response_and_continue t req (Deferred.value_exn promise)
