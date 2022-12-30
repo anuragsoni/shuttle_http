@@ -102,3 +102,36 @@ let%test_unit "Headers.to_rev_list (Headers.of_rev_list xs) = xs" =
       ~expect:keys
       (Headers.to_rev_list (Headers.of_rev_list keys)))
 ;;
+
+let%test_unit "Header lookups perform case insensitive comparisons" =
+  let gen =
+    let open Base_quickcheck.Generator.Let_syntax in
+    let%map a = headers_generator
+    and b = header_name_generator in
+    a, b
+  in
+  Quickcheck.test ~sexp_of:[%sexp_of: Headers.t * string] gen ~f:(fun (headers, key) ->
+    [%test_eq: bool]
+      (Headers.mem headers key)
+      (Headers.mem headers (String.lowercase key));
+    [%test_eq: bool]
+      (Headers.mem headers key)
+      (Headers.mem headers (String.uppercase key)))
+;;
+
+let%test_unit "Attempting to remove a header name that doesn't exist in header set does \
+               not modify the headers"
+  =
+  let gen =
+    let open Base_quickcheck.Generator.Let_syntax in
+    let%map a = headers_generator
+    and b = header_name_generator in
+    a, b
+  in
+  Quickcheck.test ~sexp_of:[%sexp_of: Headers.t * string] gen ~f:(fun (headers, key) ->
+    if not (Headers.mem headers key)
+    then
+      [%test_result: (string * string) list]
+        ~expect:(Headers.to_rev_list headers)
+        (Headers.to_rev_list (Headers.remove headers key)))
+;;
