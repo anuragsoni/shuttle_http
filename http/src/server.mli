@@ -70,5 +70,5 @@ val respond_stream
   -> ?reason_phrase:string
   -> ?headers:Headers.t
   -> ?status:Status.t
-  -> (module Stream_intf.S)
+  -> Body.Stream.t
   -> Response.t

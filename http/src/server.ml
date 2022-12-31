@@ -33,9 +33,9 @@ let respond_empty _ ?reason_phrase ?headers status =
   Response.create ?reason_phrase ?headers ~body:Body.empty status
 ;;
 
-let respond_stream t ?reason_phrase ?headers ?(status = `Ok) (module M : Stream_intf.S) =
-  upon (Output_channel.remote_closed t.writer) (fun () -> M.close ());
-  Response.create ?reason_phrase ?headers ~body:(Body.stream (module M)) status
+let respond_stream t ?reason_phrase ?headers ?(status = `Ok) stream =
+  upon (Output_channel.remote_closed t.writer) (fun () -> Body.Stream.close stream);
+  Response.create ?reason_phrase ?headers ~body:(Body.stream stream) status
 ;;
 
 let closed t = Ivar.read t.closed
@@ -59,8 +59,7 @@ let write_response t res =
           ~data:(Int.to_string (String.length x))
       , false )
     | Body.Stream stream ->
-      let module M = (val stream : Stream_intf.S) in
-      (match M.encoding () with
+      (match Body.Stream.encoding stream with
        | `Chunked ->
          Headers.add_unless_exists headers ~key:"Transfer-Encoding" ~data:"chunked", true
        | `Fixed len ->
@@ -84,33 +83,25 @@ let write_response t res =
     Output_channel.write t.writer x;
     Output_channel.flush t.writer
   | Body.Stream stream ->
-    let module M = (val stream : Stream_intf.S) in
-    Deferred.repeat_until_finished () (fun () ->
-      M.read ()
-      >>= function
-      | `Eof ->
-        if is_chunked
-        then (
-          Output_channel.write t.writer "0\r\n\r\n";
-          let%map () = Output_channel.flush t.writer in
-          `Finished ())
-        else (
-          let%map () = Output_channel.flush t.writer in
-          `Finished ())
-      | `Ok v ->
+    let%bind () =
+      Body.Stream.iter stream ~f:(fun v ->
         if String.is_empty v
-        then return (`Repeat ())
+        then Deferred.unit
         else if is_chunked
         then (
           Output_channel.writef t.writer "%x\r\n" (String.length v);
           Output_channel.write t.writer v;
           Output_channel.write t.writer "\r\n";
-          let%map () = Output_channel.flush t.writer in
-          `Repeat ())
+          Output_channel.flush t.writer)
         else (
           Output_channel.write t.writer v;
-          let%map () = Output_channel.flush t.writer in
-          `Repeat ()))
+          Output_channel.flush t.writer))
+    in
+    if is_chunked
+    then (
+      Output_channel.write t.writer "0\r\n\r\n";
+      Output_channel.flush t.writer)
+    else Output_channel.flush t.writer
 ;;
 
 let create
@@ -282,8 +273,10 @@ let run t handler =
         if Time_ns.Span.is_positive t.read_header_timeout
         then parse_request_with_timeout t t.read_header_timeout
         else parse_request t
-      | Body.Stream (module M : Stream_intf.S) ->
-        (if M.read_started () then M.closed () else M.drain ())
+      | Body.Stream stream ->
+        (if Body.Stream.read_started stream
+        then Body.Stream.closed stream
+        else Body.Stream.drain stream)
         >>> fun () ->
         if Time_ns.Span.is_positive t.read_header_timeout
         then parse_request_with_timeout t t.read_header_timeout

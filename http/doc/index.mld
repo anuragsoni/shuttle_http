@@ -60,7 +60,6 @@ The following modules are part of the library:
 Shuttle_http.Headers
 Shuttle_http.Meth
 Shuttle_http.Version
-Shuttle_http.Stream_intf
 Shuttle_http.Body
 Shuttle_http.Request
 Shuttle_http.Status
