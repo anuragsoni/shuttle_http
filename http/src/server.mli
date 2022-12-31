@@ -24,7 +24,12 @@ val close : t -> unit
 
 (** [create ?error_handler reader writer] creates a new server handle that can be used to
     drive the HTTP request/response server loop. *)
-val create : ?error_handler:error_handler -> Input_channel.t -> Output_channel.t -> t
+val create
+  :  ?error_handler:error_handler
+  -> ?read_header_timeout:Time_ns.Span.t
+  -> Input_channel.t
+  -> Output_channel.t
+  -> t
 
 (** [run t service] accepts a server handle and a user provided service that will be
     invoked for each run of the request/response loop. *)

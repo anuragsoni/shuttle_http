@@ -20,11 +20,11 @@ val create
 val is_closed : t -> bool
 val closed : t -> unit Deferred.t
 val close : t -> unit Deferred.t
-val refill : t -> [ `Ok | `Eof ] Deferred.t
+val refill : t -> [> `Ok | `Eof ] Deferred.t
 
 exception Timeout
 
-val refill_with_timeout : t -> Time_ns.Span.t -> [ `Ok | `Eof ] Deferred.t
+val refill_with_timeout : t -> Time_ns.Span.t -> [> `Ok | `Eof ] Deferred.t
 val view : t -> slice
 val consume : t -> int -> unit
 
