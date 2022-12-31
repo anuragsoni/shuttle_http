@@ -1,24 +1,21 @@
 open! Core
 open! Async
 
-let rec connect path =
+let rec connect port =
   match%bind
-    Monitor.try_with (fun () -> Tcp.connect (Tcp.Where_to_connect.of_file path))
+    Monitor.try_with (fun () ->
+      Tcp.connect
+        (Tcp.Where_to_connect.of_host_and_port
+           (Host_and_port.create ~host:"localhost" ~port)))
   with
   | Ok (_, r, w) -> return (r, w)
   | Error _ ->
     let%bind () = Clock_ns.after (Time_ns.Span.of_sec 0.01) in
-    connect path
+    connect port
 ;;
 
-let cleanup process =
-  Process.send_signal process Signal.kill;
-  let%bind (_ : Unix.Exit_or_signal.t) = Process.wait process in
-  return ()
-;;
-
-let with_client path ~f =
-  let%bind r, w = connect path in
+let with_client port ~f =
+  let%bind r, w = connect port in
   Monitor.protect
     (fun () ->
       Writer.set_raise_when_consumer_leaves w false;
@@ -26,26 +23,24 @@ let with_client path ~f =
     ~finally:(fun () -> Writer.close w >>= fun () -> Reader.close r)
 ;;
 
-let with_server path ~f =
-  let%bind process = Process.create_exn ~prog:"./bin/http_server.exe" ~args:[ path ] () in
-  Monitor.protect ~finally:(fun () -> cleanup process) (fun () -> f ())
-;;
-
-let with_server_custom_error_handler path ~f =
-  let%bind process =
-    Process.create_exn
-      ~prog:"./bin/http_server_custom_error_handler.exe"
-      ~args:[ path ]
-      ()
+let with_server ?error_handler ?read_header_timeout handler ~f =
+  let open Shuttle_http in
+  let%bind server =
+    Shuttle.Connection.listen
+      ~input_buffer_size:0x4000
+      ~output_buffer_size:0x4000
+      ~max_accepts_per_batch:64
+      ~on_handler_error:`Raise
+      Tcp.Where_to_listen.of_port_chosen_by_os
+      ~f:(fun _addr reader writer ->
+      let server =
+        Shuttle_http.Server.create ?read_header_timeout ?error_handler reader writer
+      in
+      Server.run server (handler server))
   in
-  Monitor.protect ~finally:(fun () -> cleanup process) (fun () -> f ())
-;;
-
-let with_server_timeout path ~f =
-  let%bind process =
-    Process.create_exn ~prog:"./bin/http_server_timeout.exe" ~args:[ path ] ()
-  in
-  Monitor.protect ~finally:(fun () -> cleanup process) (fun () -> f ())
+  Monitor.protect
+    ~finally:(fun () -> Tcp.Server.close server)
+    (fun () -> f (Tcp.Server.listening_on server))
 ;;
 
 let send_request_and_log_response r w req =
