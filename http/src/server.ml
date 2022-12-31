@@ -239,28 +239,25 @@ let run t handler =
     | Ok (req, consumed) ->
       Input_channel.consume t.reader consumed;
       create_request_body_reader t req
-  and parse_request_with_timeout t =
-    let rec loop span =
-      let view = Input_channel.view t.reader in
-      match Parser.parse_request view.buf ~pos:view.pos ~len:view.len with
-      | Error Partial ->
-        let now = Time_ns.now () in
-        Input_channel.refill_with_timeout t.reader span
-        >>> fun v ->
-        (match v with
-         | `Eof -> Ivar.fill t.closed ()
-         | `Ok ->
-           let now' = Time_ns.now () in
-           let diff = Time_ns.abs_diff now now' in
-           loop Time_ns.Span.(span - diff))
-      | Error (Fail error) ->
-        t.error_handler ~exn:(Error.to_exn error) `Bad_request
-        >>> fun response -> write_response t response >>> fun () -> Ivar.fill t.closed ()
-      | Ok (req, consumed) ->
-        Input_channel.consume t.reader consumed;
-        create_request_body_reader t req
-    in
-    loop t.read_header_timeout
+  and parse_request_with_timeout t span =
+    let view = Input_channel.view t.reader in
+    match Parser.parse_request view.buf ~pos:view.pos ~len:view.len with
+    | Error Partial ->
+      let now = Time_ns.now () in
+      Input_channel.refill_with_timeout t.reader span
+      >>> fun v ->
+      (match v with
+       | `Eof -> Ivar.fill t.closed ()
+       | `Ok ->
+         let now' = Time_ns.now () in
+         let diff = Time_ns.abs_diff now now' in
+         parse_request_with_timeout t Time_ns.Span.(span - diff))
+    | Error (Fail error) ->
+      t.error_handler ~exn:(Error.to_exn error) `Bad_request
+      >>> fun response -> write_response t response >>> fun () -> Ivar.fill t.closed ()
+    | Ok (req, consumed) ->
+      Input_channel.consume t.reader consumed;
+      create_request_body_reader t req
   and create_request_body_reader t req =
     match parse_request_body t req with
     | Error e ->
@@ -283,19 +280,19 @@ let run t handler =
       match Request.body req with
       | Body.Empty | Body.Fixed _ ->
         if Time_ns.Span.is_positive t.read_header_timeout
-        then parse_request_with_timeout t
+        then parse_request_with_timeout t t.read_header_timeout
         else parse_request t
       | Body.Stream (module M : Stream_intf.S) ->
         (if M.read_started () then M.closed () else M.drain ())
         >>> fun () ->
         if Time_ns.Span.is_positive t.read_header_timeout
-        then parse_request_with_timeout t
+        then parse_request_with_timeout t t.read_header_timeout
         else parse_request t)
     else Ivar.fill t.closed ()
   in
   Scheduler.within ~priority:Priority.normal ~monitor:t.monitor (fun () ->
     if Time_ns.Span.is_positive t.read_header_timeout
-    then parse_request_with_timeout t
+    then parse_request_with_timeout t t.read_header_timeout
     else parse_request t);
   handle_error t;
   Ivar.read t.closed
