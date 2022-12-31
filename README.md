@@ -29,6 +29,11 @@ Currently only linux, macOS and bsd based systems.
 
 `opam install shuttle` for the current published release, and `opam pin add shuttle --dev-repo` for the development version.
 
+## Companion projects
+
+* [shuttle_ssl](./shuttle_ssl/): Async_ssl support for shuttle
+* [shuttle_http](https://anuragsoni.github.io/shuttle/shuttle_http/index.html): Http 1.1 server support built on top of shuttle.
+
 *Notes*:
 - <a name="channel">1</a>: Channel is a high-level construct for performing I/O. 
 - <a name="overhead">2</a>: As always, make your own measurements. Also weigh in the fact that reader/writer modules in async are mature, battle tested and cover more use-cases.
