@@ -1,17 +1,8 @@
-# 0.8.2
-
-* Use Async pipe to represent streaming bodies
-
-# 0.8.1
-
-* Http codec supports a timeout for reading Request headers
-
-**Bugfixes**
-
-* Fix a bug in the http request parser that could cause unhandled exception when attempting to parse certain malformed payloads.
-
 # 0.8.0
 * Revive the http codec as a new shuttle_http package
+  - Http codec supports a timeout for reading Request headers
+  - Server module reports a deferred that resolves when the server context closes. This can be usedul to register cleanup actions that should run when a server connection is torn down.
+  - Using the utility methods within the Server module to create responses ensures that streams are torn down if the server connection is closed before a stream was fully consumed.
 
 # 0.7.0
 * Remove support for blocking file descriptors
