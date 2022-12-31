@@ -94,3 +94,24 @@ let%expect_test "Can catch bad transfer encoding header" =
       in
       [%expect {| "HTTP/1.1 400 \r\nConnection: close\r\nContent-Length: 0\r\n\r\n" |}]))
 ;;
+
+let%expect_test "Servers will respond with a timeout if they can't parse request headers \
+                 in the given timeframe"
+  =
+  let path = Filename_unix.temp_file "shuttle" "sock" in
+  Helper.with_server_timeout path ~f:(fun () ->
+    Helper.with_client path ~f:(fun r w ->
+      let test_post_req_with_fixed_body =
+        "POST /hello HTTP/1.1\r\n\
+         Host: www.example.com   \r\n\
+         Content-Length: 5\r\n\
+         Connection: close\r\n\
+         \r\n\
+         Hello\r\n"
+      in
+      let%map () =
+        let%bind () = after (Time.Span.of_ms 101.) in
+        Helper.send_request_and_log_response r w test_post_req_with_fixed_body
+      in
+      [%expect {| "HTTP/1.1 408 \r\nConnection: close\r\nContent-Length: 0\r\n\r\n" |}]))
+;;

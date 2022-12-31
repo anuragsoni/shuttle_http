@@ -20,7 +20,9 @@ let cleanup process =
 let with_client path ~f =
   let%bind r, w = connect path in
   Monitor.protect
-    (fun () -> f r w)
+    (fun () ->
+      Writer.set_raise_when_consumer_leaves w false;
+      f r w)
     ~finally:(fun () -> Writer.close w >>= fun () -> Reader.close r)
 ;;
 
@@ -35,6 +37,13 @@ let with_server_custom_error_handler path ~f =
       ~prog:"./bin/http_server_custom_error_handler.exe"
       ~args:[ path ]
       ()
+  in
+  Monitor.protect ~finally:(fun () -> cleanup process) (fun () -> f ())
+;;
+
+let with_server_timeout path ~f =
+  let%bind process =
+    Process.create_exn ~prog:"./bin/http_server_timeout.exe" ~args:[ path ] ()
   in
   Monitor.protect ~finally:(fun () -> cleanup process) (fun () -> f ())
 ;;

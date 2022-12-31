@@ -1,5 +1,7 @@
 # 0.8.1
 
+* Http codec supports a timeout for reading Request headers
+
 **Bugfixes**
 
 * Fix a bug in the http request parser that could cause unhandled exception when attempting to parse certain malformed payloads.

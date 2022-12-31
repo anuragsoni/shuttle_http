@@ -7,6 +7,7 @@
   (deps
    ./bin/http_server.exe
    ./bin/http_server_custom_error_handler.exe
+   ./bin/http_server_timeout.exe
    ./id_000000,sig_06,src_000000,time_3062,execs_583,op_havoc,rep_2
    ./id_000001,sig_06,src_000000,time_4184,execs_831,op_havoc,rep_8
    ./id_000002,sig_06,src_000000,time_5043,execs_1025,op_havoc,rep_2
