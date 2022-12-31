@@ -1,5 +1,0 @@
-(executables
- (names http_server http_server_custom_error_handler http_server_timeout)
- (preprocess
-  (pps ppx_jane))
- (libraries shuttle_http core_unix.command_unix))

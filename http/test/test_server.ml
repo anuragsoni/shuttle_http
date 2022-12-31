@@ -3,10 +3,16 @@ open! Async
 open! Shuttle
 open! Shuttle_http
 
+let handler ctx request =
+  match Request.path request with
+  | "/error" -> failwith "ERROR"
+  | "/echo" -> return (Server.respond_stream ctx (Body.to_stream (Request.body request)))
+  | _ -> return (Server.respond_string ctx "Hello World")
+;;
+
 let%expect_test "Simple http endpoint" =
-  let path = Filename_unix.temp_file "shuttle" "sock" in
-  Helper.with_server path ~f:(fun () ->
-    Helper.with_client path ~f:(fun r w ->
+  Helper.with_server handler ~f:(fun port ->
+    Helper.with_client port ~f:(fun r w ->
       let test_post_req_with_fixed_body =
         "POST /hello HTTP/1.1\r\n\
          Host: www.example.com   \r\n\
@@ -22,9 +28,8 @@ let%expect_test "Simple http endpoint" =
 ;;
 
 let%expect_test "Test default error handler" =
-  let path = Filename_unix.temp_file "shuttle" "sock" in
-  Helper.with_server path ~f:(fun () ->
-    Helper.with_client path ~f:(fun r w ->
+  Helper.with_server handler ~f:(fun port ->
+    Helper.with_client port ~f:(fun r w ->
       let%map () =
         Helper.send_request_and_log_response r w "GET /error HTTP/1.1\r\n\r\n"
       in
@@ -32,28 +37,42 @@ let%expect_test "Test default error handler" =
 ;;
 
 let%expect_test "Test custom error handler" =
-  let path = Filename_unix.temp_file "shuttle" "sock" in
-  Helper.with_server_custom_error_handler path ~f:(fun () ->
-    let%bind () =
-      Helper.with_client path ~f:(fun r w ->
-        let%map () = Helper.send_request_and_log_response r w "GET / HTTP/1.1\r\n\r\n" in
-        [%expect
-          {| "HTTP/1.1 500 \r\nContent-Length: 22\r\n\r\nSomething bad happened" |}])
+  let error_handler ?exn:_ ?request status =
+    let body =
+      match request with
+      | None -> Body.string "Something bad happened"
+      | Some request ->
+        Body.string
+          (sprintf "Something bad happened in request %s" (Request.path request))
     in
-    let test_post_req_with_invalid_body_length =
-      "POST /hello HTTP/1.1\r\n\
-       Host: www.example.com   \r\n\
-       Content-Length: 5\r\n\
-       Content-Length: 6\r\n\
-       \r\n\
-       Hello\r\n"
-    in
-    Helper.with_client path ~f:(fun r w ->
-      let%map () =
-        Helper.send_request_and_log_response r w test_post_req_with_invalid_body_length
+    return (Response.create ~body status)
+  in
+  Helper.with_server
+    ~error_handler
+    (fun _ _ -> failwith "ERROR")
+    ~f:(fun port ->
+      let%bind () =
+        Helper.with_client port ~f:(fun r w ->
+          let%map () =
+            Helper.send_request_and_log_response r w "GET / HTTP/1.1\r\n\r\n"
+          in
+          [%expect
+            {| "HTTP/1.1 500 \r\nContent-Length: 22\r\n\r\nSomething bad happened" |}])
       in
-      [%expect
-        {| "HTTP/1.1 400 \r\nContent-Length: 40\r\n\r\nSomething bad happened in request /hello" |}]))
+      let test_post_req_with_invalid_body_length =
+        "POST /hello HTTP/1.1\r\n\
+         Host: www.example.com   \r\n\
+         Content-Length: 5\r\n\
+         Content-Length: 6\r\n\
+         \r\n\
+         Hello\r\n"
+      in
+      Helper.with_client port ~f:(fun r w ->
+        let%map () =
+          Helper.send_request_and_log_response r w test_post_req_with_invalid_body_length
+        in
+        [%expect
+          {| "HTTP/1.1 400 \r\nContent-Length: 40\r\n\r\nSomething bad happened in request /hello" |}]))
 ;;
 
 let%expect_test "Can read chunked bodies" =
@@ -68,9 +87,8 @@ let%expect_test "Can read chunked bodies" =
      0\r\n\
      \r\n"
   in
-  let path = Filename_unix.temp_file "shuttle" "sock" in
-  Helper.with_server path ~f:(fun () ->
-    Helper.with_client path ~f:(fun r w ->
+  Helper.with_server handler ~f:(fun port ->
+    Helper.with_client port ~f:(fun r w ->
       let%map () =
         Helper.send_request_and_log_response r w test_post_req_with_chunked_body
       in
@@ -86,9 +104,8 @@ let%expect_test "Can catch bad transfer encoding header" =
      \r\n\
      Hello\r\n"
   in
-  let path = Filename_unix.temp_file "shuttle" "sock" in
-  Helper.with_server path ~f:(fun () ->
-    Helper.with_client path ~f:(fun r w ->
+  Helper.with_server handler ~f:(fun port ->
+    Helper.with_client port ~f:(fun r w ->
       let%map () =
         Helper.send_request_and_log_response r w test_post_req_with_bad_transfer_encoding
       in
@@ -98,9 +115,11 @@ let%expect_test "Can catch bad transfer encoding header" =
 let%expect_test "Servers will respond with a timeout if they can't parse request headers \
                  in the given timeframe"
   =
-  let path = Filename_unix.temp_file "shuttle" "sock" in
-  Helper.with_server_timeout path ~f:(fun () ->
-    Helper.with_client path ~f:(fun r w ->
+  Helper.with_server
+    ~read_header_timeout:(Time_ns.Span.of_ms 100.)
+    handler
+    ~f:(fun port ->
+    Helper.with_client port ~f:(fun r w ->
       let test_post_req_with_fixed_body =
         "POST /hello HTTP/1.1\r\n\
          Host: www.example.com   \r\n\
