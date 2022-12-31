@@ -57,4 +57,5 @@
  (depends
   (shuttle
    (= :version))
+  (ppx_jane :with-test)
   (core_unix :with-test)))

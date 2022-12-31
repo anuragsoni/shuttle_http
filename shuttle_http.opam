@@ -13,6 +13,7 @@ bug-reports: "https://github.com/anuragsoni/shuttle/issues"
 depends: [
   "dune" {>= "2.8"}
   "shuttle" {= version}
+  "ppx_jane" {with-test}
   "core_unix" {with-test}
   "odoc" {with-doc}
 ]
