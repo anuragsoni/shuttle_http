@@ -1,3 +1,7 @@
+# 0.8.2
+
+* Use Async pipe to represent streaming bodies
+
 # 0.8.1
 
 * Http codec supports a timeout for reading Request headers
