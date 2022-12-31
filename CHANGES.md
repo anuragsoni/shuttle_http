@@ -1,3 +1,7 @@
+# 0.8.1
+
+* Same content as 0.8.0, but it re-works the integration tests to not spawn external processes, and adds a constraint on shuttle_http to only have it available on 64 bit systems.
+
 # 0.8.0
 * Revive the http codec as a new shuttle_http package
   - Http codec supports a timeout for reading Request headers
