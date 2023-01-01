@@ -2,6 +2,12 @@ open Core
 open Async
 open Shuttle
 
+type ssl_connection
+
+val peer_certificate : ssl_connection -> Async_ssl.Ssl.Certificate.t Or_error.t option
+val ssl_session_resused : ssl_connection -> bool
+val pem_peer_certificate_chain : ssl_connection -> string option
+
 (** [upgrade_server_connection] performs TLS negotiation and if it succeeds, applies [f]
     to the new encrypted channels. When the deferred returned by [f] resolves, the TLS
     connection is shutdown, and the channels are closed. *)
@@ -15,7 +21,7 @@ val upgrade_server_connection
   -> ?verify_modes:Async_ssl.Verify_mode.t list
   -> crt_file:string
   -> key_file:string
-  -> f:(Input_channel.t -> Output_channel.t -> 'a Deferred.t)
+  -> f:(ssl_connection -> Input_channel.t -> Output_channel.t -> 'a Deferred.t)
   -> Input_channel.t
   -> Output_channel.t
   -> 'a Deferred.t
@@ -39,7 +45,12 @@ val listen
   -> key_file:string
   -> on_handler_error:[ `Call of 'address -> exn -> unit | `Ignore | `Raise ]
   -> ('address, 'listening_on) Tcp.Where_to_listen.t
-  -> f:('address -> Input_channel.t -> Output_channel.t -> unit Deferred.t)
+  -> f:
+       ('address
+        -> ssl_connection
+        -> Input_channel.t
+        -> Output_channel.t
+        -> unit Deferred.t)
   -> ('address, 'listening_on) Tcp.Server.t Deferred.t
 
 val upgrade_client_connection
@@ -54,11 +65,7 @@ val upgrade_client_connection
   -> ?key_file:string
   -> ?verify_modes:Async_ssl.Verify_mode.t list
   -> ?session:Async_ssl.Ssl.Session.t
-  -> f:
-       (Async_ssl.Ssl.Connection.t
-        -> Input_channel.t
-        -> Output_channel.t
-        -> 'a Deferred.t)
+  -> f:(ssl_connection -> Input_channel.t -> Output_channel.t -> 'a Deferred.t)
   -> Input_channel.t
   -> Output_channel.t
   -> 'a Deferred.t
@@ -79,10 +86,6 @@ val with_connection
   -> ?timeout:Time.Span.t
   -> ?input_buffer_size:int
   -> ?output_buffer_size:int
-  -> f:
-       (Async_ssl.Ssl.Connection.t
-        -> Input_channel.t
-        -> Output_channel.t
-        -> 'a Deferred.t)
+  -> f:(ssl_connection -> Input_channel.t -> Output_channel.t -> 'a Deferred.t)
   -> [< Socket.Address.t ] Tcp.Where_to_connect.t
   -> 'a Deferred.t

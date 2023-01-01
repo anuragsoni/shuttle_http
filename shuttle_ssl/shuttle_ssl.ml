@@ -3,6 +3,12 @@ open! Async
 open! Async_ssl
 open! Shuttle
 
+type ssl_connection = Ssl.Connection.t [@@deriving sexp_of]
+
+let peer_certificate conn = Ssl.Connection.peer_certificate conn
+let ssl_session_resused conn = Ssl.Connection.session_reused conn
+let pem_peer_certificate_chain conn = Ssl.Connection.pem_peer_certificate_chain conn
+
 let close_channels input_channel output_channel =
   let%bind () = Output_channel.close output_channel in
   Input_channel.close input_channel
@@ -151,7 +157,8 @@ let upgrade_server_connection
         ; Output_channel.close_finished output_channel'
         ]
     in
-    Monitor.protect ~run:`Now ~finally:shutdown (fun () -> f input_channel output_channel)
+    Monitor.protect ~run:`Now ~finally:shutdown (fun () ->
+      f conn input_channel output_channel)
 ;;
 
 let listen
