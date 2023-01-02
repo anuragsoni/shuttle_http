@@ -5,7 +5,6 @@ type t =
   ; path : string
   ; version : Version.t
   ; headers : Headers.t
-  ; context : (Univ_map.t[@sexp.opaque])
   ; body : Body.t
   }
 [@@deriving sexp_of]
@@ -17,7 +16,7 @@ let create
   meth
   path
   =
-  { meth; path; version; headers; context = Univ_map.empty; body }
+  { meth; path; version; headers; body }
 ;;
 
 let meth t = t.meth

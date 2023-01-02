@@ -69,7 +69,7 @@ let%expect_test "can parse a single request" =
           (Connection keep-alive)
           (Cookie
            "wp_ozh_wsa_visits=2; wp_ozh_wsa_visit_lasttime=xxxxxxxxxx; __utma=xxxxxxxxx.xxxxxxxxxx.xxxxxxxxxx.xxxxxxxxxx.xxxxxxxxxx.x; __utmz=xxxxxxxxx.xxxxxxxxxx.x.x.utmccn=(referral)|utmcsr=reader.livedoor.com|utmcct=/reader/|utmcmd=referral")))
-        (context <opaque>) (body Empty))))) |}]
+        (body Empty))))) |}]
 ;;
 
 let%expect_test "reject headers with space before colon" =
@@ -118,7 +118,7 @@ let%expect_test "can parse request at offset" =
           (Accept "text/css,*/*;q=0.1") (Accept-Language "en-us,en;q=0.5")
           (Accept-Encoding "gzip, deflate") (Connection keep-alive)
           (Referer http://www.reddit.com/)))
-        (context <opaque>) (body Empty))))) |}]
+        (body Empty))))) |}]
 ;;
 
 let%expect_test "can report a partial parse" =
