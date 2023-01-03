@@ -1,3 +1,5 @@
+open! Core
+
 (* https://www.iana.org/assignments/http-status-codes/http-status-codes.xhtml *)
 type informational =
   [ `Continue (* [RFC7231, Section 6.2.1] *)
@@ -5,7 +7,7 @@ type informational =
   | `Processing (* [RFC2518] *)
   | `Early_hints (* [RFC8297] *)
   ]
-[@@deriving sexp, compare, hash, quickcheck]
+[@@deriving sexp, compare, hash, quickcheck, enumerate]
 
 let informational_to_code = function
   | `Continue -> 100
@@ -40,7 +42,7 @@ type success =
   | `Already_reported (* [RFC5842] *)
   | `Im_used (* [RFC3229] *)
   ]
-[@@deriving sexp, compare, hash, quickcheck]
+[@@deriving sexp, compare, hash, quickcheck, enumerate]
 
 let success_to_code = function
   | `Ok -> 200
@@ -91,7 +93,7 @@ type redirection =
   | `Temporary_redirect (* [RFC7231, Section 6.4.7] *)
   | `Permanent_redirect (* [RFC7538] *)
   ]
-[@@deriving sexp, compare, hash, quickcheck]
+[@@deriving sexp, compare, hash, quickcheck, enumerate]
 
 let redirection_to_code = function
   | `Multiple_choices -> 300
@@ -156,7 +158,7 @@ type client_error =
   | `Request_header_fields_too_large (* [RFC6585] *)
   | `Unavailable_for_legal_reasons (* [RFC7725] *)
   ]
-[@@deriving sexp, compare, hash, quickcheck]
+[@@deriving sexp, compare, hash, quickcheck, enumerate]
 
 let client_error_to_code = function
   | `Bad_request -> 400
@@ -264,7 +266,7 @@ type server_error =
   | `Not_extended (* [RFC2774] *)
   | `Network_authentication_required (* [RFC6585] *)
   ]
-[@@deriving sexp, compare, hash, quickcheck]
+[@@deriving sexp, compare, hash, quickcheck, enumerate]
 
 let server_error_to_code = function
   | `Internal_server_error -> 500
@@ -315,7 +317,7 @@ type t =
   | client_error
   | server_error
   ]
-[@@deriving sexp, compare, hash, quickcheck]
+[@@deriving sexp, compare, hash, quickcheck, enumerate]
 
 let to_int = function
   | #informational as c -> informational_to_code c
@@ -339,4 +341,71 @@ let to_reason_phrase = function
   | #redirection as c -> redirection_to_reason_phrase c
   | #client_error as c -> client_error_to_reason_phrase c
   | #server_error as c -> server_error_to_reason_phrase c
+;;
+
+let of_int : int -> t =
+ fun code ->
+  match code with
+  | 100 -> `Continue
+  | 101 -> `Switching_protocols
+  | 102 -> `Processing
+  | 103 -> `Early_hints
+  | 200 -> `Ok
+  | 201 -> `Created
+  | 202 -> `Accepted
+  | 203 -> `Non_authoritative_information
+  | 204 -> `No_content
+  | 205 -> `Reset_content
+  | 206 -> `Partial_content
+  | 207 -> `Multi_status
+  | 208 -> `Already_reported
+  | 226 -> `Im_used
+  | 300 -> `Multiple_choices
+  | 301 -> `Moved_permanently
+  | 302 -> `Found
+  | 303 -> `See_other
+  | 304 -> `Not_modified
+  | 305 -> `Use_proxy
+  | 307 -> `Temporary_redirect
+  | 308 -> `Permanent_redirect
+  | 400 -> `Bad_request
+  | 401 -> `Unauthorized
+  | 402 -> `Payment_required
+  | 403 -> `Forbidden
+  | 404 -> `Not_found
+  | 405 -> `Method_not_allowed
+  | 406 -> `Not_acceptable
+  | 407 -> `Proxy_authentication_required
+  | 408 -> `Request_timeout
+  | 409 -> `Conflict
+  | 410 -> `Gone
+  | 411 -> `Length_required
+  | 412 -> `Precondition_failed
+  | 413 -> `Payload_too_large
+  | 414 -> `Uri_too_long
+  | 415 -> `Unsupported_media_type
+  | 416 -> `Range_not_satisfiable
+  | 417 -> `Expectation_failed
+  | 421 -> `Misdirected_request
+  | 422 -> `Unprocessable_entity
+  | 423 -> `Locked
+  | 424 -> `Failed_dependency
+  | 425 -> `Too_early
+  | 426 -> `Upgrade_required
+  | 428 -> `Precondition_required
+  | 429 -> `Too_many_requests
+  | 431 -> `Request_header_fields_too_large
+  | 451 -> `Unavailable_for_legal_reasons
+  | 500 -> `Internal_server_error
+  | 501 -> `Not_implemented
+  | 502 -> `Bad_gateway
+  | 503 -> `Service_unavailable
+  | 504 -> `Gateway_timeout
+  | 505 -> `Http_version_not_supported
+  | 506 -> `Variant_also_negotiates
+  | 507 -> `Insufficient_storage
+  | 508 -> `Loop_detected
+  | 510 -> `Not_extended
+  | 511 -> `Network_authentication_required
+  | code -> invalid_argf "Invalid status code: %d" code ()
 ;;
