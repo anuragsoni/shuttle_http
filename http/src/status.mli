@@ -1,3 +1,5 @@
+open! Core
+
 (* https://www.iana.org/assignments/http-status-codes/http-status-codes.xhtml *)
 type informational =
   [ `Continue (* [RFC7231, Section 6.2.1] *)
@@ -90,6 +92,7 @@ type t =
 [@@deriving sexp, compare, hash, quickcheck, enumerate]
 
 val to_int : t -> int
-val of_int : int -> t
+val of_int : int -> t Or_error.t
 val to_string : t -> string
+val of_string : string -> t Or_error.t
 val to_reason_phrase : t -> string
