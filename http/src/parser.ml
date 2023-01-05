@@ -83,6 +83,25 @@ module Source = struct
     else raise_notrace (Fail (Error.of_string "Expected EOL"))
   ;;
 
+  let[@inline always] consume_space t =
+    if length t < 1 then raise_notrace Partial;
+    if Char.(Bigstring.get t.buffer t.pos = ' ')
+    then unsafe_advance t 1
+    else raise_notrace (Fail (Error.of_string "Expected space"))
+  ;;
+
+  let[@inline always] parse_reason_phrase t =
+    let pos = index t '\r' in
+    if pos = -1
+    then raise_notrace Partial
+    else if pos = 0
+    then raise_notrace (Fail (Error.of_string "Reason phrase must not be empty"))
+    else (
+      let phrase = to_string t ~pos:0 ~len:pos in
+      unsafe_advance t pos;
+      phrase)
+  ;;
+
   let parse_header tchar_map source =
     let pos = index source ':' in
     if pos = -1
@@ -105,6 +124,22 @@ end
 
 let[@inline always] ( .![] ) source idx = Source.unsafe_get source idx
 let invalid_method = Fail (Error.of_string "Invalid Method")
+
+let invalid_status_code_length =
+  Fail (Error.of_string "Status codes must be three digit numbers")
+;;
+
+let status source =
+  let pos = Source.index source ' ' in
+  if pos = 3
+  then (
+    match Status.of_string (Source.to_string source ~pos:0 ~len:pos) with
+    | Ok code ->
+      Source.unsafe_advance source 4;
+      code
+    | Error err -> raise_notrace (Fail err))
+  else raise_notrace invalid_status_code_length
+;;
 
 let meth source =
   let pos = Source.index source ' ' in
@@ -243,7 +278,6 @@ let version source =
      && Char.equal source.![7] '1'
   then (
     Source.unsafe_advance source 8;
-    Source.consume_eol source;
     Version.Http_1_1)
   else raise_notrace (Fail (Error.of_string "Invalid HTTP Version"))
 ;;
@@ -260,8 +294,19 @@ let request source =
   let meth = meth source in
   let path = token source in
   let version = version source in
+  Source.consume_eol source;
   let headers = Headers.of_rev_list (headers source) in
   Request.create ~version ~headers meth path
+;;
+
+let response source =
+  let version = version source in
+  Source.consume_space source;
+  let status = status source in
+  let reason_phrase = Source.parse_reason_phrase source in
+  Source.consume_eol source;
+  let headers = Headers.of_rev_list (headers source) in
+  Response.create ~version ~headers ~reason_phrase status
 ;;
 
 let take len source =
@@ -330,6 +375,7 @@ let run_parser ?(pos = 0) ?len buf p =
 ;;
 
 let parse_request ?pos ?len buf = run_parser ?pos ?len buf request
+let parse_response ?pos ?len buf = run_parser ?pos ?len buf response
 let parse_chunk_length ?pos ?len buf = run_parser ?pos ?len buf chunk_length
 let parse_chunk ?pos ?len buf chunk_kind = run_parser ?pos ?len buf (chunk chunk_kind)
 

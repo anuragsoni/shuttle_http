@@ -18,6 +18,12 @@ type chunk_parser_result =
     left in the buffer. *)
 val parse_request : ?pos:int -> ?len:int -> Bigstring.t -> (Request.t * int, error) result
 
+val parse_response
+  :  ?pos:int
+  -> ?len:int
+  -> Bigstring.t
+  -> (Response.t * int, error) result
+
 val parse_chunk_length : ?pos:int -> ?len:int -> Bigstring.t -> (int * int, error) result
 
 val parse_chunk

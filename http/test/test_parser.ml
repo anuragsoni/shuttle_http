@@ -245,3 +245,45 @@ let%expect_test "unexpected exception in to_string_trim caught via afl-fuzz" =
     (4) (Error Partial)
     (5) (Error Partial) |}]
 ;;
+
+let%expect_test "can parse a single response" =
+  let response = "HTTP/1.1 200 OK\r\nContent-Length: 21\r\nFoo: bar\r\n\r\n" in
+  print_s
+    ([%sexp_of: Response.t success Or_error.t * int]
+       (parse_or_error Parser.parse_response response, String.length response));
+  [%expect
+    {|
+    ((Ok
+      ((consumed 49)
+       (value
+        ((version Http_1_1) (status Ok) (reason_phrase OK)
+         (headers ((Content-Length 21) (Foo bar))) (body Empty)))))
+     49) |}]
+;;
+
+let%expect_test "Response parser catches invalid status code" =
+  let response = "HTTP/1.1 20 OK\r\nContent-Length: 21\r\nFoo: bar\r\n\r\n" in
+  print_s
+    ([%sexp_of: Response.t success Or_error.t]
+       (parse_or_error Parser.parse_response response));
+  [%expect {|
+    (Error ("Parse error" "Status codes must be three digit numbers")) |}];
+  let response = "HTTP/1.1 999 OK\r\nContent-Length: 21\r\nFoo: bar\r\n\r\n" in
+  print_s
+    ([%sexp_of: Response.t success Or_error.t]
+       (parse_or_error Parser.parse_response response));
+  [%expect {| (Error ("Parse error" "Invalid status code 999")) |}];
+  let response = "HTTP/1.1 001 OK\r\nContent-Length: 21\r\nFoo: bar\r\n\r\n" in
+  print_s
+    ([%sexp_of: Response.t success Or_error.t]
+       (parse_or_error Parser.parse_response response));
+  [%expect {| (Error ("Parse error" "Invalid status code 001")) |}]
+;;
+
+let%expect_test "Response parser catches spaces in header names" =
+  let response = "HTTP/1.1 200 OK\r\nContent-Length  : 21\r\nFoo: bar\r\n\r\n" in
+  print_s
+    ([%sexp_of: Response.t success Or_error.t]
+       (parse_or_error Parser.parse_response response));
+  [%expect {| (Error ("Parse error" "Invalid Header Key")) |}]
+;;
