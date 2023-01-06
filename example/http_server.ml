@@ -1,5 +1,6 @@
 open! Core
 open! Async
+open Shuttle
 open Shuttle_http
 
 let text =
@@ -34,13 +35,14 @@ let handler ctx _request = return (Server.respond_string ctx text)
 
 let run sock =
   let server =
-    Shuttle.Connection.listen_inet
-      ~input_buffer_size:0x4000
-      ~output_buffer_size:0x4000
+    Tcp.Server.create_sock_inet
       ~max_accepts_per_batch:64
       ~on_handler_error:`Raise
       (Tcp.Where_to_listen.of_port sock)
-      (fun _addr reader writer ->
+      (fun _addr sock ->
+      let fd = Socket.fd sock in
+      let reader = Input_channel.create ~buf_len:0x4000 fd in
+      let writer = Output_channel.create ~buf_len:0x4000 fd in
       let server = Shuttle_http.Server.create reader writer in
       Server.run server (handler server))
   in
