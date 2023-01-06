@@ -203,33 +203,3 @@ let pipe t =
 ;;
 
 let drain t = Pipe.drain (pipe t)
-
-let rec read_line_slow t acc =
-  if Bytebuffer.length t.buf = 0
-  then (
-    match%bind refill t with
-    | `Eof ->
-      (match acc with
-       | [] -> return `Eof
-       | xs -> return (`Eof_with_unconsumed xs))
-    | `Ok -> read_line_slow t acc)
-  else (
-    let idx = Bytebuffer.unsafe_index t.buf '\n' in
-    if idx > -1
-    then (
-      let { Bytebuffer.Slice.buf; pos; _ } = Bytebuffer.unsafe_peek t.buf in
-      let len = idx in
-      if len >= 1 && Char.equal (Bigstring.get buf (pos + idx - 1)) '\r'
-      then (
-        let line = Bigstring.To_string.sub buf ~pos ~len:(idx - 1) in
-        Bytebuffer.drop t.buf (len + 1);
-        return (`Ok (line :: acc)))
-      else (
-        let line = Bigstring.To_string.sub buf ~pos ~len in
-        Bytebuffer.drop t.buf (len + 1);
-        return (`Ok (line :: acc))))
-    else (
-      let curr = Bytebuffer.to_string t.buf in
-      Bytebuffer.drop t.buf (String.length curr);
-      read_line_slow t (curr :: acc)))
-;;
