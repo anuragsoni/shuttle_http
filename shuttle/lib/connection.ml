@@ -66,7 +66,9 @@ let listen
     match res with
     | Ok () -> Deferred.unit
     | Error exn ->
-      Exn.reraise exn "Shuttle.Connection.create: exception from output_channel")
+      Exn.reraise
+        exn
+        "Shuttle.Connection: Unhandled exception within tcp connection handler")
 ;;
 
 let listen_inet
@@ -120,7 +122,9 @@ let listen_inet
     match res with
     | Ok () -> Deferred.unit
     | Error exn ->
-      Exn.reraise exn "Shuttle.Connection.create: exception from output_channel")
+      Exn.reraise
+        exn
+        "Shuttle.Connection: Unhandled exception within tcp connection handler")
 ;;
 
 let with_connection
@@ -166,5 +170,5 @@ let with_connection
   match%map res with
   | Ok v -> v
   | Error exn ->
-    Exn.reraise exn "Shuttle.Connection.with_connection: Exception in output channel"
+    Exn.reraise exn "Shuttle.Connection: Unhandled exception in TCP client connection"
 ;;
