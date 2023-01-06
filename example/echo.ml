@@ -9,7 +9,7 @@ let run sock =
       ~output_buffer_size:0x1000
       ~on_handler_error:`Raise
       (Tcp.Where_to_listen.of_port sock)
-      ~f:(fun _addr reader writer ->
+      (fun _addr reader writer ->
       Deferred.create (fun ivar ->
         let rec loop () =
           Input_channel.refill reader

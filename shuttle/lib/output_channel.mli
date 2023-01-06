@@ -17,6 +17,13 @@ val create
   -> Fd.t
   -> t
 
+(** [write_timeout] is the maximum amount of time the writer will wait when attempting to
+    write data to the underlying file descriptor. *)
+val write_timeout : t -> Time_ns.Span.t
+
+val buffer_size : t -> int
+val time_source : t -> Time_source.t
+
 (** [monitor] returns the async monitor used by [Output_channel] for performing all write
     operations.*)
 val monitor : t -> Monitor.t

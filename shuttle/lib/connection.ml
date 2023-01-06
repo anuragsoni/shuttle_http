@@ -27,8 +27,8 @@ let listen
   ?write_timeout
   ?time_source
   ~on_handler_error
-  ~f:handler
   where_to_listen
+  handler
   =
   Tcp.Server.create_sock
     ?max_connections
@@ -71,16 +71,19 @@ let listen
 
 let with_connection
   ?interrupt
-  ?timeout
+  ?connect_timeout
   ?input_buffer_size
   ?max_input_buffer_size
   ?output_buffer_size
   ?max_output_buffer_size
+  ?write_timeout
   ?time_source
-  ~f
   where_to_connect
+  f
   =
-  let%bind socket = Tcp.connect_sock ?interrupt ?timeout ?time_source where_to_connect in
+  let%bind socket =
+    Tcp.connect_sock ?interrupt ?timeout:connect_timeout ?time_source where_to_connect
+  in
   let fd = Socket.fd socket in
   let input_channel =
     Input_channel.create
@@ -94,6 +97,7 @@ let with_connection
       ?max_buffer_size:max_output_buffer_size
       ?buf_len:output_buffer_size
       ?time_source
+      ?write_timeout
       fd
   in
   let res = collect_errors output_channel (fun () -> f input_channel output_channel) in

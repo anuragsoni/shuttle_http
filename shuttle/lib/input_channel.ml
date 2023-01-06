@@ -3,6 +3,9 @@ open! Async
 include Input_channel0
 module Output_channel = Output_channel0
 
+let buffer_size t = Bytebuffer.capacity t.buf
+let time_source t = t.time_source
+
 type slice = Bytebuffer.Slice.t = private
   { buf : Bigstring.t
   ; pos : int

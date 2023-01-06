@@ -12,7 +12,7 @@ let run sock =
       ~output_buffer_size:0x1000
       ~on_handler_error:`Raise
       (Tcp.Where_to_listen.of_file sock)
-      ~f:(fun _addr reader writer ->
+      (fun _addr reader writer ->
       let pipe_r = Input_channel.pipe reader in
       Pipe.iter pipe_r ~f:(fun buf ->
         String.iter buf ~f:(fun ch ->

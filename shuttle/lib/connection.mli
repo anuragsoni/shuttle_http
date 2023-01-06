@@ -19,8 +19,8 @@ val listen
   -> ?write_timeout:Time_ns.Span.t
   -> ?time_source:[> read ] Time_source.T1.t
   -> on_handler_error:[ `Call of 'address -> exn -> unit | `Ignore | `Raise ]
-  -> f:('address -> Input_channel.t -> Output_channel.t -> unit Deferred.t)
   -> ('address, 'listening_on) Tcp.Where_to_listen.t
+  -> ('address -> Input_channel.t -> Output_channel.t -> unit Deferred.t)
   -> ('address, 'listening_on) Tcp.Server.t Deferred.t
 
 (** [with_connection] is a wrapper for [Async.Tcp.connect_sock]. It uses async to setup a
@@ -28,12 +28,13 @@ val listen
     user provided handler. *)
 val with_connection
   :  ?interrupt:unit Deferred.t
-  -> ?timeout:Time.Span.t
+  -> ?connect_timeout:Time.Span.t
   -> ?input_buffer_size:int
   -> ?max_input_buffer_size:int
   -> ?output_buffer_size:int
   -> ?max_output_buffer_size:int
+  -> ?write_timeout:Time_ns.Span.t
   -> ?time_source:[> read ] Time_source.T1.t
-  -> f:(Input_channel.t -> Output_channel.t -> 'res Deferred.t)
   -> [< Socket.Address.t ] Tcp.Where_to_connect.t
+  -> (Input_channel.t -> Output_channel.t -> 'res Deferred.t)
   -> 'res Async_kernel__Types.Deferred.t

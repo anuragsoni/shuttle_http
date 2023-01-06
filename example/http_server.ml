@@ -40,7 +40,7 @@ let run sock =
       ~max_accepts_per_batch:64
       ~on_handler_error:`Raise
       (Tcp.Where_to_listen.of_port sock)
-      ~f:(fun _addr reader writer ->
+      (fun _addr reader writer ->
       let server = Shuttle_http.Server.create reader writer in
       Server.run server (handler server))
   in

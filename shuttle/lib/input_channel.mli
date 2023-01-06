@@ -17,6 +17,8 @@ val create
   -> Fd.t
   -> t
 
+val time_source : t -> Time_source.t
+val buffer_size : t -> int
 val is_closed : t -> bool
 val closed : t -> unit Deferred.t
 val close : t -> unit Deferred.t
