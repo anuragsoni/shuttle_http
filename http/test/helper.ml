@@ -1,5 +1,7 @@
 open! Core
 open! Async
+open! Shuttle
+open! Shuttle_http
 
 let rec connect port =
   match%bind
@@ -24,15 +26,15 @@ let with_client port ~f =
 ;;
 
 let with_server ?error_handler ?read_header_timeout handler ~f =
-  let open Shuttle_http in
   let%bind server =
-    Shuttle.Connection.listen
-      ~input_buffer_size:0x4000
-      ~output_buffer_size:0x4000
+    Tcp.Server.create_sock
       ~max_accepts_per_batch:64
       ~on_handler_error:`Raise
       Tcp.Where_to_listen.of_port_chosen_by_os
-      (fun _addr reader writer ->
+      (fun _addr sock ->
+      let fd = Socket.fd sock in
+      let reader = Input_channel.create fd in
+      let writer = Output_channel.create fd in
       let server =
         Shuttle_http.Server.create ?read_header_timeout ?error_handler reader writer
       in
