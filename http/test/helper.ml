@@ -33,10 +33,8 @@ let with_server ?error_handler ?read_header_timeout handler ~f =
       Tcp.Where_to_listen.of_port_chosen_by_os
       (fun _addr sock ->
       let fd = Socket.fd sock in
-      let reader = Input_channel.create fd in
-      let writer = Output_channel.create fd in
       let server =
-        Shuttle_http.Server.create ?read_header_timeout ?error_handler reader writer
+        Shuttle_http.Server.create ?read_header_timeout ?error_handler ~buf_len:0x4000 fd
       in
       Server.run server (handler server))
   in

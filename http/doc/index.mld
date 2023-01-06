@@ -46,8 +46,8 @@ let my_service (ctx : Server.t) (request : Request.t) =
   Response.create ~body:response_stream `Ok
 ;;
 
-let main reader writer =
-  let server = Server.create reader writer in
+let main ~buf_len fd =
+  let server = Server.create ~buf_len fd in
   Server.run server (my_service server)
 ;;
 ]}
