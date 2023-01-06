@@ -25,3 +25,4 @@ val headers : t -> Headers.t
 val body : t -> Body.t
 
 val with_headers : t -> Headers.t -> t
+val with_body : t -> Body.t -> t
