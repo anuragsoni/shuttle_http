@@ -1,6 +1,5 @@
 open! Core
 open! Async
-open Shuttle
 open Shuttle_http
 
 let text =
@@ -31,7 +30,7 @@ let text =
    the well, and noticed that they were filled with cupboards......"
 ;;
 
-let handler ctx _request = return (Server.respond_string ctx text)
+let handler _request = return (Response.create ~body:(Body.string text) `Ok)
 
 let run sock =
   let server =
@@ -39,12 +38,10 @@ let run sock =
       ~max_accepts_per_batch:64
       ~on_handler_error:`Raise
       (Tcp.Where_to_listen.of_port sock)
-      (fun _addr sock ->
+      (fun addr sock ->
       let fd = Socket.fd sock in
-      let reader = Input_channel.create ~buf_len:0x4000 fd in
-      let writer = Output_channel.create ~buf_len:0x4000 fd in
-      let server = Shuttle_http.Server.create reader writer in
-      Server.run server (handler server))
+      let server = Shuttle_http.Server.create ~buf_len:0x4000 fd in
+      Server.run server handler)
   in
   Log.Global.info
     !"Server listening on: %s"
