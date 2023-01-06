@@ -123,17 +123,6 @@ let create
   t
 ;;
 
-let handle_error t =
-  Monitor.detach_and_get_next_error t.monitor
-  >>> fun exn ->
-  (match Monitor.extract_exn exn with
-   | Input_channel.Timeout -> t.error_handler `Request_timeout
-   | exn -> t.error_handler ~exn `Internal_server_error)
-  >>> fun response ->
-  if Ivar.is_empty t.closed
-  then write_response t response >>> fun () -> Ivar.fill t.closed ()
-;;
-
 let keep_alive headers =
   match Headers.find headers "connection" with
   | Some x when String.Caseless.equal x "close" -> false
@@ -283,10 +272,17 @@ let run t handler =
         else parse_request t)
     else Ivar.fill t.closed ()
   in
+  Monitor.detach t.monitor;
   Scheduler.within ~priority:Priority.normal ~monitor:t.monitor (fun () ->
     if Time_ns.Span.is_positive t.read_header_timeout
     then parse_request_with_timeout t t.read_header_timeout
     else parse_request t);
-  handle_error t;
+  upon (Monitor.get_next_error t.monitor) (fun exn ->
+    (match Monitor.extract_exn exn with
+     | Input_channel.Timeout -> t.error_handler `Request_timeout
+     | exn -> t.error_handler ~exn `Internal_server_error)
+    >>> fun response ->
+    if Ivar.is_empty t.closed
+    then write_response t response >>> fun () -> Ivar.fill t.closed ());
   Ivar.read t.closed
 ;;

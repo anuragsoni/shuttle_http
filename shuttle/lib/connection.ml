@@ -8,7 +8,7 @@ let close_channels reader writer =
 
 let collect_errors writer fn =
   let monitor = Output_channel.monitor writer in
-  ignore (Monitor.detach_and_get_error_stream monitor : _ Stream.t);
+  Monitor.detach monitor;
   choose
     [ choice (Monitor.get_next_error monitor) (fun e -> Error e)
     ; choice (Monitor.try_with ~run:`Now ~rest:`Log fn) Fn.id
