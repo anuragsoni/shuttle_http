@@ -33,8 +33,8 @@ let text =
 let handler ctx _request = return (Server.respond_string ctx text)
 
 let run sock =
-  let%bind server =
-    Shuttle.Connection.listen
+  let server =
+    Shuttle.Connection.listen_inet
       ~input_buffer_size:0x4000
       ~output_buffer_size:0x4000
       ~max_accepts_per_batch:64

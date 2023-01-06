@@ -23,6 +23,22 @@ val listen
   -> ('address -> Input_channel.t -> Output_channel.t -> unit Deferred.t)
   -> ('address, 'listening_on) Tcp.Server.t Deferred.t
 
+val listen_inet
+  :  ?max_connections:int
+  -> ?max_accepts_per_batch:int
+  -> ?backlog:int
+  -> ?socket:([ `Unconnected ], Socket.Address.Inet.t) Socket.t
+  -> ?input_buffer_size:int
+  -> ?max_input_buffer_size:int
+  -> ?output_buffer_size:int
+  -> ?max_output_buffer_size:int
+  -> ?write_timeout:Time_ns.Span.t
+  -> ?time_source:[> read ] Time_source.T1.t
+  -> on_handler_error:[ `Call of Socket.Address.Inet.t -> exn -> unit | `Ignore | `Raise ]
+  -> Tcp.Where_to_listen.inet
+  -> (Socket.Address.Inet.t -> Input_channel.t -> Output_channel.t -> unit Deferred.t)
+  -> (Socket.Address.Inet.t, int) Tcp.Server.t
+
 (** [with_connection] is a wrapper for [Async.Tcp.connect_sock]. It uses async to setup a
     tcp client, and creates a new [Input_channel] and [Output_channel] to forward to the
     user provided handler. *)
