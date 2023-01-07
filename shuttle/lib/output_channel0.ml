@@ -49,7 +49,7 @@ type t =
 
 let default_write_timeout = Time_ns.Span.of_min 2.
 
-let create ?max_buffer_size ?buf_len ?write_timeout ?time_source fd =
+let create ?buf_len ?write_timeout ?time_source fd =
   Fd.with_file_descr_exn fd ignore ~nonblocking:true;
   let buf_len =
     match buf_len with
@@ -73,7 +73,7 @@ let create ?max_buffer_size ?buf_len ?write_timeout ?time_source fd =
   ; flushes = Queue.create ()
   ; write_timeout
   ; writer_state = Inactive
-  ; buf = Bytebuffer.create ?max_buffer_size buf_len
+  ; buf = Bytebuffer.create buf_len
   ; monitor = Monitor.create ()
   ; close_state = Open
   ; remote_closed = Ivar.create ()

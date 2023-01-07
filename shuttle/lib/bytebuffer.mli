@@ -7,7 +7,7 @@ type t [@@deriving sexp_of]
 (** [create ?max_buffer_size size] returns a new empty bytebuffer. The bytebuffer will be
     resized automatically, up-to max_buffer_size, if attempting to add more than [size]
     characters to the bytebuffer. [max_buffer_size] defaults to [Int.max_value]. *)
-val create : ?max_buffer_size:int -> int -> t
+val create : int -> t
 
 val compact : t -> unit
 val available_to_write : t -> int

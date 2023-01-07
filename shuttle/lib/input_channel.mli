@@ -10,13 +10,7 @@ type slice = private
   ; len : int
   }
 
-val create
-  :  ?max_buffer_size:int
-  -> ?buf_len:int
-  -> ?time_source:[> read ] Time_source.T1.t
-  -> Fd.t
-  -> t
-
+val create : ?buf_len:int -> ?time_source:[> read ] Time_source.T1.t -> Fd.t -> t
 val time_source : t -> Time_source.t
 val buffer_size : t -> int
 val is_closed : t -> bool
