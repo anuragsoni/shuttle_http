@@ -38,7 +38,7 @@ let run sock =
       ~max_accepts_per_batch:64
       ~on_handler_error:`Raise
       (Tcp.Where_to_listen.of_port sock)
-      (fun addr sock ->
+      (fun _addr sock ->
       let fd = Socket.fd sock in
       let server = Shuttle_http.Server.create ~buf_len:0x4000 fd in
       Server.run server handler)
