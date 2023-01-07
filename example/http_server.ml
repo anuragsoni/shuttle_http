@@ -30,18 +30,19 @@ let text =
    the well, and noticed that they were filled with cupboards......"
 ;;
 
-let handler _request = return (Response.create ~body:(Body.string text) `Ok)
+let handler ctx _request = return (Server.respond_string ctx text)
 
 let run sock =
   let server =
-    Tcp.Server.create_sock_inet
+    Shuttle.Connection.listen_inet
+      ~input_buffer_size:0x4000
+      ~output_buffer_size:0x4000
       ~max_accepts_per_batch:64
       ~on_handler_error:`Raise
       (Tcp.Where_to_listen.of_port sock)
-      (fun _addr sock ->
-      let fd = Socket.fd sock in
-      let server = Shuttle_http.Server.create ~buf_len:0x4000 fd in
-      Server.run server handler)
+      (fun _addr reader writer ->
+      let server = Shuttle_http.Server.create reader writer in
+      Server.run server (handler server))
   in
   Log.Global.info
     !"Server listening on: %s"

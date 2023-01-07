@@ -15,35 +15,23 @@ type error_handler = ?exn:exn -> ?request:Request.t -> Status.t -> Response.t De
     connection. *)
 type service = Request.t -> Response.t Deferred.t
 
-(** [create ?error_handler ?read_header_timeout ?write_timeout ?time_source ~buf_len fd]
-    creates a new server handle that can be used to drive the HTTP request/response server
-    loop.
+(** [create ?error_handler ?read_header_timeout reader writer] creates a new server handle
+    that can be used to drive the HTTP request/response server loop.
 
     - [error_handler] is an optional input that allows customizing how unhandled
       exceptions, and any potential parsing or i/o errors get rendered. The default
       implementation will attempt to send an HTTP response with a status code and an empty
       body.
 
-    - [buf_len] is the initial size of the reader and writer buffers created from the user
-      provided file descriptor. The buffered reader is used to buffer in-coming data is
-      used to parse HTTP payloads.
-
     - [read_header_timeout] is the maximum time span that the server loop is allowed to
       read a request's headers. The default value is 60 seconds. If read_header_timeout is
       zero then no timeout is used, and the server could potentially wait forever
-      attempting to read enough data to parse request headers.
-
-    - [write_timeout] is the maximum time the buffer writer is allowed to wait when
-      attempting to write data to the file descriptor.
-
-    - [time_source] is optonal and defaults to wall-clock. *)
+      attempting to read enough data to parse request headers. *)
 val create
   :  ?error_handler:error_handler
   -> ?read_header_timeout:Time_ns.Span.t
-  -> ?write_timeout:Time_ns.Span.t
-  -> ?time_source:[> read ] Time_source.T1.t
-  -> buf_len:int
-  -> Fd.t
+  -> Input_channel.t
+  -> Output_channel.t
   -> t
 
 (** [closed t] returns a deferred that is resolved when the server connection handle is
