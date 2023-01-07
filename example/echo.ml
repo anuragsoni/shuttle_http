@@ -1,15 +1,16 @@
 open! Core
 open! Async
-open Shuttle.Std
+open Shuttle
 
 let run sock =
   let server =
-    Shuttle.Connection.listen_inet
-      ~input_buffer_size:0x1000
-      ~output_buffer_size:0x1000
+    Tcp.Server.create_sock_inet
       ~on_handler_error:`Raise
       (Tcp.Where_to_listen.of_port sock)
-      (fun _addr reader writer ->
+      (fun _addr sock ->
+      let fd = Socket.fd sock in
+      let reader = Input_channel.create ~buf_len:0x1000 fd in
+      let writer = Output_channel.create ~buf_len:0x1000 fd in
       Deferred.create (fun ivar ->
         let rec loop () =
           Input_channel.refill reader

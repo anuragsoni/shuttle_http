@@ -1,6 +1,6 @@
 open! Core
 open! Async
-open! Shuttle.Std
+open! Shuttle
 
 type error_handler = ?exn:Exn.t -> ?request:Request.t -> Status.t -> Response.t Deferred.t
 [@@deriving sexp_of]
@@ -107,9 +107,13 @@ let write_response t res =
 let create
   ?(error_handler = default_error_handler)
   ?(read_header_timeout = Time_ns.Span.minute)
-  reader
-  writer
+  ?(write_timeout = Time_ns.Span.minute)
+  ?time_source
+  ~buf_len
+  fd
   =
+  let reader = Input_channel.create ?time_source ~buf_len fd in
+  let writer = Output_channel.create ?time_source ~buf_len ~write_timeout fd in
   let t =
     { closed = Ivar.create ()
     ; monitor = Monitor.create ()
@@ -273,16 +277,47 @@ let run t handler =
     else Ivar.fill t.closed ()
   in
   Monitor.detach t.monitor;
-  Scheduler.within ~priority:Priority.normal ~monitor:t.monitor (fun () ->
-    if Time_ns.Span.is_positive t.read_header_timeout
-    then parse_request_with_timeout t t.read_header_timeout
-    else parse_request t);
-  upon (Monitor.get_next_error t.monitor) (fun exn ->
-    (match Monitor.extract_exn exn with
-     | Input_channel.Timeout -> t.error_handler `Request_timeout
-     | exn -> t.error_handler ~exn `Internal_server_error)
-    >>> fun response ->
-    if Ivar.is_empty t.closed
-    then write_response t response >>> fun () -> Ivar.fill t.closed ());
-  Ivar.read t.closed
+  choose
+    [ choice
+        (let monitor = Output_channel.monitor t.writer in
+         Monitor.detach monitor;
+         Monitor.get_next_error monitor)
+        (fun e -> Error e)
+    ; choice
+        (let%bind exn = Monitor.get_next_error t.monitor in
+         let%bind response =
+           match Monitor.extract_exn exn with
+           | Input_channel.Timeout -> t.error_handler `Request_timeout
+           | exn -> t.error_handler ~exn `Internal_server_error
+         in
+         if Ivar.is_empty t.closed
+         then
+           Monitor.try_with ~run:`Now (fun () ->
+             let%map () = write_response t response in
+             Ivar.fill t.closed ())
+         else return (Ok ()))
+        Fn.id
+    ; choice
+        (Scheduler.within ~monitor:t.monitor (fun () ->
+           if Time_ns.Span.is_positive t.read_header_timeout
+           then parse_request_with_timeout t t.read_header_timeout
+           else parse_request t);
+         Ivar.read t.closed)
+        (fun () -> Ok ())
+    ]
+  >>= function
+  | Ok () ->
+    (* We will attempt to close the channels ourselves, instead of letting Async's tcp
+       handler do this as there might still be some data in the output channel that needs
+       to be flushed. *)
+    let%map () = Transport.close t.reader t.writer in
+    Ivar.fill_if_empty t.closed ()
+  | Error exn ->
+    (* This branch will be called if the underlying i/o runtime has an exception. At this
+       point we don't care about being able to flush the writer since we can't use the
+       channel to send data anymore. The TCP server handler from async will see this
+       exception and close the underlying file descriptor. Typically the underlying
+       channel will raise an exception if the underlying file-descriptors is invalid. *)
+    Ivar.fill_if_empty t.closed ();
+    Exn.reraise exn "Unexpected error in the underlying transport"
 ;;
