@@ -26,7 +26,7 @@ let with_client port ~f =
 let with_server ?error_handler ?read_header_timeout handler ~f =
   let open Shuttle_http in
   let%bind server =
-    Shuttle.Connection.listen
+    Shuttle.Tcp_channel.listen
       ~input_buffer_size:0x4000
       ~output_buffer_size:0x4000
       ~max_accepts_per_batch:64

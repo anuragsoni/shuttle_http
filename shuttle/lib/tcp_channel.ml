@@ -133,3 +133,23 @@ let with_connection
   | Error exn ->
     Exn.reraise exn "Shuttle.Connection: Unhandled exception in TCP client connection"
 ;;
+
+let connect
+  ?interrupt
+  ?connect_timeout
+  ?input_buffer_size
+  ?output_buffer_size
+  ?write_timeout
+  ?time_source
+  where_to_connect
+  =
+  let%map socket =
+    Tcp.connect_sock ?interrupt ?timeout:connect_timeout ?time_source where_to_connect
+  in
+  let fd = Socket.fd socket in
+  let reader = Input_channel.create ?buf_len:input_buffer_size ?time_source fd in
+  let writer =
+    Output_channel.create ?buf_len:output_buffer_size ?time_source ?write_timeout fd
+  in
+  reader, writer
+;;

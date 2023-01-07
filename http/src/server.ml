@@ -1,6 +1,6 @@
 open! Core
 open! Async
-open! Shuttle.Std
+open! Shuttle
 
 type error_handler = ?exn:Exn.t -> ?request:Request.t -> Status.t -> Response.t Deferred.t
 [@@deriving sexp_of]
