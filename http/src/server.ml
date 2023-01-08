@@ -25,19 +25,6 @@ type t =
   }
 [@@deriving sexp_of]
 
-let respond_string _ ?reason_phrase ?headers ?(status = `Ok) body =
-  Response.create ?reason_phrase ?headers ~body:(Body.string body) status
-;;
-
-let respond_empty _ ?reason_phrase ?headers status =
-  Response.create ?reason_phrase ?headers ~body:Body.empty status
-;;
-
-let respond_stream t ?reason_phrase ?headers ?(status = `Ok) stream =
-  upon (Output_channel.remote_closed t.writer) (fun () -> Body.Stream.close stream);
-  Response.create ?reason_phrase ?headers ~body:(Body.stream stream) status
-;;
-
 let closed t = Ivar.read t.closed
 let close t = if Ivar.is_empty t.closed then Ivar.fill t.closed ()
 
@@ -59,6 +46,10 @@ let write_response t res =
           ~data:(Int.to_string (String.length x))
       , false )
     | Body.Stream stream ->
+      (* Schedule a close operation for the response stream, if for whatever reason the
+         remote connection is torn down before the stream was driven to completion. This
+         should ensure that any resource held by the stream will get cleaned up. *)
+      upon (Output_channel.remote_closed t.writer) (fun () -> Body.Stream.close stream);
       (match Body.Stream.encoding stream with
        | `Chunked ->
          Headers.add_unless_exists headers ~key:"Transfer-Encoding" ~data:"chunked", true

@@ -22,28 +22,22 @@ let my_service (request : Request.t) =
 
 {2 Streaming response }
 
-We saw how to define services that don't require any information from the server handle to prepare responses. For some use-cases (Specially when working with streaming bodies that hold onto external resources), one might want to access the server handle within the service. This might look like:
+We saw how to define services that respond with data that's entirely in memory. For some use-cases (Specially when working with really large bodies created from external sources like files), one might want to use a streaming body to serve large amounts of data without loading it all in memory:
 
 {[
 open Shuttle_http
 
-let my_service (ctx : Server.t) (request : Request.t) =
+let my_service (request : Request.t) =
   let%map reader =
     (* This an example to show a stream that works with an external resource. *)
     Reader.open_file "<some file path>"
   in
   (* Create a pipe from the reader that we will use as a streaming response body. *)
   let reader_pipe = Reader.pipe reader in
-  (* Register a callback that's called when the server handler is closed that will also
-     close the pipe, in-turn closing the Reader and the underlying file descriptor. This
-     is useful in scenarios where the connection is interrupted before the response body
-     is fully exhausted and helps avoid resource leaks. This example is demonstrating how
-     to do this manually using the server handler. Creating a response via
-     [Server.respond_stream] will automatically register the action to close a stream on
-     Server connection closing. *)
-  upon (Server.closed ctx) (fun () -> Pipe.close_read reader_pipe);
-  let response_stream = Body.of_pipe `Chunked reader_pipe in
-  Response.create ~body:response_stream `Ok
+  (* Create a response from the reader's pipe. If the server is closed before the full
+     response was served, the pipe will be closed which in-turn will close the reader and
+     the underlying file descriptor. *)
+  Response.create ~body:(Body.of_pipe `Chunked reader_pipe) `Ok
 ;;
 
 let main reader writer =

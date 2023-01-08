@@ -44,31 +44,3 @@ val close : t -> unit
 (** [run t service] accepts a server handle and a user provided service that will be
     invoked for each run of the request/response loop. *)
 val run : t -> (Request.t -> Response.t Deferred.t) -> unit Deferred.t
-
-(** [response_string] creates a new HTTP response from a string. *)
-val respond_string
-  :  t
-  -> ?reason_phrase:string
-  -> ?headers:Headers.t
-  -> ?status:Status.t
-  -> string
-  -> Response.t
-
-(** [respond_empty] creates a new HTTP response with an empty body. *)
-val respond_empty
-  :  t
-  -> ?reason_phrase:string
-  -> ?headers:Headers.t
-  -> Status.t
-  -> Response.t
-
-(** [respond_stream] creates a new HTTP response from a user provided stream. If the
-    stream remains unconsumed when a server handle is closed, the stream's [close]
-    function is called so any resources help by the stream can be released. *)
-val respond_stream
-  :  t
-  -> ?reason_phrase:string
-  -> ?headers:Headers.t
-  -> ?status:Status.t
-  -> Body.Stream.t
-  -> Response.t

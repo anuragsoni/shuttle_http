@@ -3,11 +3,11 @@ open! Async
 open! Shuttle
 open! Shuttle_http
 
-let handler ctx request =
+let handler request =
   match Request.path request with
   | "/error" -> failwith "ERROR"
-  | "/echo" -> return (Server.respond_stream ctx (Body.to_stream (Request.body request)))
-  | _ -> return (Server.respond_string ctx "Hello World")
+  | "/echo" -> return (Response.create ~body:(Request.body request) `Ok)
+  | _ -> return (Response.create ~body:(Body.string "Hello World") `Ok)
 ;;
 
 let%expect_test "Simple http endpoint" =
@@ -49,7 +49,7 @@ let%expect_test "Test custom error handler" =
   in
   Helper.with_server
     ~error_handler
-    (fun _ _ -> failwith "ERROR")
+    (fun _ -> failwith "ERROR")
     ~f:(fun port ->
       let%bind () =
         Helper.with_client port ~f:(fun r w ->

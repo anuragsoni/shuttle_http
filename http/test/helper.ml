@@ -35,7 +35,7 @@ let with_server ?error_handler ?read_header_timeout handler ~f =
       let server =
         Shuttle_http.Server.create ?read_header_timeout ?error_handler reader writer
       in
-      Server.run server (handler server))
+      Server.run server handler)
   in
   Monitor.protect
     ~finally:(fun () -> Tcp.Server.close server)

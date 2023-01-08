@@ -4,6 +4,7 @@
 * Remove listen and with_connection from shuttle_ssl. Use upgrade_server_connection and upgrade_client_connection with the regular Connection module provided within Shuttle.
 * Allow accessing the underlying buffer capacity for channels
 * Add helper method that creates server connections using inet sockets
+* Reliably schedule stream cleanup for all streaming server responses without forcing users to use any special functions to create the response
 
 # 0.8.1
 
