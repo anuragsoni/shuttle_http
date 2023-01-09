@@ -5,8 +5,7 @@ open Shuttle
 let run sock =
   let server =
     Tcp_channel.listen_inet
-      ~input_buffer_size:0x1000
-      ~output_buffer_size:0x1000
+      ~buf_len:0x1000
       ~on_handler_error:`Raise
       (Tcp.Where_to_listen.of_port sock)
       (fun _addr reader writer ->

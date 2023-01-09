@@ -12,8 +12,7 @@ val listen
   -> ?max_accepts_per_batch:int
   -> ?backlog:int
   -> ?socket:([ `Unconnected ], ([< Socket.Address.t ] as 'address)) Socket.t
-  -> ?input_buffer_size:int
-  -> ?output_buffer_size:int
+  -> ?buf_len:int
   -> ?write_timeout:Time_ns.Span.t
   -> ?time_source:[> read ] Time_source.T1.t
   -> on_handler_error:[ `Call of 'address -> exn -> unit | `Ignore | `Raise ]
@@ -26,8 +25,7 @@ val listen_inet
   -> ?max_accepts_per_batch:int
   -> ?backlog:int
   -> ?socket:([ `Unconnected ], Socket.Address.Inet.t) Socket.t
-  -> ?input_buffer_size:int
-  -> ?output_buffer_size:int
+  -> ?buf_len:int
   -> ?write_timeout:Time_ns.Span.t
   -> ?time_source:[> read ] Time_source.T1.t
   -> on_handler_error:[ `Call of Socket.Address.Inet.t -> exn -> unit | `Ignore | `Raise ]
@@ -41,8 +39,7 @@ val listen_inet
 val with_connection
   :  ?interrupt:unit Deferred.t
   -> ?connect_timeout:Time.Span.t
-  -> ?input_buffer_size:int
-  -> ?output_buffer_size:int
+  -> ?buf_len:int
   -> ?write_timeout:Time_ns.Span.t
   -> ?time_source:[> read ] Time_source.T1.t
   -> [< Socket.Address.t ] Tcp.Where_to_connect.t
@@ -52,8 +49,7 @@ val with_connection
 val connect
   :  ?interrupt:unit Deferred.t
   -> ?connect_timeout:Time.Span.t
-  -> ?input_buffer_size:int
-  -> ?output_buffer_size:int
+  -> ?buf_len:int
   -> ?write_timeout:Time_ns.Span.t
   -> ?time_source:[> read ] Time_source.T1.t
   -> [< Socket.Address.t ] Tcp.Where_to_connect.t

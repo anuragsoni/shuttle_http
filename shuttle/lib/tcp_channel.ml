@@ -20,8 +20,7 @@ let listen
   ?max_accepts_per_batch
   ?backlog
   ?socket
-  ?input_buffer_size
-  ?output_buffer_size
+  ?buf_len
   ?write_timeout
   ?time_source
   ~on_handler_error
@@ -38,10 +37,8 @@ let listen
     where_to_listen
     (fun addr socket ->
     let fd = Socket.fd socket in
-    let input_channel = Input_channel.create ?buf_len:input_buffer_size ?time_source fd in
-    let output_channel =
-      Output_channel.create ?buf_len:output_buffer_size ?write_timeout ?time_source fd
-    in
+    let input_channel = Input_channel.create ?buf_len ?time_source fd in
+    let output_channel = Output_channel.create ?buf_len ?write_timeout ?time_source fd in
     let%bind res =
       Deferred.any
         [ collect_errors output_channel (fun () ->
@@ -63,8 +60,7 @@ let listen_inet
   ?max_accepts_per_batch
   ?backlog
   ?socket
-  ?input_buffer_size
-  ?output_buffer_size
+  ?buf_len
   ?write_timeout
   ?time_source
   ~on_handler_error
@@ -81,10 +77,8 @@ let listen_inet
     where_to_listen
     (fun addr socket ->
     let fd = Socket.fd socket in
-    let input_channel = Input_channel.create ?buf_len:input_buffer_size ?time_source fd in
-    let output_channel =
-      Output_channel.create ?buf_len:output_buffer_size ?write_timeout ?time_source fd
-    in
+    let input_channel = Input_channel.create ?buf_len ?time_source fd in
+    let output_channel = Output_channel.create ?buf_len ?write_timeout ?time_source fd in
     let%bind res =
       Deferred.any
         [ collect_errors output_channel (fun () ->
@@ -104,8 +98,7 @@ let listen_inet
 let with_connection
   ?interrupt
   ?connect_timeout
-  ?input_buffer_size
-  ?output_buffer_size
+  ?buf_len
   ?write_timeout
   ?time_source
   where_to_connect
@@ -115,10 +108,8 @@ let with_connection
     Tcp.connect_sock ?interrupt ?timeout:connect_timeout ?time_source where_to_connect
   in
   let fd = Socket.fd socket in
-  let input_channel = Input_channel.create ?buf_len:input_buffer_size ?time_source fd in
-  let output_channel =
-    Output_channel.create ?buf_len:output_buffer_size ?time_source ?write_timeout fd
-  in
+  let input_channel = Input_channel.create ?buf_len ?time_source fd in
+  let output_channel = Output_channel.create ?buf_len ?time_source ?write_timeout fd in
   let res = collect_errors output_channel (fun () -> f input_channel output_channel) in
   let%bind () =
     Deferred.any_unit
@@ -137,8 +128,7 @@ let with_connection
 let connect
   ?interrupt
   ?connect_timeout
-  ?input_buffer_size
-  ?output_buffer_size
+  ?buf_len
   ?write_timeout
   ?time_source
   where_to_connect
@@ -147,9 +137,7 @@ let connect
     Tcp.connect_sock ?interrupt ?timeout:connect_timeout ?time_source where_to_connect
   in
   let fd = Socket.fd socket in
-  let reader = Input_channel.create ?buf_len:input_buffer_size ?time_source fd in
-  let writer =
-    Output_channel.create ?buf_len:output_buffer_size ?time_source ?write_timeout fd
-  in
+  let reader = Input_channel.create ?buf_len ?time_source fd in
+  let writer = Output_channel.create ?buf_len ?time_source ?write_timeout fd in
   reader, writer
 ;;

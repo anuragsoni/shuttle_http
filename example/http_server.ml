@@ -35,8 +35,7 @@ let handler _request = return (Response.create ~body:(Body.string text) `Ok)
 let run sock =
   let server =
     Shuttle.Tcp_channel.listen_inet
-      ~input_buffer_size:0x4000
-      ~output_buffer_size:0x4000
+      ~buf_len:0x4000
       ~max_accepts_per_batch:64
       ~on_handler_error:`Raise
       (Tcp.Where_to_listen.of_port sock)

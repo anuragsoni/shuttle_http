@@ -8,8 +8,7 @@ let run sock =
   let%bind () = unlink sock in
   let%bind server =
     Tcp_channel.listen
-      ~input_buffer_size:0x1000
-      ~output_buffer_size:0x1000
+      ~buf_len:0x1000
       ~on_handler_error:`Raise
       (Tcp.Where_to_listen.of_file sock)
       (fun _addr reader writer ->
