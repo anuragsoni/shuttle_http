@@ -102,4 +102,9 @@ val flush : t -> unit Deferred.t
 val flush_or_fail : t -> Flush_result.t Deferred.t
 
 val pipe : t -> string Pipe.Writer.t
-val of_pipe : Info.t -> string Pipe.Writer.t -> (t * unit Deferred.t) Deferred.t
+
+val of_pipe
+  :  ?buf_len:int
+  -> Info.t
+  -> string Pipe.Writer.t
+  -> (t * unit Deferred.t) Deferred.t

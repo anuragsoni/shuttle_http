@@ -38,4 +38,4 @@ val pipe : t -> string Pipe.Reader.t
     finished. *)
 val transfer : t -> string Pipe.Writer.t -> unit Deferred.t
 
-val of_pipe : Info.t -> string Pipe.Reader.t -> t Deferred.t
+val of_pipe : ?buf_len:int -> Info.t -> string Pipe.Reader.t -> t Deferred.t

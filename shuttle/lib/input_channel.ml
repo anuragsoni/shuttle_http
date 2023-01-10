@@ -12,11 +12,11 @@ type slice = Bytebuffer.Slice.t = private
   ; len : int
   }
 
-let of_pipe info reader =
+let of_pipe ?buf_len info reader =
   Unix.pipe info
   >>| fun (`Reader rd, `Writer wr) ->
-  let input_channel = create rd in
-  let output_channel = Output_channel.create wr in
+  let input_channel = create ?buf_len rd in
+  let output_channel = Output_channel.create ?buf_len wr in
   don't_wait_for
     (let%bind () = Output_channel.write_from_pipe output_channel reader in
      Output_channel.close output_channel);

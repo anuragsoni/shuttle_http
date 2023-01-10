@@ -72,11 +72,17 @@ let upgrade_client_connection
     Error.raise e
   | Ok conn ->
     let%bind input_channel =
-      Input_channel.of_pipe (Info.of_string "shuttle_ssl.ssl_reader") app_reader
+      Input_channel.of_pipe
+        ~buf_len:(Input_channel.buffer_size input_channel)
+        (Info.of_string "shuttle_ssl.ssl_reader")
+        app_reader
     in
     upon (Input_channel.closed input_channel) (fun () -> Pipe.close_read app_reader);
     let%bind output_channel, flushed =
-      Output_channel.of_pipe (Info.of_string "shuttle_ssl.ssl_writer") app_writer
+      Output_channel.of_pipe
+        ~buf_len:(Input_channel.buffer_size input_channel)
+        (Info.of_string "shuttle_ssl.ssl_writer")
+        app_writer
     in
     let shutdown () =
       let%bind () = Output_channel.close output_channel in
@@ -136,11 +142,17 @@ let upgrade_server_connection
     Error.raise e
   | Ok conn ->
     let%bind input_channel =
-      Input_channel.of_pipe (Info.of_string "shuttle_ssl.ssl_reader") app_reader
+      Input_channel.of_pipe
+        ~buf_len:(Input_channel.buffer_size input_channel)
+        (Info.of_string "shuttle_ssl.ssl_reader")
+        app_reader
     in
     upon (Input_channel.closed input_channel) (fun () -> Pipe.close_read app_reader);
     let%bind output_channel, flushed =
-      Output_channel.of_pipe (Info.of_string "shuttle_ssl.ssl_writer") app_writer
+      Output_channel.of_pipe
+        ~buf_len:(Input_channel.buffer_size input_channel)
+        (Info.of_string "shuttle_ssl.ssl_writer")
+        app_writer
     in
     let shutdown () =
       let%bind () = Output_channel.close output_channel in
