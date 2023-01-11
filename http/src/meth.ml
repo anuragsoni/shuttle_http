@@ -44,3 +44,18 @@ let to_string = function
   | `TRACE -> "TRACE"
   | `PATCH -> "PATCH"
 ;;
+
+let is_safe = function
+  | `GET | `HEAD | `OPTIONS | `TRACE -> true
+  | _ -> false
+;;
+
+let is_idempotent = function
+  | `PUT | `DELETE -> true
+  | t -> is_safe t
+;;
+
+let is_cacheable = function
+  | `GET | `HEAD | `POST -> true
+  | _ -> false
+;;
