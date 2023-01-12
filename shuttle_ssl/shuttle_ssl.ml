@@ -5,6 +5,7 @@ open! Shuttle
 
 type ssl_connection = Ssl.Connection.t [@@deriving sexp_of]
 
+let version conn = Ssl.Connection.version conn
 let peer_certificate conn = Ssl.Connection.peer_certificate conn
 let ssl_session_resused conn = Ssl.Connection.session_reused conn
 let pem_peer_certificate_chain conn = Ssl.Connection.pem_peer_certificate_chain conn
