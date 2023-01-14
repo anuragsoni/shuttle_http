@@ -95,7 +95,7 @@ module Source = struct
     if pos = -1
     then raise_notrace Partial
     else if pos = 0
-    then raise_notrace (Fail (Error.of_string "Reason phrase must not be empty"))
+    then ""
     else (
       let phrase = to_string t ~pos:0 ~len:pos in
       unsafe_advance t pos;
@@ -125,20 +125,20 @@ end
 let[@inline always] ( .![] ) source idx = Source.unsafe_get source idx
 let invalid_method = Fail (Error.of_string "Invalid Method")
 
-let invalid_status_code_length =
+let invalid_status_code =
   Fail (Error.of_string "Status codes must be three digit numbers")
 ;;
 
 let status source =
-  let pos = Source.index source ' ' in
-  if pos = 3
+  if Source.length source < 3 then raise_notrace Partial;
+  if Char.is_digit source.![0] && Char.is_digit source.![1] && Char.is_digit source.![2]
   then (
-    match Status.of_string (Source.to_string source ~pos:0 ~len:pos) with
+    match Status.of_string (Source.to_string source ~pos:0 ~len:3) with
     | Ok code ->
-      Source.unsafe_advance source 4;
+      Source.unsafe_advance source 3;
       code
     | Error err -> raise_notrace (Fail err))
-  else raise_notrace invalid_status_code_length
+  else raise_notrace invalid_status_code
 ;;
 
 let meth source =
@@ -303,6 +303,7 @@ let response source =
   let version = version source in
   Source.consume_space source;
   let status = status source in
+  Source.consume_space source;
   let reason_phrase = Source.parse_reason_phrase source in
   Source.consume_eol source;
   let headers = Headers.of_rev_list (headers source) in

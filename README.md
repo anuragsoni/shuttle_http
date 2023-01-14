@@ -32,7 +32,7 @@ Currently only linux, macOS and bsd based systems.
 ## Companion projects
 
 * [shuttle_ssl](./shuttle_ssl/): Async_ssl support for shuttle
-* [shuttle_http](https://anuragsoni.github.io/shuttle/shuttle_http/index.html): Http 1.1 server support built on top of shuttle.
+* [shuttle_http](https://anuragsoni.github.io/shuttle/shuttle_http/index.html): Http 1.1 server and client support built on top of shuttle.
 
 *Notes*:
 - <a name="channel">1</a>: Channel is a high-level construct for performing I/O. 

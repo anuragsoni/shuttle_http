@@ -7,3 +7,4 @@ module Response = Response
 module Server = Server
 module Status = Status
 module Version = Version
+module Client = Client

@@ -7,6 +7,7 @@ type ssl_connection
 val peer_certificate : ssl_connection -> Async_ssl.Ssl.Certificate.t Or_error.t option
 val ssl_session_resused : ssl_connection -> bool
 val pem_peer_certificate_chain : ssl_connection -> string option
+val version : ssl_connection -> Async_ssl.Version.t
 
 (** [upgrade_server_connection] performs TLS negotiation and if it succeeds, applies [f]
     to the new encrypted channels. When the deferred returned by [f] resolves, the TLS
