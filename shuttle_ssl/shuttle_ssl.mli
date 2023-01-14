@@ -22,10 +22,10 @@ val upgrade_server_connection
   -> ?verify_modes:Async_ssl.Verify_mode.t list
   -> crt_file:string
   -> key_file:string
-  -> f:(ssl_connection -> Input_channel.t -> Output_channel.t -> 'a Deferred.t)
+  -> f:(ssl_connection -> Input_channel.t -> Output_channel.t -> unit Deferred.t)
   -> Input_channel.t
   -> Output_channel.t
-  -> 'a Deferred.t
+  -> unit Deferred.t
 
 val upgrade_client_connection
   :  ?version:Async_ssl.Version.t
@@ -39,7 +39,7 @@ val upgrade_client_connection
   -> ?key_file:string
   -> ?verify_modes:Async_ssl.Verify_mode.t list
   -> ?session:Async_ssl.Ssl.Session.t
-  -> f:(ssl_connection -> Input_channel.t -> Output_channel.t -> 'a Deferred.t)
+  -> f:(ssl_connection -> Input_channel.t -> Output_channel.t -> unit Deferred.t)
   -> Input_channel.t
   -> Output_channel.t
-  -> 'a Deferred.t
+  -> unit Deferred.t
