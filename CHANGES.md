@@ -5,6 +5,7 @@
 * Allow accessing the underlying buffer capacity for channels
 * Add helper method that creates server connections using inet sockets
 * Reliably schedule stream cleanup for all streaming server responses without forcing users to use any special functions to create the response
+* Add one-shot http client
 
 # 0.8.1
 
