@@ -72,6 +72,7 @@ module Ssl = struct
     { version : Async_ssl.Version.t option
     ; options : Async_ssl.Opt.t list option
     ; name : string option
+    ; hostname : string option
     ; allowed_ciphers : [ `Only of string list | `Openssl_default | `Secure ] option
     ; ca_file : string option
     ; ca_path : string option
@@ -87,6 +88,7 @@ module Ssl = struct
     ?version
     ?options
     ?name
+    ?hostname
     ?allowed_ciphers
     ?ca_file
     ?ca_path
@@ -103,6 +105,7 @@ module Ssl = struct
     ; allowed_ciphers
     ; ca_file
     ; ca_path
+    ; hostname
     ; crt_file
     ; key_file
     ; verify_modes
@@ -179,7 +182,7 @@ let default_ssl_verify_certificate ssl_conn hostname =
                ~certificate_hostnames:(names : string list)])
 ;;
 
-let call ?ssl host_and_port request =
+let call ?ssl where_to_connect request =
   let ivar = Ivar.create () in
   let run reader writer =
     let%bind () = write_request writer request in
@@ -210,11 +213,8 @@ let call ?ssl host_and_port request =
     in
     loop ()
   in
-  let hostname = Host_and_port.host host_and_port in
   let run () =
-    Tcp_channel.with_connection
-      (Tcp.Where_to_connect.of_host_and_port host_and_port)
-      (fun reader writer ->
+    Tcp_channel.with_connection where_to_connect (fun reader writer ->
       match ssl with
       | None -> run reader writer
       | Some ssl ->
@@ -222,7 +222,7 @@ let call ?ssl host_and_port request =
           ?version:ssl.Ssl.version
           ?options:ssl.options
           ?name:ssl.name
-          ~hostname
+          ?hostname:ssl.hostname
           ?allowed_ciphers:ssl.allowed_ciphers
           ?ca_file:ssl.ca_file
           ?ca_path:ssl.ca_path
@@ -233,7 +233,10 @@ let call ?ssl host_and_port request =
           ~f:(fun conn reader writer ->
             match
               match ssl.verify_certificate with
-              | None -> default_ssl_verify_certificate conn hostname
+              | None ->
+                (match ssl.hostname with
+                 | None -> Ok ()
+                 | Some hostname -> default_ssl_verify_certificate conn hostname)
               | Some v -> v conn
             with
             | Ok () -> run reader writer

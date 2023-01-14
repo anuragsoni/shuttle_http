@@ -8,7 +8,8 @@ let run () =
     Deferred.Or_error.ok_exn
       (Client.call
          ~ssl:(Client.Ssl.create ())
-         (Host_and_port.create ~host:"httpbin.org" ~port:443)
+         (Tcp.Where_to_connect.of_host_and_port
+            (Host_and_port.create ~host:"httpbin.org" ~port:443))
          (Request.create
             ~headers:(Headers.of_rev_list [ "Host", "httpbin.org" ])
             `GET
