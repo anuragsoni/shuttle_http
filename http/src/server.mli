@@ -2,10 +2,6 @@ open! Core
 open! Async
 open! Shuttle
 
-(** [t] represents a server connection handle. The lifecycle for the handle is the same as
-    the underlying TCP connection. *)
-type t [@@deriving sexp_of]
-
 (** [error_handler] can be used to customize how the server deals with any unhandled
     exceptions. A default implementation is provided that will respond with a status code
     and an empty response body. *)
@@ -58,13 +54,6 @@ end
 (** A user provided [service] that is invoked for every request/response cycle for a HTTP
     connection. *)
 type service = Request.t -> Response.t Deferred.t
-
-(** [closed t] returns a deferred that is resolved when the server connection handle is
-    closed. *)
-val closed : t -> unit Deferred.t
-
-(** [close] shuts down the http connection. *)
-val close : t -> unit
 
 (** [run_inet ?config addr service] runs a http server where each request will be
     forwarded to the user provided service. *)

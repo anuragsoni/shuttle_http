@@ -2,6 +2,7 @@ open! Core
 open! Async
 open! Shuttle
 open Io_util
+module Logger = Log.Make_global ()
 
 type error_handler = ?exn:Exn.t -> ?request:Request.t -> Status.t -> Response.t Deferred.t
 [@@deriving sexp_of]
@@ -229,7 +230,7 @@ let run_server_loop t handler =
   Ivar.read t.closed
 ;;
 
-let run_server config reader writer service =
+let run_server ~interrupt config reader writer service =
   let server =
     create
       ~error_handler:config.Config.error_handler
@@ -239,31 +240,56 @@ let run_server config reader writer service =
   in
   upon
     (Deferred.any_unit
-       [ Output_channel.remote_closed writer; Output_channel.close_started writer ])
+       [ Output_channel.remote_closed writer
+       ; Output_channel.close_started writer
+       ; interrupt
+       ])
     (fun () -> close server);
   run_server_loop server service
 ;;
 
 let run_inet ?(config = Config.default) addr service =
-  Tcp_channel.listen_inet
-    ~buf_len:config.buf_len
-    ?max_connections:config.max_connections
-    ?max_accepts_per_batch:config.max_accepts_per_batch
-    ?backlog:config.backlog
-    ?write_timeout:config.write_timeout
-    ~on_handler_error:`Raise
-    addr
-    (fun addr reader writer -> run_server config reader writer (service addr))
+  let interrupt = Ivar.create () in
+  let server =
+    Tcp_channel.listen_inet
+      ~buf_len:config.buf_len
+      ?max_connections:config.max_connections
+      ?max_accepts_per_batch:config.max_accepts_per_batch
+      ?backlog:config.backlog
+      ?write_timeout:config.write_timeout
+      ~on_handler_error:
+        (`Call
+          (fun _addr exn ->
+            Logger.error_s
+              [%message "Unhandled exception in Http server" ~exn:(exn : Exn.t)];
+            Ivar.fill_if_empty interrupt ()))
+      addr
+      (fun addr reader writer ->
+        run_server ~interrupt:(Ivar.read interrupt) config reader writer (service addr))
+  in
+  upon (Tcp.Server.close_finished server) (fun () -> Ivar.fill_if_empty interrupt ());
+  server
 ;;
 
 let run ?(config = Config.default) addr service =
-  Tcp_channel.listen
-    ~buf_len:config.buf_len
-    ?max_connections:config.max_connections
-    ?max_accepts_per_batch:config.max_accepts_per_batch
-    ?backlog:config.backlog
-    ?write_timeout:config.write_timeout
-    ~on_handler_error:`Raise
-    addr
-    (fun addr reader writer -> run_server config reader writer (service addr))
+  let interrupt = Ivar.create () in
+  let%map server =
+    Tcp_channel.listen
+      ~buf_len:config.buf_len
+      ?max_connections:config.max_connections
+      ?max_accepts_per_batch:config.max_accepts_per_batch
+      ?backlog:config.backlog
+      ?write_timeout:config.write_timeout
+      ~on_handler_error:
+        (`Call
+          (fun _addr exn ->
+            Logger.error_s
+              [%message "Unhandled exception in Http server" ~exn:(exn : Exn.t)];
+            Ivar.fill_if_empty interrupt ()))
+      addr
+      (fun addr reader writer ->
+        run_server ~interrupt:(Ivar.read interrupt) config reader writer (service addr))
+  in
+  upon (Tcp.Server.close_finished server) (fun () -> Ivar.fill_if_empty interrupt ());
+  server
 ;;
