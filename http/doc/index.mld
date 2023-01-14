@@ -27,7 +27,7 @@ We saw how to define services that respond with data that's entirely in memory. 
 {[
 open Shuttle_http
 
-let my_service (request : Request.t) =
+let my_service (address : Socket.Address.Inet.t) (request : Request.t) =
   let%map reader =
     (* This an example to show a stream that works with an external resource. *)
     Reader.open_file "<some file path>"
@@ -40,9 +40,8 @@ let my_service (request : Request.t) =
   Response.create ~body:(Body.of_pipe `Chunked reader_pipe) `Ok
 ;;
 
-let main reader writer =
-  let server = Server.create reader writer in
-  Server.run server (my_service server)
+let main port =
+  Server.run_inet (Tcp.Where_to_listen.of_port port) my_service
 ;;
 ]}
 

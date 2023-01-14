@@ -14,6 +14,41 @@ let default_error_handler ?exn:_ ?request:_ status =
        status)
 ;;
 
+module Config = struct
+  type t =
+    { buf_len : int
+    ; max_connections : int option
+    ; max_accepts_per_batch : int option
+    ; backlog : int option
+    ; write_timeout : Time_ns.Span.t option
+    ; read_header_timeout : Time_ns.Span.t option
+    ; error_handler : error_handler
+    }
+  [@@deriving sexp_of]
+
+  let create
+    ?(buf_len = 0x4000)
+    ?max_connections
+    ?max_accepts_per_batch
+    ?backlog
+    ?write_timeout
+    ?read_header_timeout
+    ?(error_handler = default_error_handler)
+    ()
+    =
+    { buf_len
+    ; max_connections
+    ; max_accepts_per_batch
+    ; backlog
+    ; write_timeout
+    ; read_header_timeout
+    ; error_handler
+    }
+  ;;
+
+  let default = create ~max_accepts_per_batch:64 ~backlog:128 ()
+end
+
 type service = Request.t -> Response.t Deferred.t [@@deriving sexp_of]
 
 type t =
@@ -47,10 +82,10 @@ let write_response t res =
           ~data:(Int.to_string (String.length x))
       , false )
     | Body.Stream stream ->
-      (* Schedule a close operation for the response stream, if for whatever reason the
-         remote connection is torn down before the stream was driven to completion. This
-         should ensure that any resource held by the stream will get cleaned up. *)
-      upon (Output_channel.remote_closed t.writer) (fun () -> Body.Stream.close stream);
+      (* Schedule a close operation for the response stream for whenever the server is
+         closed. This should ensure that any resource held by the stream will get cleaned
+         up. *)
+      upon (closed t) (fun () -> Body.Stream.close stream);
       (match Body.Stream.encoding stream with
        | `Chunked ->
          Headers.add_unless_exists headers ~key:"Transfer-Encoding" ~data:"chunked", true
@@ -102,20 +137,16 @@ let create
   reader
   writer
   =
-  let t =
-    { closed = Ivar.create ()
-    ; monitor = Monitor.create ()
-    ; reader
-    ; writer
-    ; error_handler
-    ; read_header_timeout
-    }
-  in
-  upon (Output_channel.remote_closed writer) (fun () -> Ivar.fill_if_empty t.closed ());
-  t
+  { closed = Ivar.create ()
+  ; monitor = Monitor.create ()
+  ; reader
+  ; writer
+  ; error_handler
+  ; read_header_timeout
+  }
 ;;
 
-let run t handler =
+let run_server_loop t handler =
   let rec parse_request t =
     let view = Input_channel.view t.reader in
     match Parser.parse_request view.buf ~pos:view.pos ~len:view.len with
@@ -196,4 +227,28 @@ let run t handler =
     if Ivar.is_empty t.closed
     then write_response t response >>> fun () -> Ivar.fill t.closed ());
   Ivar.read t.closed
+;;
+
+let run_inet ?(config = Config.default) addr service =
+  Tcp_channel.listen_inet
+    ~buf_len:config.buf_len
+    ?max_connections:config.max_connections
+    ?max_accepts_per_batch:config.max_accepts_per_batch
+    ?backlog:config.backlog
+    ?write_timeout:config.write_timeout
+    ~on_handler_error:`Raise
+    addr
+    (fun addr reader writer ->
+    let server =
+      create
+        ~error_handler:config.error_handler
+        ?read_header_timeout:config.read_header_timeout
+        reader
+        writer
+    in
+    upon
+      (Deferred.any_unit
+         [ Output_channel.remote_closed writer; Output_channel.close_started writer ])
+      (fun () -> close server);
+    run_server_loop server (service addr))
 ;;

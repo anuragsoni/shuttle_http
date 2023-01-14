@@ -213,11 +213,12 @@ and wait_and_write_everything t =
           (t : t)];
     stop_writer t Flush_result.Error
   | `Result ((`Bad_fd | `Closed) as result) ->
-    stop_writer t Flush_result.Error;
-    raise_s
+    Logger.sexp
+      ~level:`Error
       [%sexp
         "Shuttle.Output_channel: fd changed"
-        , { t : t; ready_to_result = (result : [ `Bad_fd | `Closed ]) }]
+        , { t : t; ready_to_result = (result : [ `Bad_fd | `Closed ]) }];
+    stop_writer t Flush_result.Error
 ;;
 
 let is_writing t =
@@ -288,7 +289,7 @@ let write_from_pipe t reader =
       `Ok)
   in
   let rec loop () =
-    if can_write t && is_open t
+    if can_write t && is_open t && not (Ivar.is_full t.remote_closed)
     then (
       (* use [read_now'] as [iter] doesn't allow working on chunks of values at a time. *)
       match Pipe.read_now' ~consumer reader with
@@ -304,10 +305,11 @@ let write_from_pipe t reader =
   choose
     [ choice (Ivar.read finished) (fun () -> `Finished)
     ; choice (close_finished t) (fun () -> `Closed)
+    ; choice (remote_closed t) (fun () -> `Remote_closed)
     ]
   >>| function
   | `Finished -> ()
-  | `Closed ->
+  | `Closed | `Remote_closed ->
     (* Close the pipe (both read and write ends) since the channel is closed. This is
        desirable so all future calls to [Pipe.write] fail. *)
     Pipe.close_read reader

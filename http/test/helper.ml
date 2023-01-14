@@ -24,17 +24,11 @@ let with_client port ~f =
 
 let with_server ?error_handler ?read_header_timeout handler ~f =
   let open Shuttle_http in
-  let%bind server =
-    Tcp_channel.listen
-      ~buf_len:0x4000
-      ~max_accepts_per_batch:64
-      ~on_handler_error:`Raise
+  let server =
+    Server.run_inet
+      ~config:(Server.Config.create ?error_handler ?read_header_timeout ())
       Tcp.Where_to_listen.of_port_chosen_by_os
-      (fun _addr reader writer ->
-      let server =
-        Shuttle_http.Server.create ?read_header_timeout ?error_handler reader writer
-      in
-      Server.run server handler)
+      (fun _addr -> handler)
   in
   Monitor.protect
     ~finally:(fun () -> Tcp.Server.close server)
