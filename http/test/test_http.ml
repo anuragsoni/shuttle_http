@@ -27,6 +27,27 @@ let%expect_test "Simple http endpoint" =
       [%expect {| "HTTP/1.1 200 \r\nContent-Length: 11\r\n\r\nHello World" |}]))
 ;;
 
+let%expect_test "Simple http endpoint with http client" =
+  Helper.with_server handler ~f:(fun port ->
+    let%map response =
+      Client.call
+        (Tcp.Where_to_connect.of_host_and_port
+           (Host_and_port.create ~host:"localhost" ~port))
+        (Request.create
+           ~headers:
+             (Headers.of_rev_list [ "Host", "www.example.com   "; "Connection", "close" ])
+           ~body:(Body.string "Hello")
+           `POST
+           "/hello")
+    in
+    printf !"%{sexp: Response.t Or_error.t}" response;
+    [%expect
+      {|
+    (Ok
+     ((version Http_1_1) (status Ok) (reason_phrase "")
+      (headers ((Content-Length 11))) (body (Fixed "Hello World")))) |}])
+;;
+
 let%expect_test "Test default error handler" =
   Helper.with_server handler ~f:(fun port ->
     Helper.with_client port ~f:(fun r w ->
@@ -133,4 +154,49 @@ let%expect_test "Servers will respond with a timeout if they can't parse request
         Helper.send_request_and_log_response r w test_post_req_with_fixed_body
       in
       [%expect {| "HTTP/1.1 408 \r\nConnection: close\r\nContent-Length: 0\r\n\r\n" |}]))
+;;
+
+let%expect_test "Client can send streaming bodies" =
+  Helper.with_server handler ~f:(fun port ->
+    let body =
+      Body.of_pipe
+        `Chunked
+        (Pipe.create_reader ~close_on_exception:false (fun writer ->
+           Deferred.repeat_until_finished 1 (fun count ->
+             if count > 5
+             then return (`Finished ())
+             else (
+               let%map () = Pipe.write writer (sprintf "Hello: %d " count) in
+               `Repeat (count + 1)))))
+    in
+    let%bind response =
+      Deferred.Or_error.ok_exn
+        (Client.call
+           (Tcp.Where_to_connect.of_host_and_port
+              (Host_and_port.create ~host:"localhost" ~port))
+           (Request.create ~body `POST "/echo"))
+    in
+    let%map body =
+      let buf = Buffer.create 32 in
+      let%map () =
+        Body.Stream.iter
+          (Body.to_stream (Response.body response))
+          ~f:(fun v ->
+            Buffer.add_string buf v;
+            Deferred.unit)
+      in
+      Buffer.contents buf
+    in
+    print_s
+      [%sexp
+        { status = (Response.status response : Status.t)
+        ; headers = (Response.headers response : Headers.t)
+        ; reason_phrase = (Response.reason_phrase response : string)
+        }];
+    printf "\nBody: %S" body;
+    [%expect
+      {|
+        ((status Ok) (headers ((Transfer-Encoding chunked))) (reason_phrase ""))
+
+        Body: "Hello: 1 Hello: 2 Hello: 3 Hello: 4 Hello: 5 " |}])
 ;;
