@@ -82,10 +82,10 @@ let write_response t res =
           ~data:(Int.to_string (String.length x))
       , false )
     | Body.Stream stream ->
-      (* Schedule a close operation for the response stream, if for whatever reason the
-         remote connection is torn down before the stream was driven to completion. This
-         should ensure that any resource held by the stream will get cleaned up. *)
-      upon (Output_channel.remote_closed t.writer) (fun () -> Body.Stream.close stream);
+      (* Schedule a close operation for the response stream for whenever the server is
+         closed. This should ensure that any resource held by the stream will get cleaned
+         up. *)
+      upon (closed t) (fun () -> Body.Stream.close stream);
       (match Body.Stream.encoding stream with
        | `Chunked ->
          Headers.add_unless_exists headers ~key:"Transfer-Encoding" ~data:"chunked", true
@@ -137,17 +137,13 @@ let create
   reader
   writer
   =
-  let t =
-    { closed = Ivar.create ()
-    ; monitor = Monitor.create ()
-    ; reader
-    ; writer
-    ; error_handler
-    ; read_header_timeout
-    }
-  in
-  upon (Output_channel.remote_closed writer) (fun () -> Ivar.fill_if_empty t.closed ());
-  t
+  { closed = Ivar.create ()
+  ; monitor = Monitor.create ()
+  ; reader
+  ; writer
+  ; error_handler
+  ; read_header_timeout
+  }
 ;;
 
 let run_server_loop t handler =
@@ -250,5 +246,9 @@ let run_inet ?(config = Config.default) addr service =
         reader
         writer
     in
+    upon
+      (Deferred.any_unit
+         [ Output_channel.remote_closed writer; Output_channel.close_started writer ])
+      (fun () -> close server);
     run_server_loop server (service addr))
 ;;
