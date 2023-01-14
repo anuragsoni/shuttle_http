@@ -1,4 +1,4 @@
-# next
+# 0.8.2
 
 * Forward ssl connection details to shuttle_ssl server handlers
 * Remove listen and with_connection from shuttle_ssl. Use upgrade_server_connection and upgrade_client_connection with the regular Connection module provided within Shuttle.
@@ -6,6 +6,7 @@
 * Add helper method that creates server connections using inet sockets
 * Reliably schedule stream cleanup for all streaming server responses without forcing users to use any special functions to create the response
 * Add one-shot http client
+* Setup tcp server within http server module
 
 # 0.8.1
 
