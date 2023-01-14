@@ -1,1 +1,15 @@
+build: [
+  ["dune" "subst"] {dev}
+  [
+    "dune"
+    "build"
+    "-p"
+    name
+    "-j"
+    jobs
+    "@install"
+    "@runtest" {with-test & os != "macos"}
+    "@doc" {with-doc}
+  ]
+]
 available: [ arch = "x86_64" | arch = "arm64" ]

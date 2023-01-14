@@ -50,10 +50,10 @@
 (package
  (name shuttle_http)
  (tags
-  (http-server http http1.1 async))
- (synopsis "Async library for HTTP/1.1 servers")
+  (http-server http-client http http1.1 async))
+ (synopsis "Async library for HTTP/1.1 servers and clients")
  (description
-  "Shuttle_http is a low level library for implementing HTTP/1.1 web services in OCaml.")
+  "Shuttle_http is a low level library for implementing HTTP/1.1 web services and clients in OCaml.")
  (depends
   (shuttle
    (= :version))
