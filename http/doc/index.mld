@@ -59,4 +59,5 @@ Shuttle_http.Request
 Shuttle_http.Status
 Shuttle_http.Response
 Shuttle_http.Server
+Shuttle_http.Client
 }
