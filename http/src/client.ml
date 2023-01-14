@@ -118,17 +118,32 @@ type t =
   }
 [@@deriving sexp_of]
 
-let host_matches pattern hostname =
-  let pattern_parts = String.split ~on:'.' pattern in
-  let host_parts = String.split ~on:'.' hostname in
-  match
-    List.for_all2 pattern_parts host_parts ~f:(fun pattern_part host_part ->
-      match pattern_part with
-      | "*" -> true
-      | _ -> String.equal pattern_part host_part)
-  with
-  | List.Or_unequal_lengths.Ok result -> result
-  | Unequal_lengths -> false
+let host_matches ssl_hostname hostname =
+  let ssl_hostname_parts = String.split ~on:'.' ssl_hostname in
+  match ssl_hostname_parts with
+  | [] -> false
+  | x :: xs ->
+    let wildcard_count = String.count x ~f:(fun ch -> Char.equal ch '*') in
+    if wildcard_count > 1
+    then
+      raise_s
+        [%message
+          "More than one wildcard characters in hostname part" ~hostname:ssl_hostname]
+    else if wildcard_count = 0
+    then if String.Caseless.equal ssl_hostname hostname then true else false
+    else (
+      let regex_parts_head =
+        if String.equal x "*"
+        then "[^.]+"
+        else Re2.replace_exn ~f:(fun _ -> "[^.]+") (Re2.create_exn (Re2.escape "*")) x
+      in
+      let regex_parts = "\\A" :: regex_parts_head :: List.map xs ~f:Re2.escape in
+      let pattern =
+        regex_parts
+        |> String.concat ~sep:(Re2.escape ".")
+        |> Re2.create_exn ~options:{ Re2.Options.default with case_sensitive = true }
+      in
+      Re2.matches pattern hostname)
 ;;
 
 let default_ssl_verify_certificate ssl_conn hostname =
