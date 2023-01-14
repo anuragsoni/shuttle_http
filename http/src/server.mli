@@ -66,10 +66,18 @@ val closed : t -> unit Deferred.t
 (** [close] shuts down the http connection. *)
 val close : t -> unit
 
-(** [run ?config addr service] runs a http server where each request will be forwarded to
-    the user provided service. *)
+(** [run_inet ?config addr service] runs a http server where each request will be
+    forwarded to the user provided service. *)
 val run_inet
   :  ?config:Config.t
   -> Tcp.Where_to_listen.inet
   -> (Socket.Address.Inet.t -> service)
   -> Tcp.Server.inet
+
+(** [run ?config addr service] runs a http server where each request will be forwarded to
+    the user provided service. *)
+val run
+  :  ?config:Config.t
+  -> ('address, 'listening_on) Tcp.Where_to_listen.t
+  -> ('address -> service)
+  -> ('address, 'listening_on) Tcp.Server.t Deferred.t

@@ -229,6 +229,21 @@ let run_server_loop t handler =
   Ivar.read t.closed
 ;;
 
+let run_server config reader writer service =
+  let server =
+    create
+      ~error_handler:config.Config.error_handler
+      ?read_header_timeout:config.read_header_timeout
+      reader
+      writer
+  in
+  upon
+    (Deferred.any_unit
+       [ Output_channel.remote_closed writer; Output_channel.close_started writer ])
+    (fun () -> close server);
+  run_server_loop server service
+;;
+
 let run_inet ?(config = Config.default) addr service =
   Tcp_channel.listen_inet
     ~buf_len:config.buf_len
@@ -238,17 +253,17 @@ let run_inet ?(config = Config.default) addr service =
     ?write_timeout:config.write_timeout
     ~on_handler_error:`Raise
     addr
-    (fun addr reader writer ->
-    let server =
-      create
-        ~error_handler:config.error_handler
-        ?read_header_timeout:config.read_header_timeout
-        reader
-        writer
-    in
-    upon
-      (Deferred.any_unit
-         [ Output_channel.remote_closed writer; Output_channel.close_started writer ])
-      (fun () -> close server);
-    run_server_loop server (service addr))
+    (fun addr reader writer -> run_server config reader writer (service addr))
+;;
+
+let run ?(config = Config.default) addr service =
+  Tcp_channel.listen
+    ~buf_len:config.buf_len
+    ?max_connections:config.max_connections
+    ?max_accepts_per_batch:config.max_accepts_per_batch
+    ?backlog:config.backlog
+    ?write_timeout:config.write_timeout
+    ~on_handler_error:`Raise
+    addr
+    (fun addr reader writer -> run_server config reader writer (service addr))
 ;;
