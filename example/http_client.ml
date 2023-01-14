@@ -2,14 +2,18 @@ open! Core
 open! Async
 open Shuttle_http
 
+let httpbin : Request.t -> Response.t Deferred.Or_error.t =
+  Client.call
+    ~ssl:(Client.Ssl.create ~hostname:"httpbin.org" ())
+    (Tcp.Where_to_connect.of_host_and_port
+       (Host_and_port.create ~host:"httpbin.org" ~port:443))
+;;
+
 let run () =
   let stdout = Lazy.force Writer.stdout in
   let%bind response =
     Deferred.Or_error.ok_exn
-      (Client.call
-         ~ssl:(Client.Ssl.create ())
-         (Tcp.Where_to_connect.of_host_and_port
-            (Host_and_port.create ~host:"httpbin.org" ~port:443))
+      (httpbin
          (Request.create
             ~headers:(Headers.of_rev_list [ "Host", "httpbin.org" ])
             `GET
