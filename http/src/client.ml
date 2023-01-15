@@ -182,7 +182,7 @@ let default_ssl_verify_certificate ssl_conn hostname =
                ~certificate_hostnames:(names : string list)])
 ;;
 
-let call ?ssl where_to_connect request =
+let call ?interrupt ?connect_timeout ?ssl where_to_connect request =
   let ivar = Ivar.create () in
   let run reader writer =
     let%bind () = write_request writer request in
@@ -214,7 +214,11 @@ let call ?ssl where_to_connect request =
     loop ()
   in
   let run () =
-    Tcp_channel.with_connection where_to_connect (fun reader writer ->
+    Tcp_channel.with_connection
+      ?interrupt
+      ?connect_timeout
+      where_to_connect
+      (fun reader writer ->
       match ssl with
       | None -> run reader writer
       | Some ssl ->

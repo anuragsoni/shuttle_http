@@ -30,7 +30,9 @@ end
     users can provide their own implementation of [verify_certificate] when creating the
     {{!Shuttle_http.Client.Ssl.t} ssl} options. *)
 val call
-  :  ?ssl:Ssl.t
+  :  ?interrupt:unit Deferred.t
+  -> ?connect_timeout:Time.Span.t
+  -> ?ssl:Ssl.t
   -> 'address Tcp.Where_to_connect.t
   -> Request.t
   -> Response.t Deferred.Or_error.t
