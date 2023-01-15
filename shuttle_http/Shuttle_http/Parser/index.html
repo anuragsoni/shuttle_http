@@ -3,7 +3,11 @@
   <span>?pos:int <span class="arrow">&#45;&gt;</span></span>
   <span>?len:int <span class="arrow">&#45;&gt;</span></span>
   <span><span class="xref-unresolved">Core</span>.Bigstring.t <span class="arrow">&#45;&gt;</span></span>
-  <span><span>(<a href="../Request/index.html#type-t">Request.t</a> * int, <a href="#type-error">error</a>)</span> <span class="xref-unresolved">Core</span>.result</span></span></code></div><div class="spec-doc"><p>Attempts to parse a buffer into a HTTP request. If successful, it returns the parsed request and an offset value that indicates the starting point of unconsumed content left in the buffer.</p></div></div><div class="odoc-spec"><div class="spec value anchored" id="val-parse_chunk_length"><a href="#val-parse_chunk_length" class="anchor"></a><code><span><span class="keyword">val</span> parse_chunk_length : 
+  <span><span>(<a href="../Request/index.html#type-t">Request.t</a> * int, <a href="#type-error">error</a>)</span> <span class="xref-unresolved">Core</span>.result</span></span></code></div><div class="spec-doc"><p>Attempts to parse a buffer into a HTTP request. If successful, it returns the parsed request and an offset value that indicates the starting point of unconsumed content left in the buffer.</p></div></div><div class="odoc-spec"><div class="spec value anchored" id="val-parse_response"><a href="#val-parse_response" class="anchor"></a><code><span><span class="keyword">val</span> parse_response : 
+  <span>?pos:int <span class="arrow">&#45;&gt;</span></span>
+  <span>?len:int <span class="arrow">&#45;&gt;</span></span>
+  <span><span class="xref-unresolved">Core</span>.Bigstring.t <span class="arrow">&#45;&gt;</span></span>
+  <span><span>(<a href="../Response/index.html#type-t">Response.t</a> * int, <a href="#type-error">error</a>)</span> <span class="xref-unresolved">Core</span>.result</span></span></code></div></div><div class="odoc-spec"><div class="spec value anchored" id="val-parse_chunk_length"><a href="#val-parse_chunk_length" class="anchor"></a><code><span><span class="keyword">val</span> parse_chunk_length : 
   <span>?pos:int <span class="arrow">&#45;&gt;</span></span>
   <span>?len:int <span class="arrow">&#45;&gt;</span></span>
   <span><span class="xref-unresolved">Core</span>.Bigstring.t <span class="arrow">&#45;&gt;</span></span>
