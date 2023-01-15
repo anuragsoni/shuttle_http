@@ -2,7 +2,7 @@
 
 Shuttle_http is a low level library for implementing HTTP/1.1 web services in OCaml using the {{: https://opensource.janestreet.com/async/} Async} library for lightweight concurrency. It allows defining services as simple OCaml {{!Shuttle_http.Server.service} functions}, and supports streaming bodies to allow working with large bodies incrementally.
 
-It supports error reporting using {{!Shuttle_http.Server.error_handler} error handlers} and provides a default implementation that responds with the error status code and an empty response body. Users can provide their own error handler implementation when creating a {{!Shuttle_http.Server.create} server handle}. The library however only considers unhandled exceptions, and errors encountered while parsing the wire payload as use-cases that invoke the error handler. The expectation is that application specific errors will be dealt with by the user within their service definition.
+It supports error reporting using {{!Shuttle_http.Server.error_handler} error handlers} and provides a default implementation that responds with the error status code and an empty response body. Users can provide their own error handler implementation when setting up a {{!Shuttle_http.Server.Config.create} server config}. The library however only considers unhandled exceptions, and errors encountered while parsing the wire payload as use-cases that invoke the error handler. The expectation is that application specific errors will be dealt with by the user within their service definition.
 
 {1 Tutorial}
 
