@@ -1,4 +1,4 @@
-# 0.8.2
+# 0.9.0
 
 * Forward ssl connection details to shuttle_ssl server handlers
 * Remove listen and with_connection from shuttle_ssl. Use upgrade_server_connection and upgrade_client_connection with the regular Connection module provided within Shuttle.
