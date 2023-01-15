@@ -57,6 +57,8 @@
  (depends
   (shuttle
    (= :version))
+  (shuttle_ssl
+   (= :version))
   (re2
    (>= v0.15.0))
   (ppx_jane :with-test)
