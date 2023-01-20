@@ -7,6 +7,12 @@ let handler request =
   match Request.path request with
   | "/error" -> failwith "ERROR"
   | "/echo" -> return (Response.create ~body:(Request.body request) `Ok)
+  | "/no-keep-alive" ->
+    return
+      (Response.create
+         ~headers:(Headers.of_list [ "Connection", "close" ])
+         ~body:(Body.string "This connection will be closed")
+         `Ok)
   | _ -> return (Response.create ~body:(Body.string "Hello World") `Ok)
 ;;
 
@@ -258,7 +264,12 @@ let%expect_test "Keep-alives in clients" =
 let ensure_aborted fn =
   Monitor.try_with fn
   >>= function
-  | Ok _ -> assert false
+  | Ok response ->
+    failwithf
+      !"Expected request to be aborted, but received a response instead: %{sexp: \
+        Response.t}"
+      response
+      ()
   | Error exn ->
     (match Monitor.extract_exn exn with
      | Client.Request_aborted -> return "Request aborted"
@@ -304,6 +315,111 @@ let%expect_test "No requests can be sent if a client is closed" =
 
     Body: "Hello World" |}];
         Client.close client;
+        let%map msg =
+          ensure_aborted (fun () ->
+            Client.call
+              client
+              (Request.create ~body:(Body.string "This is a body") `POST "/echo"))
+        in
+        printf "%s" msg;
+        [%expect {| Request aborted |}]))
+;;
+
+let%expect_test "Clients are automatically closed if Connection:close header is present \
+                 in request"
+  =
+  Helper.with_server handler ~f:(fun port ->
+    let%bind client =
+      Deferred.Or_error.ok_exn
+        (Client.create
+           (Client.Address.of_host_and_port
+              (Host_and_port.create ~host:"localhost" ~port)))
+    in
+    let body_to_string response =
+      let buf = Buffer.create 32 in
+      let%map () =
+        Body.Stream.iter
+          (Body.to_stream (Response.body response))
+          ~f:(fun v ->
+            Buffer.add_string buf v;
+            Deferred.unit)
+      in
+      Buffer.contents buf
+    in
+    Monitor.protect
+      ~finally:(fun () ->
+        Client.close client;
+        Client.closed client)
+      (fun () ->
+        let%bind response =
+          Client.call
+            client
+            (Request.create ~headers:(Headers.of_list [ "Connection", "close" ]) `GET "/")
+        in
+        print_s
+          [%sexp
+            { status = (Response.status response : Status.t)
+            ; headers = (Response.headers response : Headers.t)
+            ; reason_phrase = (Response.reason_phrase response : string)
+            }];
+        let%bind body = body_to_string response in
+        printf "\nBody: %S" body;
+        [%expect
+          {|
+    ((status Ok) (headers ((Content-Length 11))) (reason_phrase ""))
+
+    Body: "Hello World" |}];
+        let%map msg =
+          ensure_aborted (fun () ->
+            Client.call
+              client
+              (Request.create ~body:(Body.string "This is a body") `POST "/echo"))
+        in
+        printf "%s" msg;
+        [%expect {| Request aborted |}]))
+;;
+
+let%expect_test "Clients are automatically closed if Connection:close header is present \
+                 in response"
+  =
+  Helper.with_server handler ~f:(fun port ->
+    let%bind client =
+      Deferred.Or_error.ok_exn
+        (Client.create
+           (Client.Address.of_host_and_port
+              (Host_and_port.create ~host:"localhost" ~port)))
+    in
+    let body_to_string response =
+      let buf = Buffer.create 32 in
+      let%map () =
+        Body.Stream.iter
+          (Body.to_stream (Response.body response))
+          ~f:(fun v ->
+            Buffer.add_string buf v;
+            Deferred.unit)
+      in
+      Buffer.contents buf
+    in
+    Monitor.protect
+      ~finally:(fun () ->
+        Client.close client;
+        Client.closed client)
+      (fun () ->
+        let%bind response = Client.call client (Request.create `GET "/no-keep-alive") in
+        print_s
+          [%sexp
+            { status = (Response.status response : Status.t)
+            ; headers = (Response.headers response : Headers.t)
+            ; reason_phrase = (Response.reason_phrase response : string)
+            }];
+        let%bind body = body_to_string response in
+        printf "\nBody: %S" body;
+        [%expect
+          {|
+    ((status Ok) (headers ((Content-Length 30) (Connection close)))
+     (reason_phrase ""))
+
+    Body: "This connection will be closed" |}];
         let%map msg =
           ensure_aborted (fun () ->
             Client.call
