@@ -11,38 +11,41 @@ let run () =
          (Client.Address.of_host_and_port
             (Host_and_port.create ~host:"httpbin.org" ~port:443)))
   in
-  let%bind response =
-    let%map res, duration =
-      Clock_ns.duration_of (fun () ->
-        Client.call httpbin (Request.create `GET "/stream/20"))
-    in
-    Log.Global.info !"Duration of request A: %{sexp: Time_ns.Span.t}" duration;
-    res
-  in
-  Log.Global.info !"Headers: %{sexp: Headers.t}" (Response.headers response);
-  let%bind () =
-    Body.Stream.iter
-      (Body.to_stream (Response.body response))
-      ~f:(fun chunk ->
-        Writer.write stdout chunk;
-        Writer.flushed stdout)
-  in
-  let%bind response =
-    let%map res, duration =
-      Clock_ns.duration_of (fun () -> Client.call httpbin (Request.create `GET "/get"))
-    in
-    Log.Global.info !"Duration of request B: %{sexp: Time_ns.Span.t}" duration;
-    res
-  in
-  Log.Global.info !"Headers: %{sexp: Headers.t}" (Response.headers response);
-  let%map () =
-    Body.Stream.iter
-      (Body.to_stream (Response.body response))
-      ~f:(fun chunk ->
-        Writer.write stdout chunk;
-        Writer.flushed stdout)
-  in
-  Client.close httpbin
+  Monitor.protect
+    ~finally:(fun () ->
+      Client.close httpbin;
+      Client.closed httpbin)
+    (fun () ->
+      let%bind response =
+        let%map res, duration =
+          Clock_ns.duration_of (fun () ->
+            Client.call httpbin (Request.create `GET "/stream/20"))
+        in
+        Log.Global.info !"Duration of request A: %{sexp: Time_ns.Span.t}" duration;
+        res
+      in
+      Log.Global.info !"Headers: %{sexp: Headers.t}" (Response.headers response);
+      let%bind () =
+        Body.Stream.iter
+          (Body.to_stream (Response.body response))
+          ~f:(fun chunk ->
+            Writer.write stdout chunk;
+            Writer.flushed stdout)
+      in
+      let%bind response =
+        let%map res, duration =
+          Clock_ns.duration_of (fun () ->
+            Client.call httpbin (Request.create `GET "/get"))
+        in
+        Log.Global.info !"Duration of request B: %{sexp: Time_ns.Span.t}" duration;
+        res
+      in
+      Log.Global.info !"Headers: %{sexp: Headers.t}" (Response.headers response);
+      Body.Stream.iter
+        (Body.to_stream (Response.body response))
+        ~f:(fun chunk ->
+          Writer.write stdout chunk;
+          Writer.flushed stdout))
 ;;
 
 let () =
