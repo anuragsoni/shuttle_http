@@ -11,6 +11,11 @@ module Address = struct
 
   let of_host_and_port host_and_port = Host_and_port host_and_port
   let of_unix_domain_socket file = Unix_domain file
+
+  let hostname = function
+    | Host_and_port host_and_port -> Some (Host_and_port.host host_and_port)
+    | _ -> None
+  ;;
 end
 
 let write_request writer request =
@@ -186,35 +191,51 @@ let default_ssl_verify_certificate ssl_conn hostname =
                ~certificate_hostnames:(names : string list)])
 ;;
 
+exception Remote_connection_closed
+exception Request_aborted
+
 module Connection = struct
-  type t =
+  type conn =
     { reader : Input_channel.t
     ; writer : Output_channel.t
-    ; mutable is_closed : bool
+    ; address : Address.t
     }
   [@@deriving sexp_of]
 
-  let is_closed t = t.is_closed
+  type t = conn Sequencer.t [@@deriving sexp_of]
 
-  let close t =
-    if not (is_closed t)
-    then
-      Output_channel.close t.writer
-      >>> fun () -> Input_channel.close t.reader >>> fun () -> t.is_closed <- true
-  ;;
+  let close t = Throttle.kill t
+  let is_closed t = Throttle.is_dead t
+  let closed t = Throttle.cleaned t
 
-  let closed t =
-    Deferred.all_unit
-      [ Input_channel.closed t.reader; Output_channel.close_finished t.writer ]
-  ;;
-
-  let create ?ssl ?connect_timeout ?interrupt where_to_connect =
+  let create ?ssl ?connect_timeout ?interrupt address =
     let%bind reader, writer =
-      Tcp_channel.connect ?connect_timeout ?interrupt where_to_connect
+      match address with
+      | Address.Host_and_port host_and_port ->
+        Tcp_channel.connect
+          ?connect_timeout
+          ?interrupt
+          (Tcp.Where_to_connect.of_host_and_port host_and_port)
+      | Address.Unix_domain file ->
+        Tcp_channel.connect
+          ?connect_timeout
+          ?interrupt
+          (Tcp.Where_to_connect.of_file file)
     in
     match ssl with
-    | None -> Deferred.Or_error.return { reader; writer; is_closed = false }
+    | None ->
+      let conn = { reader; writer; address } in
+      let t = Sequencer.create conn in
+      Throttle.at_kill t (fun conn ->
+        let%bind () = Output_channel.close conn.writer in
+        Input_channel.close conn.reader);
+      Deferred.Or_error.return t
     | Some ssl ->
+      let ssl =
+        match ssl.Ssl.hostname with
+        | Some _ -> ssl
+        | None -> { ssl with hostname = Address.hostname address }
+      in
       Deferred.Or_error.try_with_join ~run:`Now (fun () ->
         let ivar = Ivar.create () in
         don't_wait_for
@@ -246,82 +267,81 @@ module Connection = struct
                Ivar.fill ivar (Error err);
                Deferred.unit
              | Ok () ->
-               let conn = { reader; writer; is_closed = false } in
-               Ivar.fill ivar (Ok conn);
-               closed conn));
+               let conn = { reader; writer; address } in
+               let t = Sequencer.create conn in
+               Throttle.at_kill t (fun conn ->
+                 let%bind () = Output_channel.close conn.writer in
+                 Input_channel.close conn.reader);
+               Ivar.fill ivar (Ok t);
+               closed t));
         Ivar.read ivar)
   ;;
 
   let call t request =
-    Deferred.Or_error.try_with_join ~run:`Now (fun () ->
-      let%bind () = write_request t.writer request in
-      Deferred.repeat_until_finished () (fun () ->
-        let view = Input_channel.view t.reader in
-        match Parser.parse_response view.buf ~pos:view.pos ~len:view.len with
-        | Error Partial ->
-          (match%map Input_channel.refill t.reader with
-           | `Eof -> `Finished (Or_error.errorf "Unexpected EOF while reading")
-           | `Ok -> `Repeat ())
-        | Error (Fail error) -> return (`Finished (Error error))
-        | Ok (response, consumed) ->
-          Input_channel.consume t.reader consumed;
-          (match parse_body t.reader (Response.headers response) with
-           | Error _ as error -> return (`Finished error)
-           | Ok body ->
-             let response = Response.with_body response body in
-             return (`Finished (Ok response)))))
+    let ivar = Ivar.create () in
+    don't_wait_for
+      (Throttle.enqueue' t (fun conn ->
+         let request =
+           match conn.address with
+           | Address.Host_and_port host_and_port ->
+             request
+             |> Request.headers
+             |> Headers.add_unless_exists
+                  ~key:"Host"
+                  ~data:(Host_and_port.host host_and_port)
+             |> Request.with_headers request
+           | Unix_domain _ -> request
+         in
+         let%bind () = write_request conn.writer request in
+         Deferred.repeat_until_finished () (fun () ->
+           let view = Input_channel.view conn.reader in
+           match Parser.parse_response view.buf ~pos:view.pos ~len:view.len with
+           | Error Partial ->
+             (match%map Input_channel.refill conn.reader with
+              | `Eof -> raise Remote_connection_closed
+              | `Ok -> `Repeat ())
+           | Error (Fail error) -> Error.raise error
+           | Ok (response, consumed) ->
+             Input_channel.consume conn.reader consumed;
+             (match parse_body conn.reader (Response.headers response) with
+              | Error error -> Error.raise error
+              | Ok body ->
+                let response = Response.with_body response body in
+                if not
+                     (keep_alive (Response.headers response)
+                     && keep_alive (Request.headers request))
+                then close t;
+                Ivar.fill ivar response;
+                (match Response.body response with
+                 | Body.Fixed _ | Body.Empty -> return (`Finished ())
+                 | Body.Stream stream ->
+                   let%map () = Body.Stream.closed stream in
+                   `Finished ()))))
+      >>| function
+      | `Ok () -> ()
+      | `Raised exn -> raise exn
+      | `Aborted -> raise Request_aborted);
+    Ivar.read ivar
   ;;
 end
 
+type t = Connection.t [@@deriving sexp_of]
+
+let create ?interrupt ?connect_timeout ?ssl address =
+  Connection.create ?interrupt ?connect_timeout ?ssl address
+;;
+
+let close t = Connection.close t
+let closed t = Connection.closed t
+let is_closed t = Connection.is_closed t
+let call t request = Connection.call t request
+
 module Oneshot = struct
   let call ?interrupt ?connect_timeout ?ssl address request =
-    let request, ssl =
-      match address with
-      | Address.Host_and_port host_and_port ->
-        let request =
-          request
-          |> Request.headers
-          |> Headers.add_unless_exists
-               ~key:"Host"
-               ~data:(Host_and_port.host host_and_port)
-          |> Headers.add_unless_exists ~key:"Connection" ~data:"close"
-          |> Request.with_headers request
-        in
-        let ssl =
-          Option.map ssl ~f:(fun ssl ->
-            match ssl.Ssl.hostname with
-            | None -> { ssl with hostname = Some (Host_and_port.host host_and_port) }
-            | Some _ -> ssl)
-        in
-        request, ssl
-      | Unix_domain _ -> request, ssl
+    let%bind conn =
+      Deferred.Or_error.ok_exn
+        (Connection.create ?ssl ?connect_timeout ?interrupt address)
     in
-    let%bind.Deferred.Or_error conn =
-      match address with
-      | Address.Host_and_port host_and_port ->
-        Connection.create
-          ?connect_timeout
-          ?ssl
-          ?interrupt
-          (Tcp.Where_to_connect.of_host_and_port host_and_port)
-      | Unix_domain file ->
-        Connection.create
-          ?connect_timeout
-          ?ssl
-          ?interrupt
-          (Tcp.Where_to_connect.of_file file)
-    in
-    match%bind Connection.call conn request with
-    | Error error ->
-      Connection.close conn;
-      Deferred.Or_error.fail error
-    | Ok response ->
-      (match Response.body response with
-       | Body.Fixed _ | Body.Empty ->
-         Connection.close conn;
-         Deferred.Or_error.return response
-       | Body.Stream stream ->
-         upon (Body.Stream.closed stream) (fun () -> Connection.close conn);
-         Deferred.Or_error.return response)
+    Connection.call conn request
   ;;
 end

@@ -1,3 +1,7 @@
+# next
+
+* Add client that supports keep-alive.
+
 # 0.9.0
 
 * Forward ssl connection details to shuttle_ssl server handlers
