@@ -196,3 +196,120 @@ let%expect_test "Client can send streaming bodies" =
 
         Body: "Hello: 1 Hello: 2 Hello: 3 Hello: 4 Hello: 5 " |}])
 ;;
+
+let%expect_test "Keep-alives in clients" =
+  Helper.with_server handler ~f:(fun port ->
+    let%bind client =
+      Deferred.Or_error.ok_exn
+        (Client.create
+           (Client.Address.of_host_and_port
+              (Host_and_port.create ~host:"localhost" ~port)))
+    in
+    let body_to_string response =
+      let buf = Buffer.create 32 in
+      let%map () =
+        Body.Stream.iter
+          (Body.to_stream (Response.body response))
+          ~f:(fun v ->
+            Buffer.add_string buf v;
+            Deferred.unit)
+      in
+      Buffer.contents buf
+    in
+    Monitor.protect
+      ~finally:(fun () ->
+        Client.close client;
+        Client.closed client)
+      (fun () ->
+        let%bind response = Client.call client (Request.create `GET "/") in
+        print_s
+          [%sexp
+            { status = (Response.status response : Status.t)
+            ; headers = (Response.headers response : Headers.t)
+            ; reason_phrase = (Response.reason_phrase response : string)
+            }];
+        let%bind body = body_to_string response in
+        printf "\nBody: %S" body;
+        [%expect
+          {|
+    ((status Ok) (headers ((Content-Length 11))) (reason_phrase ""))
+
+    Body: "Hello World" |}];
+        let%bind response =
+          Client.call
+            client
+            (Request.create ~body:(Body.string "This is a body") `POST "/echo")
+        in
+        print_s
+          [%sexp
+            { status = (Response.status response : Status.t)
+            ; headers = (Response.headers response : Headers.t)
+            ; reason_phrase = (Response.reason_phrase response : string)
+            }];
+        let%map body = body_to_string response in
+        printf "\nBody: %S" body;
+        [%expect
+          {|
+    ((status Ok) (headers ((Content-Length 14))) (reason_phrase ""))
+
+    Body: "This is a body" |}]))
+;;
+
+let ensure_aborted fn =
+  Monitor.try_with fn
+  >>= function
+  | Ok _ -> assert false
+  | Error exn ->
+    (match Monitor.extract_exn exn with
+     | Client.Request_aborted -> return "Request aborted"
+     | exn -> raise exn)
+;;
+
+let%expect_test "No requests can be sent if a client is closed" =
+  Helper.with_server handler ~f:(fun port ->
+    let%bind client =
+      Deferred.Or_error.ok_exn
+        (Client.create
+           (Client.Address.of_host_and_port
+              (Host_and_port.create ~host:"localhost" ~port)))
+    in
+    let body_to_string response =
+      let buf = Buffer.create 32 in
+      let%map () =
+        Body.Stream.iter
+          (Body.to_stream (Response.body response))
+          ~f:(fun v ->
+            Buffer.add_string buf v;
+            Deferred.unit)
+      in
+      Buffer.contents buf
+    in
+    Monitor.protect
+      ~finally:(fun () ->
+        Client.close client;
+        Client.closed client)
+      (fun () ->
+        let%bind response = Client.call client (Request.create `GET "/") in
+        print_s
+          [%sexp
+            { status = (Response.status response : Status.t)
+            ; headers = (Response.headers response : Headers.t)
+            ; reason_phrase = (Response.reason_phrase response : string)
+            }];
+        let%bind body = body_to_string response in
+        printf "\nBody: %S" body;
+        [%expect
+          {|
+    ((status Ok) (headers ((Content-Length 11))) (reason_phrase ""))
+
+    Body: "Hello World" |}];
+        Client.close client;
+        let%map msg =
+          ensure_aborted (fun () ->
+            Client.call
+              client
+              (Request.create ~body:(Body.string "This is a body") `POST "/echo"))
+        in
+        printf "%s" msg;
+        [%expect {| Request aborted |}]))
+;;
