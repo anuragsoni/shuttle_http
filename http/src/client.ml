@@ -192,6 +192,7 @@ let default_ssl_verify_certificate ssl_conn hostname =
 ;;
 
 exception Remote_connection_closed
+exception Request_aborted
 
 module Connection = struct
   type conn =
@@ -319,7 +320,7 @@ module Connection = struct
       >>| function
       | `Ok () -> ()
       | `Raised exn -> raise exn
-      | `Aborted -> raise Remote_connection_closed);
+      | `Aborted -> raise Request_aborted);
     Ivar.read ivar
   ;;
 end

@@ -35,11 +35,14 @@ let run () =
     res
   in
   Log.Global.info !"Headers: %{sexp: Headers.t}" (Response.headers response);
-  Body.Stream.iter
-    (Body.to_stream (Response.body response))
-    ~f:(fun chunk ->
-      Writer.write stdout chunk;
-      Writer.flushed stdout)
+  let%map () =
+    Body.Stream.iter
+      (Body.to_stream (Response.body response))
+      ~f:(fun chunk ->
+        Writer.write stdout chunk;
+        Writer.flushed stdout)
+  in
+  Client.close httpbin
 ;;
 
 let () =
