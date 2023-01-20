@@ -284,6 +284,7 @@ module Oneshot = struct
           |> Headers.add_unless_exists
                ~key:"Host"
                ~data:(Host_and_port.host host_and_port)
+          |> Headers.add_unless_exists ~key:"Connection" ~data:"close"
           |> Request.with_headers request
         in
         let ssl =
