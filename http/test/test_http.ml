@@ -39,7 +39,7 @@ let%expect_test "Simple http endpoint with http client" =
            `POST
            "/hello")
     in
-    printf !"%{sexp: Response.t Or_error.t}" response;
+    printf !"%{sexp: Response.t}" response;
     [%expect
       {|
     (Ok
@@ -169,11 +169,9 @@ let%expect_test "Client can send streaming bodies" =
                `Repeat (count + 1)))))
     in
     let%bind response =
-      Deferred.Or_error.ok_exn
-        (Client.Oneshot.call
-           (Client.Address.of_host_and_port
-              (Host_and_port.create ~host:"localhost" ~port))
-           (Request.create ~body `POST "/echo"))
+      Client.Oneshot.call
+        (Client.Address.of_host_and_port (Host_and_port.create ~host:"localhost" ~port))
+        (Request.create ~body `POST "/echo")
     in
     let%map body =
       let buf = Buffer.create 32 in

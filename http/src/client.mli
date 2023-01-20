@@ -29,6 +29,20 @@ module Ssl : sig
     -> t
 end
 
+type t [@@deriving sexp_of]
+
+val create
+  :  ?interrupt:unit Deferred.t
+  -> ?connect_timeout:Time.Span.t
+  -> ?ssl:Ssl.t
+  -> Address.t
+  -> t Deferred.Or_error.t
+
+val call : t -> Request.t -> Response.t Deferred.t
+val is_closed : t -> bool
+val closed : t -> unit Deferred.t
+val close : t -> unit
+
 module Oneshot : sig
   (** [call] Performs a one-shot http client call to the user provided connection target.
       If ssl options are provided the client will attempt to setup a SSL connection. If
@@ -43,5 +57,5 @@ module Oneshot : sig
     -> ?ssl:Ssl.t
     -> Address.t
     -> Request.t
-    -> Response.t Deferred.Or_error.t
+    -> Response.t Deferred.t
 end
