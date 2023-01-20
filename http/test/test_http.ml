@@ -42,9 +42,8 @@ let%expect_test "Simple http endpoint with http client" =
     printf !"%{sexp: Response.t}" response;
     [%expect
       {|
-    (Ok
-     ((version Http_1_1) (status Ok) (reason_phrase "")
-      (headers ((Content-Length 11))) (body (Fixed "Hello World")))) |}])
+    ((version Http_1_1) (status Ok) (reason_phrase "")
+     (headers ((Content-Length 11))) (body (Fixed "Hello World"))) |}])
 ;;
 
 let%expect_test "Test default error handler" =
