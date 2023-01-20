@@ -3,7 +3,7 @@ open! Async
 open Shuttle_http
 
 let httpbin : Request.t -> Response.t Deferred.Or_error.t =
-  Client.call
+  Client.Oneshot.call
     ~ssl:(Client.Ssl.create ~hostname:"httpbin.org" ())
     (Tcp.Where_to_connect.of_host_and_port
        (Host_and_port.create ~host:"httpbin.org" ~port:443))

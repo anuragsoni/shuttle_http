@@ -30,7 +30,7 @@ let%expect_test "Simple http endpoint" =
 let%expect_test "Simple http endpoint with http client" =
   Helper.with_server handler ~f:(fun port ->
     let%map response =
-      Client.call
+      Client.Oneshot.call
         (Tcp.Where_to_connect.of_host_and_port
            (Host_and_port.create ~host:"localhost" ~port))
         (Request.create
@@ -171,7 +171,7 @@ let%expect_test "Client can send streaming bodies" =
     in
     let%bind response =
       Deferred.Or_error.ok_exn
-        (Client.call
+        (Client.Oneshot.call
            (Tcp.Where_to_connect.of_host_and_port
               (Host_and_port.create ~host:"localhost" ~port))
            (Request.create ~body `POST "/echo"))

@@ -22,17 +22,19 @@ module Ssl : sig
     -> t
 end
 
-(** [call] Performs a one-shot http client call to the user provided connection target. If
-    ssl options are provided the client will attempt to setup a SSL connection. If ssl
-    options contain a hostname then the client will perform hostname verification to
-    ensure the hostnames on the peer's ssl certificate matches the hostname provided by
-    the caller. To disable this check or to customize how the ssl certificate is validated
-    users can provide their own implementation of [verify_certificate] when creating the
-    {{!Shuttle_http.Client.Ssl.t} ssl} options. *)
-val call
-  :  ?interrupt:unit Deferred.t
-  -> ?connect_timeout:Time.Span.t
-  -> ?ssl:Ssl.t
-  -> 'address Tcp.Where_to_connect.t
-  -> Request.t
-  -> Response.t Deferred.Or_error.t
+module Oneshot : sig
+  (** [call] Performs a one-shot http client call to the user provided connection target.
+      If ssl options are provided the client will attempt to setup a SSL connection. If
+      ssl options contain a hostname then the client will perform hostname verification to
+      ensure the hostnames on the peer's ssl certificate matches the hostname provided by
+      the caller. To disable this check or to customize how the ssl certificate is
+      validated users can provide their own implementation of [verify_certificate] when
+      creating the {{!Shuttle_http.Client.Ssl.t} ssl} options. *)
+  val call
+    :  ?interrupt:unit Deferred.t
+    -> ?connect_timeout:Time.Span.t
+    -> ?ssl:Ssl.t
+    -> 'address Tcp.Where_to_connect.t
+    -> Request.t
+    -> Response.t Deferred.Or_error.t
+end

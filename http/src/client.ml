@@ -1,6 +1,6 @@
-open! Core
-open! Async
-open! Shuttle
+open Core
+open Async
+open Shuttle
 open Io_util
 
 let write_request writer request =
@@ -115,12 +115,6 @@ module Ssl = struct
   ;;
 end
 
-type t =
-  { host_and_port : Host_and_port.t
-  ; ssl : Ssl.t option
-  }
-[@@deriving sexp_of]
-
 let host_matches ssl_hostname hostname =
   let ssl_hostname_parts = String.split ~on:'.' ssl_hostname in
   match ssl_hostname_parts with
@@ -182,78 +176,109 @@ let default_ssl_verify_certificate ssl_conn hostname =
                ~certificate_hostnames:(names : string list)])
 ;;
 
-let call ?interrupt ?connect_timeout ?ssl where_to_connect request =
-  let ivar = Ivar.create () in
-  let run reader writer =
-    let%bind () = write_request writer request in
-    let rec loop () =
-      let view = Input_channel.view reader in
-      match Parser.parse_response view.buf ~pos:view.pos ~len:view.len with
-      | Ok (response, consumed) ->
-        Input_channel.consume reader consumed;
-        (match parse_body reader (Response.headers response) with
-         | Error error ->
-           Ivar.fill ivar (Error error);
-           Deferred.unit
-         | Ok body ->
-           let response = Response.with_body response body in
-           Ivar.fill ivar (Ok response);
-           (match body with
-            | Body.Empty | Body.Fixed _ -> Deferred.unit
-            | Body.Stream stream -> Body.Stream.closed stream))
-      | Error (Fail error) ->
-        Ivar.fill ivar (Error error);
-        Deferred.unit
-      | Error Partial ->
-        (match%bind Input_channel.refill reader with
-         | `Ok -> loop ()
-         | `Eof ->
-           Ivar.fill ivar (Or_error.errorf "Unexpected EOF while reading response");
-           Deferred.unit)
+module Connection = struct
+  type t =
+    { reader : Input_channel.t
+    ; writer : Output_channel.t
+    ; mutable is_closed : bool
+    }
+  [@@deriving sexp_of]
+
+  let is_closed t = t.is_closed
+
+  let close t =
+    if not (is_closed t)
+    then
+      Output_channel.close t.writer
+      >>> fun () -> Input_channel.close t.reader >>> fun () -> t.is_closed <- true
+  ;;
+
+  let closed t =
+    Deferred.all_unit
+      [ Input_channel.closed t.reader; Output_channel.close_finished t.writer ]
+  ;;
+
+  let create ?ssl ?connect_timeout ?interrupt where_to_connect =
+    let%bind reader, writer =
+      Tcp_channel.connect ?connect_timeout ?interrupt where_to_connect
     in
-    loop ()
-  in
-  let run () =
-    Tcp_channel.with_connection
-      ?interrupt
-      ?connect_timeout
-      where_to_connect
-      (fun reader writer ->
-      match ssl with
-      | None -> run reader writer
-      | Some ssl ->
-        Shuttle_ssl.upgrade_client_connection
-          ?version:ssl.Ssl.version
-          ?options:ssl.options
-          ?name:ssl.name
-          ?hostname:ssl.hostname
-          ?allowed_ciphers:ssl.allowed_ciphers
-          ?ca_file:ssl.ca_file
-          ?ca_path:ssl.ca_path
-          ?crt_file:ssl.crt_file
-          ?key_file:ssl.key_file
-          ?verify_modes:ssl.verify_modes
-          ?session:ssl.session
-          ~f:(fun conn reader writer ->
-            match
-              match ssl.verify_certificate with
-              | None ->
-                (match ssl.hostname with
-                 | None -> Ok ()
-                 | Some hostname -> default_ssl_verify_certificate conn hostname)
-              | Some v -> v conn
-            with
-            | Ok () -> run reader writer
-            | Error error ->
-              Ivar.fill ivar (Error error);
-              Deferred.unit)
-          reader
-          writer)
-  in
-  (Monitor.try_with_or_error ~name:"Shuttle_http.Client.call" ~here:[%here] (fun () ->
-     run ())
-  >>> function
-  | Ok () -> ()
-  | Error error -> Ivar.fill_if_empty ivar (Error error));
-  Ivar.read ivar
-;;
+    match ssl with
+    | None -> Deferred.Or_error.return { reader; writer; is_closed = false }
+    | Some ssl ->
+      Deferred.Or_error.try_with_join ~run:`Now (fun () ->
+        let ivar = Ivar.create () in
+        don't_wait_for
+          (Shuttle_ssl.upgrade_client_connection
+             ?version:ssl.Ssl.version
+             ?options:ssl.options
+             ?name:ssl.name
+             ?hostname:ssl.hostname
+             ?allowed_ciphers:ssl.allowed_ciphers
+             ?ca_file:ssl.ca_file
+             ?ca_path:ssl.ca_path
+             ?crt_file:ssl.crt_file
+             ?key_file:ssl.key_file
+             ?verify_modes:ssl.verify_modes
+             ?session:ssl.session
+             reader
+             writer
+             ~f:(fun conn reader writer ->
+             let verification_result =
+               match ssl.verify_certificate with
+               | None ->
+                 (match ssl.hostname with
+                  | None -> Ok ()
+                  | Some hostname -> default_ssl_verify_certificate conn hostname)
+               | Some v -> v conn
+             in
+             match verification_result with
+             | Error err ->
+               Ivar.fill ivar (Error err);
+               Deferred.unit
+             | Ok () ->
+               let conn = { reader; writer; is_closed = false } in
+               Ivar.fill ivar (Ok conn);
+               closed conn));
+        Ivar.read ivar)
+  ;;
+
+  let call t request =
+    Deferred.Or_error.try_with_join ~run:`Now (fun () ->
+      let%bind () = write_request t.writer request in
+      Deferred.repeat_until_finished () (fun () ->
+        let view = Input_channel.view t.reader in
+        match Parser.parse_response view.buf ~pos:view.pos ~len:view.len with
+        | Error Partial ->
+          (match%map Input_channel.refill t.reader with
+           | `Eof -> `Finished (Or_error.errorf "Unexpected EOF while reading")
+           | `Ok -> `Repeat ())
+        | Error (Fail error) -> return (`Finished (Error error))
+        | Ok (response, consumed) ->
+          Input_channel.consume t.reader consumed;
+          (match parse_body t.reader (Response.headers response) with
+           | Error _ as error -> return (`Finished error)
+           | Ok body ->
+             let response = Response.with_body response body in
+             return (`Finished (Ok response)))))
+  ;;
+end
+
+module Oneshot = struct
+  let call ?interrupt ?connect_timeout ?ssl where_to_connect request =
+    let%bind.Deferred.Or_error conn =
+      Connection.create ?connect_timeout ?ssl ?interrupt where_to_connect
+    in
+    match%bind Connection.call conn request with
+    | Error error ->
+      Connection.close conn;
+      Deferred.Or_error.fail error
+    | Ok response ->
+      (match Response.body response with
+       | Body.Fixed _ | Body.Empty ->
+         Connection.close conn;
+         Deferred.Or_error.return response
+       | Body.Stream stream ->
+         upon (Body.Stream.closed stream) (fun () -> Connection.close conn);
+         Deferred.Or_error.return response)
+  ;;
+end
