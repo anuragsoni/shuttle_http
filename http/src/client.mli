@@ -2,6 +2,13 @@ open! Core
 open! Async
 open! Shuttle
 
+module Address : sig
+  type t [@@deriving sexp_of]
+
+  val of_host_and_port : Host_and_port.t -> t
+  val of_unix_domain_socket : Filename.t -> t
+end
+
 module Ssl : sig
   type t [@@deriving sexp_of]
 
@@ -34,7 +41,7 @@ module Oneshot : sig
     :  ?interrupt:unit Deferred.t
     -> ?connect_timeout:Time.Span.t
     -> ?ssl:Ssl.t
-    -> 'address Tcp.Where_to_connect.t
+    -> Address.t
     -> Request.t
     -> Response.t Deferred.Or_error.t
 end

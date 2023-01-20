@@ -3,6 +3,16 @@ open Async
 open Shuttle
 open Io_util
 
+module Address = struct
+  type t =
+    | Host_and_port of Host_and_port.t
+    | Unix_domain of Filename.t
+  [@@deriving sexp_of]
+
+  let of_host_and_port host_and_port = Host_and_port host_and_port
+  let of_unix_domain_socket file = Unix_domain file
+end
+
 let write_request writer request =
   Output_channel.write writer (Meth.to_string (Request.meth request));
   Output_channel.write_char writer ' ';
@@ -264,9 +274,41 @@ module Connection = struct
 end
 
 module Oneshot = struct
-  let call ?interrupt ?connect_timeout ?ssl where_to_connect request =
+  let call ?interrupt ?connect_timeout ?ssl address request =
+    let request, ssl =
+      match address with
+      | Address.Host_and_port host_and_port ->
+        let request =
+          request
+          |> Request.headers
+          |> Headers.add_unless_exists
+               ~key:"Host"
+               ~data:(Host_and_port.host host_and_port)
+          |> Request.with_headers request
+        in
+        let ssl =
+          Option.map ssl ~f:(fun ssl ->
+            match ssl.Ssl.hostname with
+            | None -> { ssl with hostname = Some (Host_and_port.host host_and_port) }
+            | Some _ -> ssl)
+        in
+        request, ssl
+      | Unix_domain _ -> request, ssl
+    in
     let%bind.Deferred.Or_error conn =
-      Connection.create ?connect_timeout ?ssl ?interrupt where_to_connect
+      match address with
+      | Address.Host_and_port host_and_port ->
+        Connection.create
+          ?connect_timeout
+          ?ssl
+          ?interrupt
+          (Tcp.Where_to_connect.of_host_and_port host_and_port)
+      | Unix_domain file ->
+        Connection.create
+          ?connect_timeout
+          ?ssl
+          ?interrupt
+          (Tcp.Where_to_connect.of_file file)
     in
     match%bind Connection.call conn request with
     | Error error ->
