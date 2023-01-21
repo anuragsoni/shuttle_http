@@ -331,7 +331,11 @@ let create ?interrupt ?connect_timeout ?ssl address =
   Connection.create ?interrupt ?connect_timeout ?ssl address
 ;;
 
-let close t = Connection.close t
+let close t =
+  Connection.close t;
+  Connection.closed t
+;;
+
 let closed t = Connection.closed t
 let is_closed t = Connection.is_closed t
 let call t request = Connection.call t request

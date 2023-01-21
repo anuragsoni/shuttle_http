@@ -12,9 +12,7 @@ let run () =
             (Host_and_port.create ~host:"httpbin.org" ~port:443)))
   in
   Monitor.protect
-    ~finally:(fun () ->
-      Client.close httpbin;
-      Client.closed httpbin)
+    ~finally:(fun () -> Client.close httpbin)
     (fun () ->
       let%bind response =
         let%map res, duration =

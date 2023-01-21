@@ -79,7 +79,7 @@ val closed : t -> unit Deferred.t
 (** [close] initiates shutdown for an http client. Any request that's currently in-flight
     will be attempt to run, and any pending requests will fail with
     {{:Shuttle.Client.Request_aborted} exception}. *)
-val close : t -> unit
+val close : t -> unit Deferred.t
 
 module Oneshot : sig
   (** [call] Performs a one-shot http client call to the user provided connection target.

@@ -223,9 +223,7 @@ let%expect_test "Keep-alives in clients" =
       Buffer.contents buf
     in
     Monitor.protect
-      ~finally:(fun () ->
-        Client.close client;
-        Client.closed client)
+      ~finally:(fun () -> Client.close client)
       (fun () ->
         let%bind response = Client.call client (Request.create `GET "/") in
         print_s
@@ -296,9 +294,7 @@ let%expect_test "No requests can be sent if a client is closed" =
       Buffer.contents buf
     in
     Monitor.protect
-      ~finally:(fun () ->
-        Client.close client;
-        Client.closed client)
+      ~finally:(fun () -> Client.close client)
       (fun () ->
         let%bind response = Client.call client (Request.create `GET "/") in
         print_s
@@ -314,7 +310,7 @@ let%expect_test "No requests can be sent if a client is closed" =
     ((status Ok) (headers ((Content-Length 11))) (reason_phrase ""))
 
     Body: "Hello World" |}];
-        Client.close client;
+        let%bind () = Client.close client in
         let%map msg =
           ensure_aborted (fun () ->
             Client.call
@@ -347,9 +343,7 @@ let%expect_test "Clients are automatically closed if Connection:close header is 
       Buffer.contents buf
     in
     Monitor.protect
-      ~finally:(fun () ->
-        Client.close client;
-        Client.closed client)
+      ~finally:(fun () -> Client.close client)
       (fun () ->
         let%bind response =
           Client.call
@@ -401,9 +395,7 @@ let%expect_test "Clients are automatically closed if Connection:close header is 
       Buffer.contents buf
     in
     Monitor.protect
-      ~finally:(fun () ->
-        Client.close client;
-        Client.closed client)
+      ~finally:(fun () -> Client.close client)
       (fun () ->
         let%bind response = Client.call client (Request.create `GET "/no-keep-alive") in
         print_s
