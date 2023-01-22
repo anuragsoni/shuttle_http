@@ -3,7 +3,10 @@ open! Async
 open! Shuttle
 
 module Address : sig
-  type t [@@deriving sexp_of]
+  type t [@@deriving sexp, equal, compare, hash]
+
+  include Comparable.S with type t := t
+  include Hashable.S with type t := t
 
   val of_host_and_port : Host_and_port.t -> t
   val of_unix_domain_socket : Filename.t -> t
@@ -96,4 +99,25 @@ module Oneshot : sig
     -> Address.t
     -> Request.t
     -> Response.t Deferred.t
+end
+
+(** Persistent clients, not to be confused with HTTP/1.1 persistent connections are
+    durable clients that maintain a connection to a service and eagerly and repeatedly
+    reconnect if the underlying socket connection is lost. *)
+module Persistent : sig
+  type t [@@deriving sexp_of]
+
+  val create
+    :  ?random_state:[ `Non_random | `State of Random.State.t ]
+    -> ?retry_delay:(unit -> Time_ns.Span.t)
+    -> ?time_source:Time_source.t
+    -> ?ssl:Ssl.t
+    -> server_name:string
+    -> (unit -> Address.t Deferred.Or_error.t)
+    -> t
+
+  val closed : t -> unit Deferred.t
+  val is_closed : t -> bool
+  val close : t -> unit Deferred.t
+  val call : t -> Request.t -> Response.t Deferred.t
 end

@@ -421,3 +421,66 @@ let%expect_test "Clients are automatically closed if Connection:close header is 
         printf "%s" msg;
         [%expect {| Request aborted |}]))
 ;;
+
+let%expect_test "Persistent clients will re-connect if connection is closed" =
+  Helper.with_server handler ~f:(fun port ->
+    let client =
+      Client.Persistent.create
+        ~random_state:`Non_random
+        ~retry_delay:(fun () -> Time_ns.Span.of_sec 0.01)
+        ~server_name:"test"
+        (fun () ->
+          Deferred.Or_error.return
+            (Client.Address.of_host_and_port
+               (Host_and_port.create ~host:"localhost" ~port)))
+    in
+    let body_to_string response =
+      let buf = Buffer.create 32 in
+      let%map () =
+        Body.Stream.iter
+          (Body.to_stream (Response.body response))
+          ~f:(fun v ->
+            Buffer.add_string buf v;
+            Deferred.unit)
+      in
+      Buffer.contents buf
+    in
+    Monitor.protect
+      ~finally:(fun () -> Client.Persistent.close client)
+      (fun () ->
+        let%bind response =
+          Client.Persistent.call client (Request.create `GET "/no-keep-alive")
+        in
+        print_s
+          [%sexp
+            { status = (Response.status response : Status.t)
+            ; headers = (Response.headers response : Headers.t)
+            ; reason_phrase = (Response.reason_phrase response : string)
+            }];
+        let%bind body = body_to_string response in
+        printf "\nBody: %S" body;
+        [%expect
+          {|
+    ((status Ok) (headers ((Content-Length 30) (Connection close)))
+     (reason_phrase ""))
+
+    Body: "This connection will be closed" |}];
+        let%bind response =
+          Client.Persistent.call
+            client
+            (Request.create ~body:(Body.string "This is a body") `POST "/echo")
+        in
+        print_s
+          [%sexp
+            { status = (Response.status response : Status.t)
+            ; headers = (Response.headers response : Headers.t)
+            ; reason_phrase = (Response.reason_phrase response : string)
+            }];
+        let%map body = body_to_string response in
+        printf "\nBody: %S" body;
+        [%expect
+          {|
+          ((status Ok) (headers ((Content-Length 14))) (reason_phrase ""))
+
+          Body: "This is a body" |}]))
+;;
