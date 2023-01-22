@@ -465,6 +465,8 @@ let%expect_test "Persistent clients will re-connect if connection is closed" =
      (reason_phrase ""))
 
     Body: "This connection will be closed" |}];
+        (* Since we use persistent it will re-connent and use a fresh connection the next
+           time we use `call` *)
         let%bind response =
           Client.Persistent.call
             client
