@@ -319,8 +319,12 @@ module Connection = struct
                    `Finished ()))))
       >>| function
       | `Ok () -> ()
-      | `Raised exn -> raise exn
-      | `Aborted -> raise Request_aborted);
+      | `Raised exn ->
+        Throttle.kill t;
+        raise exn
+      | `Aborted ->
+        Throttle.kill t;
+        raise Request_aborted);
     Ivar.read ivar
   ;;
 end
