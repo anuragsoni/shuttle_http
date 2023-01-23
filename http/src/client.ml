@@ -4,10 +4,16 @@ open Shuttle
 open Io_util
 
 module Address = struct
-  type t =
-    | Host_and_port of Host_and_port.t
-    | Unix_domain of Filename.t
-  [@@deriving sexp_of]
+  module T = struct
+    type t =
+      | Host_and_port of Host_and_port.t
+      | Unix_domain of Filename.t
+    [@@deriving sexp, equal, compare, hash]
+  end
+
+  include T
+  include Comparable.Make (T)
+  include Hashable.Make (T)
 
   let of_host_and_port host_and_port = Host_and_port host_and_port
   let of_unix_domain_socket file = Unix_domain file
@@ -329,20 +335,53 @@ module Connection = struct
   ;;
 end
 
-type t = Connection.t [@@deriving sexp_of]
+module T = struct
+  type t = Connection.t [@@deriving sexp_of]
 
-let create ?interrupt ?connect_timeout ?ssl address =
-  Connection.create ?interrupt ?connect_timeout ?ssl address
-;;
+  let create ?interrupt ?connect_timeout ?ssl address =
+    Connection.create ?interrupt ?connect_timeout ?ssl address
+  ;;
 
-let close t =
-  Connection.close t;
-  Connection.closed t
-;;
+  let close t =
+    Connection.close t;
+    Connection.closed t
+  ;;
 
-let closed t = Connection.closed t
-let is_closed t = Connection.is_closed t
+  let closed t = Connection.closed t
+  let close_finished t = closed t
+  let is_closed t = Connection.is_closed t
+end
+
+include T
+
 let call t request = Connection.call t request
+
+module Persistent_connection = Persistent_connection_kernel.Make (T)
+
+module Persistent = struct
+  type t = Persistent_connection.t [@@deriving sexp_of]
+
+  let create ?random_state ?retry_delay ?time_source ?ssl ~server_name address =
+    Persistent_connection.create
+      ~server_name
+      ~address:(module Address)
+      ?retry_delay
+      ?time_source
+      ?random_state
+      ~connect:(fun address -> Connection.create ?ssl address)
+      address
+  ;;
+
+  let closed t = Persistent_connection.close_finished t
+  let is_closed t = Persistent_connection.is_closed t
+  let close t = Persistent_connection.close t
+
+  let call t request =
+    match%bind Persistent_connection.connected_or_failed_to_connect t with
+    | Ok conn -> Connection.call conn request
+    | Error err -> Error.raise err
+  ;;
+end
 
 module Oneshot = struct
   let call ?interrupt ?connect_timeout ?ssl address request =

@@ -1,6 +1,7 @@
 # next
 
 * Add client that supports keep-alive.
+* Add http clients that leverage Async_kernel's persistent connections.
 
 # 0.9.0
 

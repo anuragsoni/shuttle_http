@@ -3,7 +3,10 @@ open! Async
 open! Shuttle
 
 module Address : sig
-  type t [@@deriving sexp_of]
+  type t [@@deriving sexp, equal, compare, hash]
+
+  include Comparable.S with type t := t
+  include Hashable.S with type t := t
 
   val of_host_and_port : Host_and_port.t -> t
   val of_unix_domain_socket : Filename.t -> t
@@ -96,4 +99,42 @@ module Oneshot : sig
     -> Address.t
     -> Request.t
     -> Response.t Deferred.t
+end
+
+(** Persistent clients, not to be confused with HTTP/1.1 persistent connections are
+    durable clients that maintain a connection to a service and eagerly and repeatedly
+    reconnect if the underlying socket connection is lost. *)
+module Persistent : sig
+  type t [@@deriving sexp_of]
+
+  (** Create a new persistent http connection. Random state is forwarded to
+      {{:Async_kernel.Persistent_connection_kernel} async} and is used to randomize how
+      long to wait between re-connection attempts. A user provided callback is used to
+      retrieve the address to connect to. Users can use this to potentially maintain a
+      pool of service address to target, and decide to use a new target address if the
+      underlying tcp connection is closed. *)
+  val create
+    :  ?random_state:[ `Non_random | `State of Random.State.t ]
+    -> ?retry_delay:(unit -> Time_ns.Span.t)
+    -> ?time_source:Time_source.t
+    -> ?ssl:Ssl.t
+    -> server_name:string
+    -> (unit -> Address.t Deferred.Or_error.t)
+    -> t
+
+  (** [closed] returns a deferred that's resolved when the http client is closed. *)
+  val closed : t -> unit Deferred.t
+
+  (** [is_closed] returns if the client has been closed. *)
+  val is_closed : t -> bool
+
+  (** [close] tears down the persistent connection. The deferred returned will resolve
+      once the underlying http connection is closed. *)
+  val close : t -> unit Deferred.t
+
+  (** [call] Attempts to perform a HTTP request using the user provided client. If the
+      underlying http connection has closed between two calls, and the user hasn't called
+      {{!Shuttle_http.Client.Persistent.close} close} on the persistent connection, this
+      function will initiate a new http connection and then perform the http client call. *)
+  val call : t -> Request.t -> Response.t Deferred.t
 end
