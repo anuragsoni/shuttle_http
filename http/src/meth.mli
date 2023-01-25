@@ -17,7 +17,7 @@ type t =
   ]
 [@@deriving sexp, compare, hash, enumerate, quickcheck]
 
-val of_string : string -> t option
+val of_string : string -> t Or_error.t
 val to_string : t -> string
 
 (** [is_safe t] returns true if the semantics for a HTTP method are essentially read-only,

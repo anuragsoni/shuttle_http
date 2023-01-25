@@ -21,16 +21,16 @@ include T
 include Comparable.Make (T)
 
 let of_string = function
-  | "GET" -> Some `GET
-  | "HEAD" -> Some `HEAD
-  | "POST" -> Some `POST
-  | "PUT" -> Some `PUT
-  | "DELETE" -> Some `DELETE
-  | "CONNECT" -> Some `CONNECT
-  | "OPTIONS" -> Some `OPTIONS
-  | "TRACE" -> Some `TRACE
-  | "PATCH" -> Some `PATCH
-  | _ -> None
+  | "GET" -> Ok `GET
+  | "HEAD" -> Ok `HEAD
+  | "POST" -> Ok `POST
+  | "PUT" -> Ok `PUT
+  | "DELETE" -> Ok `DELETE
+  | "CONNECT" -> Ok `CONNECT
+  | "OPTIONS" -> Ok `OPTIONS
+  | "TRACE" -> Ok `TRACE
+  | "PATCH" -> Ok `PATCH
+  | meth -> Or_error.error "Invalid HTTP method" meth sexp_of_string
 ;;
 
 let to_string = function
