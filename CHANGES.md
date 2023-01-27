@@ -1,4 +1,4 @@
-# next
+# 0.9.1
 
 * Add client that supports keep-alive.
 * Add http clients that leverage Async_kernel's persistent connections.
