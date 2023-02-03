@@ -3,12 +3,10 @@ open! Async
 open Shuttle_http
 
 let service request =
-  match Request.path request with
-  | "/echo" ->
-    (match Request.meth request with
-     | `POST -> return (Response.create ~body:(Request.body request) `Ok)
-     | _ -> return (Response.create `Method_not_allowed))
-  | "/" -> return (Response.create ~body:(Body.string "Hello World") `Ok)
+  match Request.path request, Request.meth request with
+  | "/echo", `POST -> return (Response.create ~body:(Request.body request) `Ok)
+  | "/", `GET -> return (Response.create ~body:(Body.string "Hello World") `Ok)
+  | ("/echo" | "/"), _ -> return (Response.create `Method_not_allowed)
   | _ -> return (Response.create `Not_found)
 ;;
 
@@ -19,19 +17,12 @@ let run port =
   Log.Global.info
     !"Server listening on: %s"
     (Socket.Address.to_string (Tcp.Server.listening_on_address server));
-  Deferred.forever () (fun () ->
-    let%map.Deferred () = after Time.Span.(of_sec 0.5) in
-    Log.Global.printf "Active connections: %d" (Tcp.Server.num_connections server));
   Tcp.Server.close_finished_and_handlers_determined server
 ;;
 
 let () =
   Command.async
     ~summary:"Start an echo server"
-    Command.Let_syntax.(
-      let%map_open port =
-        flag "-p" ~doc:"int Port number to listen on" (optional_with_default 8080 int)
-      in
-      fun () -> run port)
+    (Command.Param.return (fun () -> run 8080))
   |> Command_unix.run
 ;;
