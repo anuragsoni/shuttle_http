@@ -2,11 +2,20 @@ open! Core
 open! Async
 open Shuttle_http
 
-let text = String.init 2053 ~f:(fun _ -> 'a')
-let handler _address _request = return (Response.create ~body:(Body.string text) `Ok)
+let service request =
+  match Request.path request with
+  | "/echo" ->
+    (match Request.meth request with
+     | `POST -> return (Response.create ~body:(Request.body request) `Ok)
+     | _ -> return (Response.create `Method_not_allowed))
+  | "/" -> return (Response.create ~body:(Body.string "Hello World") `Ok)
+  | _ -> return (Response.create `Not_found)
+;;
 
 let run port =
-  let server = Server.run_inet (Tcp.Where_to_listen.of_port port) handler in
+  let server =
+    Server.run_inet (Tcp.Where_to_listen.of_port port) (fun _addr -> service)
+  in
   Log.Global.info
     !"Server listening on: %s"
     (Socket.Address.to_string (Tcp.Server.listening_on_address server));
