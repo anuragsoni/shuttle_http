@@ -1,4 +1,4 @@
-# Shuttle_http
+# [Shuttle_http](https://github.com/anuragsoni/shuttle/tree/main/http)
 
 Shuttle_http is a HTTP/1.1 implementation for OCaml that uses [async](https://opensource.janestreet.com/async/) to provide asynchronous servers and clients.
 
