@@ -1,3 +1,7 @@
+# next
+
+* Allow creating ssl encrypted servers
+
 # 0.9.1
 
 * Add client that supports keep-alive.

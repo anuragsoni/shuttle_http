@@ -7,6 +7,24 @@ open! Shuttle
     and an empty response body. *)
 type error_handler = ?exn:exn -> ?request:Request.t -> Status.t -> Response.t Deferred.t
 
+module Ssl : sig
+  type t [@@deriving sexp_of]
+
+  (** ssl options that should be used when creating a https server. *)
+  val create
+    :  ?version:Async_ssl.Version.t
+    -> ?options:Async_ssl.Opt.t list
+    -> ?name:string
+    -> ?allowed_ciphers:[ `Only of string list | `Openssl_default | `Secure ]
+    -> ?ca_file:string
+    -> ?ca_path:string
+    -> ?verify_modes:Async_ssl.Verify_mode.t list
+    -> certificate_file:string
+    -> key_file:string
+    -> unit
+    -> t
+end
+
 module Config : sig
   type t [@@deriving sexp_of]
 
@@ -47,6 +65,7 @@ module Config : sig
     -> ?write_timeout:Time_ns.Span.t
     -> ?read_header_timeout:Time_ns.Span.t
     -> ?error_handler:error_handler
+    -> ?ssl:Ssl.t
     -> unit
     -> t
 end

@@ -4,6 +4,45 @@ open! Shuttle
 open Io_util
 module Logger = Log.Make_global ()
 
+module Ssl = struct
+  type t =
+    { certificate_file : string
+    ; key_file : string
+    ; version : Async_ssl.Version.t option
+    ; options : Async_ssl.Opt.t list option
+    ; name : string option
+    ; allowed_ciphers : [ `Only of string list | `Openssl_default | `Secure ] option
+    ; ca_file : string option
+    ; ca_path : string option
+    ; verify_modes : Async_ssl.Verify_mode.t list option
+    }
+  [@@deriving sexp_of, fields]
+
+  let create
+    ?version
+    ?options
+    ?name
+    ?allowed_ciphers
+    ?ca_file
+    ?ca_path
+    ?verify_modes
+    ~certificate_file
+    ~key_file
+    ()
+    =
+    { certificate_file
+    ; key_file
+    ; version
+    ; options
+    ; name
+    ; allowed_ciphers
+    ; ca_file
+    ; ca_path
+    ; verify_modes
+    }
+  ;;
+end
+
 type error_handler = ?exn:Exn.t -> ?request:Request.t -> Status.t -> Response.t Deferred.t
 [@@deriving sexp_of]
 
@@ -24,6 +63,7 @@ module Config = struct
     ; write_timeout : Time_ns.Span.t option
     ; read_header_timeout : Time_ns.Span.t option
     ; error_handler : error_handler
+    ; ssl : Ssl.t option
     }
   [@@deriving sexp_of]
 
@@ -35,6 +75,7 @@ module Config = struct
     ?write_timeout
     ?read_header_timeout
     ?(error_handler = default_error_handler)
+    ?ssl
     ()
     =
     { buf_len
@@ -44,6 +85,7 @@ module Config = struct
     ; write_timeout
     ; read_header_timeout
     ; error_handler
+    ; ssl
     }
   ;;
 
@@ -265,7 +307,29 @@ let run_inet ?(config = Config.default) addr service =
             Ivar.fill_if_empty interrupt ()))
       addr
       (fun addr reader writer ->
-        run_server ~interrupt:(Ivar.read interrupt) config reader writer (service addr))
+        match config.ssl with
+        | Some ssl ->
+          Shuttle_ssl.upgrade_server_connection
+            reader
+            writer
+            ~crt_file:ssl.Ssl.certificate_file
+            ~key_file:ssl.key_file
+            ?version:ssl.version
+            ?options:ssl.options
+            ?name:ssl.name
+            ?allowed_ciphers:ssl.allowed_ciphers
+            ?ca_file:ssl.ca_file
+            ?ca_path:ssl.ca_path
+            ?verify_modes:ssl.verify_modes
+            ~f:(fun _conn reader writer ->
+            run_server
+              ~interrupt:(Ivar.read interrupt)
+              config
+              reader
+              writer
+              (service addr))
+        | None ->
+          run_server ~interrupt:(Ivar.read interrupt) config reader writer (service addr))
   in
   upon (Tcp.Server.close_finished server) (fun () -> Ivar.fill_if_empty interrupt ());
   server
@@ -288,7 +352,29 @@ let run ?(config = Config.default) addr service =
             Ivar.fill_if_empty interrupt ()))
       addr
       (fun addr reader writer ->
-        run_server ~interrupt:(Ivar.read interrupt) config reader writer (service addr))
+        match config.ssl with
+        | Some ssl ->
+          Shuttle_ssl.upgrade_server_connection
+            reader
+            writer
+            ~crt_file:ssl.Ssl.certificate_file
+            ~key_file:ssl.key_file
+            ?version:ssl.version
+            ?options:ssl.options
+            ?name:ssl.name
+            ?allowed_ciphers:ssl.allowed_ciphers
+            ?ca_file:ssl.ca_file
+            ?ca_path:ssl.ca_path
+            ?verify_modes:ssl.verify_modes
+            ~f:(fun _conn reader writer ->
+            run_server
+              ~interrupt:(Ivar.read interrupt)
+              config
+              reader
+              writer
+              (service addr))
+        | None ->
+          run_server ~interrupt:(Ivar.read interrupt) config reader writer (service addr))
   in
   upon (Tcp.Server.close_finished server) (fun () -> Ivar.fill_if_empty interrupt ());
   server
