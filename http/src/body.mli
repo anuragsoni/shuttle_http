@@ -26,6 +26,8 @@ module Stream : sig
       on once. *)
   val iter : t -> f:(string -> unit Deferred.t) -> unit Deferred.t
 
+  val fold : t -> init:'a -> f:('a -> string -> 'a Deferred.t) -> 'a Deferred.t
+
   (** [drain] should consume items one at a time from the stream and discard them. This
       function raises if its called after a consumer has started reading data from the
       stream. *)

@@ -19,6 +19,12 @@ module Stream = struct
     Pipe.iter t.reader ~f
   ;;
 
+  let fold t ~init ~f =
+    if t.read_started then raise_s [%message "Only one consumer can read from a stream"];
+    t.read_started <- true;
+    Pipe.fold t.reader ~init ~f
+  ;;
+
   let read_started t = t.read_started
 
   let drain t =
