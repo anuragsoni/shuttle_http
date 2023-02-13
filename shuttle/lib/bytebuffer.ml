@@ -28,7 +28,6 @@ let create size =
   then raise_s [%message "Buffer size cannot be negative" ~requested_size:(size : int)];
   let buf = Bigstring.create size in
   { buf; pos_read = 0; pos_fill = 0 }
-;;
 
 let compact t =
   if t.pos_read > 0
@@ -42,7 +41,6 @@ let compact t =
       Bigstring.blit ~src:t.buf ~dst:t.buf ~src_pos:t.pos_read ~dst_pos:0 ~len;
       t.pos_read <- 0;
       t.pos_fill <- len))
-;;
 
 let length t = t.pos_fill - t.pos_read
 let capacity t = Bigstring.length t.buf
@@ -51,7 +49,6 @@ let available_to_write t = Bigstring.length t.buf - t.pos_fill
 let drop t len =
   if len < 0 || len > length t then invalid_arg "Bytebuffer.drop: Index out of bounds";
   t.pos_read <- t.pos_read + len
-;;
 
 let read t fd =
   let count =
@@ -59,13 +56,11 @@ let read t fd =
   in
   if count > 0 then t.pos_fill <- t.pos_fill + count;
   count
-;;
 
 let write t fd =
   let count = Bigstring_unix.write fd t.buf ~pos:t.pos_read ~len:(length t) in
   if count > 0 then t.pos_read <- t.pos_read + count;
   count
-;;
 
 let read_assume_fd_is_nonblocking t fd =
   let res =
@@ -80,7 +75,6 @@ let read_assume_fd_is_nonblocking t fd =
     let count = Core_unix.Syscall_result.Int.ok_exn res in
     if count > 0 then t.pos_fill <- t.pos_fill + count);
   res
-;;
 
 let write_assume_fd_is_nonblocking t fd =
   let res =
@@ -88,7 +82,6 @@ let write_assume_fd_is_nonblocking t fd =
   in
   if res > 0 then t.pos_read <- t.pos_read + res;
   res
-;;
 
 let ensure_space t len =
   if available_to_write t < len
@@ -106,13 +99,11 @@ let ensure_space t len =
     t.buf <- new_buf;
     t.pos_read <- 0;
     t.pos_fill <- curr_len)
-;;
 
 let add_char t ch =
   ensure_space t 1;
   Bigstring.set t.buf t.pos_fill ch;
   t.pos_fill <- t.pos_fill + 1
-;;
 
 let add_gen t ?(pos = 0) ?len ~total_length ~blit str =
   let len =
@@ -124,7 +115,6 @@ let add_gen t ?(pos = 0) ?len ~total_length ~blit str =
   ensure_space t len;
   blit ~src:str ~src_pos:pos ~dst:t.buf ~dst_pos:t.pos_fill ~len;
   t.pos_fill <- t.pos_fill + len
-;;
 
 let add_string t ?pos ?len str =
   add_gen
@@ -134,15 +124,12 @@ let add_string t ?pos ?len str =
     ~total_length:(String.length str)
     ~blit:Bigstring.From_string.blit
     str
-;;
 
 let add_bytes t ?pos ?len str =
   add_gen t ?pos ?len ~total_length:(Bytes.length str) ~blit:Bigstring.From_bytes.blit str
-;;
 
 let add_bigstring t ?pos ?len str =
   add_gen t ?pos ?len ~total_length:(Bigstring.length str) ~blit:Bigstring.blit str
-;;
 
 let add_bytebuffer t buf = add_bigstring t ~pos:buf.pos_read ~len:(length buf) buf.buf
 let to_string t = Bigstring.To_string.sub t.buf ~pos:t.pos_read ~len:(length t)
@@ -167,9 +154,7 @@ let slice ?(pos = 0) ?len t =
   in
   Ordered_collection_common.check_pos_len_exn ~pos ~len ~total_length;
   { Slice.buf = t.buf; pos = pos + t.pos_read; len }
-;;
 
 let unsafe_index t ch =
   let idx = Bigstring.unsafe_find t.buf ch ~pos:t.pos_read ~len:(length t) in
   if idx < 0 then -1 else idx - t.pos_read
-;;

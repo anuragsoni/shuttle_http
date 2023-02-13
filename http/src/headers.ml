@@ -12,27 +12,23 @@ let rec mem t key =
   match t with
   | [] -> false
   | (k, _) :: t -> String.Caseless.equal k key || mem t key
-;;
 
 let rec find t key =
   match t with
   | [] -> None
   | (k, v) :: t -> if String.Caseless.equal k key then Some v else find t key
-;;
 
 let rec find_multi t key =
   match t with
   | [] -> []
   | (k, v) :: t ->
     if String.Caseless.equal k key then v :: find_multi t key else find_multi t key
-;;
 
 let empty = []
 
 let is_empty = function
   | [] -> true
   | _ -> false
-;;
 
 let add_unless_exists t ~key ~data = if not (mem t key) then (key, data) :: t else t
 let add t ~key ~data = (key, data) :: t
@@ -48,4 +44,3 @@ let remove t name =
   in
   try loop t name false with
   | Stop -> t
-;;

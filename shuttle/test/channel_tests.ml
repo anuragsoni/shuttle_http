@@ -8,7 +8,6 @@ let write_chunks_to_chan wr chunks =
   Deferred.List.iter ~how:`Sequential chunks ~f:(fun chunk ->
     Output_channel.write wr chunk;
     Output_channel.flush wr)
-;;
 
 let%expect_test "create a pipe from an input_channel" =
   Unix.pipe (Info.of_string "test input_channel")
@@ -30,7 +29,6 @@ let%expect_test "create a pipe from an input_channel" =
     With some more data as part of this chunk |}];
   Writer.writef stdout "Input_channel closed? %b" (Input_channel.is_closed rd);
   [%expect {| Input_channel closed? true |}]
-;;
 
 let%expect_test "create a pipe from an output channel" =
   Unix.pipe (Info.of_string "test input_channel")
@@ -51,7 +49,6 @@ let%expect_test "create a pipe from an output channel" =
   [%expect {|
     Hello!! This is another chunk.
     Pushing to writer |}]
-;;
 
 let%expect_test "create input_channel from pipe" =
   let p = Pipe.of_list [ "hello!"; " this is a chunk.\n"; "Another line!\n" ] in
@@ -64,7 +61,6 @@ let%expect_test "create input_channel from pipe" =
   [%expect {|
     hello! this is a chunk.
     Another line! |}]
-;;
 
 let%expect_test "create output_channel from pipe" =
   let rd, wr = Pipe.create () in
@@ -80,7 +76,6 @@ let%expect_test "create output_channel from pipe" =
   [%expect {|
     Hello World!
     Another line using writef 12 false |}]
-;;
 
 let%expect_test "Internal buffer automatically increases in size" =
   Unix.pipe (Info.of_string "test input_channel")
@@ -113,7 +108,6 @@ let%expect_test "Internal buffer automatically increases in size" =
     {|
       Content: hello World this is another block of textaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
        Internal buffer length: 128 |}]
-;;
 
 let%expect_test "Flush operation reports when the remote peer is closed" =
   let reader_fd, writer_fd = Unix.socketpair () in
@@ -134,7 +128,6 @@ let%expect_test "Flush operation reports when the remote peer is closed" =
   let%map flush_result = Output_channel.flush_or_fail writer in
   Writer.writef stdout !"%{sexp: Output_channel.Flush_result.t}" flush_result;
   [%expect {| Remote_closed |}]
-;;
 
 let%expect_test "Flush operation reports when attempting to write on a closed FD" =
   let _reader_fd, writer_fd = Unix.socketpair () in
@@ -154,7 +147,6 @@ let%expect_test "Flush operation reports when attempting to write on a closed FD
   let%map flush_result = Output_channel.flush_or_fail writer in
   Writer.writef stdout !"%{sexp: Output_channel.Flush_result.t}" flush_result;
   [%expect {| Error |}]
-;;
 
 let%expect_test "Support timeouts for refill operation" =
   Unix.pipe (Info.of_string "test input_channel")
@@ -183,4 +175,3 @@ let%expect_test "Support timeouts for refill operation" =
            | exn -> raise exn))
   in
   [%expect {| TIMEOUT |}]
-;;

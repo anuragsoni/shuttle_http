@@ -14,7 +14,6 @@ let handler request =
          ~body:(Body.string "This connection will be closed")
          `Ok)
   | _ -> return (Response.create ~body:(Body.string "Hello World") `Ok)
-;;
 
 let%expect_test "Simple http endpoint" =
   Helper.with_server handler ~f:(fun port ->
@@ -31,7 +30,6 @@ let%expect_test "Simple http endpoint" =
         Helper.send_request_and_log_response r w test_post_req_with_fixed_body
       in
       [%expect {| "HTTP/1.1 200 \r\nContent-Length: 11\r\n\r\nHello World" |}]))
-;;
 
 let%expect_test "Simple http endpoint with http client" =
   Helper.with_server handler ~f:(fun port ->
@@ -50,7 +48,6 @@ let%expect_test "Simple http endpoint with http client" =
       {|
     ((version Http_1_1) (status Ok) (reason_phrase "")
      (headers ((Content-Length 11))) (body (Fixed "Hello World"))) |}])
-;;
 
 let%expect_test "Test default error handler" =
   Helper.with_server handler ~f:(fun port ->
@@ -59,7 +56,6 @@ let%expect_test "Test default error handler" =
         Helper.send_request_and_log_response r w "GET /error HTTP/1.1\r\n\r\n"
       in
       [%expect {| "HTTP/1.1 500 \r\nConnection: close\r\nContent-Length: 0\r\n\r\n" |}]))
-;;
 
 let%expect_test "Test custom error handler" =
   let error_handler ?exn:_ ?request status =
@@ -98,7 +94,6 @@ let%expect_test "Test custom error handler" =
         in
         [%expect
           {| "HTTP/1.1 400 \r\nContent-Length: 40\r\n\r\nSomething bad happened in request /hello" |}]))
-;;
 
 let%expect_test "Can read chunked bodies" =
   let test_post_req_with_chunked_body =
@@ -119,7 +114,6 @@ let%expect_test "Can read chunked bodies" =
       in
       [%expect
         {| "HTTP/1.1 200 \r\nTransfer-Encoding: chunked\r\n\r\n5\r\nHello\r\n0\r\n\r\n" |}]))
-;;
 
 let%expect_test "Can catch bad transfer encoding header" =
   let test_post_req_with_bad_transfer_encoding =
@@ -135,7 +129,6 @@ let%expect_test "Can catch bad transfer encoding header" =
         Helper.send_request_and_log_response r w test_post_req_with_bad_transfer_encoding
       in
       [%expect {| "HTTP/1.1 400 \r\nConnection: close\r\nContent-Length: 0\r\n\r\n" |}]))
-;;
 
 let%expect_test "Servers will respond with a timeout if they can't parse request headers \
                  in the given timeframe"
@@ -158,7 +151,6 @@ let%expect_test "Servers will respond with a timeout if they can't parse request
         Helper.send_request_and_log_response r w test_post_req_with_fixed_body
       in
       [%expect {| "HTTP/1.1 408 \r\nConnection: close\r\nContent-Length: 0\r\n\r\n" |}]))
-;;
 
 let%expect_test "Client can send streaming bodies" =
   Helper.with_server handler ~f:(fun port ->
@@ -201,7 +193,6 @@ let%expect_test "Client can send streaming bodies" =
         ((status Ok) (headers ((Transfer-Encoding chunked))) (reason_phrase ""))
 
         Body: "Hello: 1 Hello: 2 Hello: 3 Hello: 4 Hello: 5 " |}])
-;;
 
 let%expect_test "Keep-alives in clients" =
   Helper.with_server handler ~f:(fun port ->
@@ -257,7 +248,6 @@ let%expect_test "Keep-alives in clients" =
     ((status Ok) (headers ((Content-Length 14))) (reason_phrase ""))
 
     Body: "This is a body" |}]))
-;;
 
 let ensure_aborted fn =
   Monitor.try_with fn
@@ -272,7 +262,6 @@ let ensure_aborted fn =
     (match Monitor.extract_exn exn with
      | Client.Request_aborted -> return "Request aborted"
      | exn -> raise exn)
-;;
 
 let%expect_test "No requests can be sent if a client is closed" =
   Helper.with_server handler ~f:(fun port ->
@@ -319,7 +308,6 @@ let%expect_test "No requests can be sent if a client is closed" =
         in
         printf "%s" msg;
         [%expect {| Request aborted |}]))
-;;
 
 let%expect_test "Clients are automatically closed if Connection:close header is present \
                  in request"
@@ -371,7 +359,6 @@ let%expect_test "Clients are automatically closed if Connection:close header is 
         in
         printf "%s" msg;
         [%expect {| Request aborted |}]))
-;;
 
 let%expect_test "Clients are automatically closed if Connection:close header is present \
                  in response"
@@ -420,7 +407,6 @@ let%expect_test "Clients are automatically closed if Connection:close header is 
         in
         printf "%s" msg;
         [%expect {| Request aborted |}]))
-;;
 
 let%expect_test "Persistent clients will re-connect if connection is closed" =
   Helper.with_server handler ~f:(fun port ->
@@ -485,4 +471,3 @@ let%expect_test "Persistent clients will re-connect if connection is closed" =
           ((status Ok) (headers ((Content-Length 14))) (reason_phrase ""))
 
           Body: "This is a body" |}]))
-;;

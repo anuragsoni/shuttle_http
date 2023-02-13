@@ -18,7 +18,6 @@ let create
   =
   let reason_phrase = Option.value reason_phrase ~default:(Status.to_string status) in
   { version; status; reason_phrase; headers; body }
-;;
 
 let version t = t.version
 let status t = t.status
@@ -28,6 +27,5 @@ let body t = t.body
 
 let with_headers t headers =
   if phys_equal t.headers headers then t else { t with headers }
-;;
 
 let with_body t body = if phys_equal t.body body then t else { t with body }

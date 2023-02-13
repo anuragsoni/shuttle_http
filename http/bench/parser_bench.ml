@@ -18,7 +18,6 @@ let req =
    __utma=xxxxxxxxx.xxxxxxxxxx.xxxxxxxxxx.xxxxxxxxxx.xxxxxxxxxx.x; \
    __utmz=xxxxxxxxx.xxxxxxxxxx.x.x.utmccn=(referral)|utmcsr=reader.livedoor.com|utmcct=/reader/|utmcmd=referral\r\n\
    \r\n"
-;;
 
 let req = Bigstring.of_string req
 
@@ -39,6 +38,5 @@ let tests =
   ; Bench.Test.create ~name:"Parse hex number" (fun () ->
       Int64.of_string ("0x" ^ hex_str))
   ]
-;;
 
 let () = Command_unix.run (Bench.make_command tests)

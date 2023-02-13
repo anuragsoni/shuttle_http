@@ -17,13 +17,11 @@ module Stream = struct
     if t.read_started then raise_s [%message "Only one consumer can read from a stream"];
     t.read_started <- true;
     Pipe.iter t.reader ~f
-  ;;
 
   let fold t ~init ~f =
     if t.read_started then raise_s [%message "Only one consumer can read from a stream"];
     t.read_started <- true;
     Pipe.fold t.reader ~init ~f
-  ;;
 
   let read_started t = t.read_started
 
@@ -31,7 +29,6 @@ module Stream = struct
     if t.read_started
     then raise_s [%message "Cannot drain a body that's currently being read"];
     Pipe.drain t.reader
-  ;;
 
   let closed t = Pipe.closed t.reader
 end
@@ -51,4 +48,3 @@ let to_stream = function
   | Empty -> Stream.of_pipe (`Fixed 0) (Pipe.empty ())
   | Fixed x -> Stream.of_pipe (`Fixed (String.length x)) (Pipe.singleton x)
   | Stream x -> x
-;;

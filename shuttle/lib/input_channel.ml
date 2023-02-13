@@ -21,4 +21,3 @@ let of_pipe ?buf_len info reader =
     (let%bind () = Output_channel.write_from_pipe output_channel reader in
      Output_channel.close output_channel);
   input_channel
-;;

@@ -13,7 +13,6 @@ let pem_peer_certificate_chain conn = Ssl.Connection.pem_peer_certificate_chain 
 let close_channels input_channel output_channel =
   let%bind () = Output_channel.close output_channel in
   Input_channel.close input_channel
-;;
 
 let pipe_of_channels input_channel output_channel =
   let net_to_ssl, net_to_ssl_writer = Pipe.create () in
@@ -28,7 +27,6 @@ let pipe_of_channels input_channel output_channel =
       ]
     >>> fun () -> don't_wait_for (close_channels input_channel output_channel));
   net_to_ssl, ssl_to_net
-;;
 
 let upgrade_client_connection
   ?version
@@ -102,7 +100,6 @@ let upgrade_client_connection
     in
     Monitor.protect ~run:`Now ~finally:shutdown (fun () ->
       f conn input_channel output_channel)
-;;
 
 let upgrade_server_connection
   ?version
@@ -172,4 +169,3 @@ let upgrade_server_connection
     in
     Monitor.protect ~run:`Now ~finally:shutdown (fun () ->
       f conn input_channel output_channel)
-;;

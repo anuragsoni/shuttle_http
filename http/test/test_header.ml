@@ -28,7 +28,6 @@ let%expect_test "header operations" =
   [%expect {| () |}];
   printf !"%{sexp: bool}" (Headers.mem headers "FOO");
   [%expect {| true |}]
-;;
 
 let tchar_map =
   Array.init 256 ~f:(fun idx ->
@@ -52,7 +51,6 @@ let tchar_map =
     | '|'
     | '~' -> true
     | _ -> false)
-;;
 
 let tchar_generator =
   let open Base_quickcheck in
@@ -64,20 +62,17 @@ let tchar_generator =
       ; of_list
           [ '!'; '#'; '$'; '%'; '&'; '\''; '*'; '+'; '-'; '.'; '^'; '_'; '`'; '|'; '~' ]
       ]
-;;
 
 let header_name_generator = Base_quickcheck.Generator.string_non_empty_of tchar_generator
 
 let header_generator =
   Base_quickcheck.Generator.map2 header_name_generator String.gen_nonempty ~f:(fun a b ->
     a, b)
-;;
 
 let headers_generator =
   let open Base_quickcheck.Generator.Let_syntax in
   let%map xs = List.quickcheck_generator header_generator in
   Headers.of_rev_list xs
-;;
 
 let%test_unit "Adding a header to headers always results in a non_empty headers" =
   let gen =
@@ -91,7 +86,6 @@ let%test_unit "Adding a header to headers always results in a non_empty headers"
     gen
     ~f:(fun (headers, (key, data)) ->
     [%test_result: bool] ~expect:false (Headers.is_empty (Headers.add headers ~key ~data)))
-;;
 
 let%test_unit "Headers.to_rev_list (Headers.of_rev_list xs) = xs" =
   Quickcheck.test
@@ -101,7 +95,6 @@ let%test_unit "Headers.to_rev_list (Headers.of_rev_list xs) = xs" =
     [%test_result: (string * string) list]
       ~expect:keys
       (Headers.to_rev_list (Headers.of_rev_list keys)))
-;;
 
 let%test_unit "Headers.to_list (Headers.of_list xs) = xs" =
   Quickcheck.test
@@ -111,7 +104,6 @@ let%test_unit "Headers.to_list (Headers.of_list xs) = xs" =
     [%test_result: (string * string) list]
       ~expect:keys
       (Headers.to_list (Headers.of_list keys)))
-;;
 
 let%test_unit "Headers.to_list (Headers.of_rev_list xs) = List.rev xs" =
   Quickcheck.test
@@ -121,7 +113,6 @@ let%test_unit "Headers.to_list (Headers.of_rev_list xs) = List.rev xs" =
     [%test_result: (string * string) list]
       ~expect:(List.rev keys)
       (Headers.to_list (Headers.of_rev_list keys)))
-;;
 
 let%test_unit "Header lookups perform case insensitive comparisons" =
   let gen =
@@ -137,7 +128,6 @@ let%test_unit "Header lookups perform case insensitive comparisons" =
     [%test_eq: bool]
       (Headers.mem headers key)
       (Headers.mem headers (String.uppercase key)))
-;;
 
 let%test_unit "Attempting to remove a header name that doesn't exist in header set does \
                not modify the headers"
@@ -154,7 +144,6 @@ let%test_unit "Attempting to remove a header name that doesn't exist in header s
       [%test_result: (string * string) list]
         ~expect:(Headers.to_rev_list headers)
         (Headers.to_rev_list (Headers.remove headers key)))
-;;
 
 let%test_unit "Removing a header name from a list of headers removes all entries with \
                the name"
@@ -170,4 +159,3 @@ let%test_unit "Removing a header name from a list of headers removes all entries
     then (
       let headers = Headers.remove headers key in
       [%test_result: bool] ~expect:false (Headers.mem headers key)))
-;;

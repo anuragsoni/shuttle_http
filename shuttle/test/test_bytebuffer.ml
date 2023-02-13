@@ -8,7 +8,6 @@ let%expect_test "test bytebuffer" =
   Bytebuffer.add_char b ' ';
   print_endline (Bytebuffer.to_string b);
   [%expect {| Hello |}]
-;;
 
 let%expect_test "test resize" =
   let b = Bytebuffer.create 5 in
@@ -20,7 +19,6 @@ let%expect_test "test resize" =
   Bytebuffer.add_char b ' ';
   printf "Capacity: %d, length: %d\n" (Bytebuffer.capacity b) (Bytebuffer.length b);
   [%expect {| Capacity: 8, length: 6 |}]
-;;
 
 let%expect_test "Can read and write from/to file descriptors" =
   let r, w = Unix.pipe () in
@@ -45,4 +43,3 @@ let%expect_test "Can read and write from/to file descriptors" =
     Read 27 bytes. Write_buf: ((buf <opaque>) (pos_read 0) (pos_fill 27)) |}];
       printf "%s" (Bytebuffer.to_string read_buf));
   [%expect {| Hello world this is a line |}]
-;;

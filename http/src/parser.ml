@@ -25,7 +25,6 @@ let tchar_map =
     | '|'
     | '~' -> true
     | _ -> false)
-;;
 
 module Source = struct
   type t =
@@ -48,12 +47,10 @@ module Source = struct
       ~dst_pos:0
       ~len;
     Bytes.unsafe_to_string ~no_mutation_while_string_reachable:b
-  ;;
 
   let[@inline always] is_space = function
     | ' ' | '\012' | '\n' | '\r' | '\t' -> true
     | _ -> false
-  ;;
 
   let[@inline always] to_string_trim t ~pos ~len =
     let last = ref (t.pos + len - 1) in
@@ -68,12 +65,10 @@ module Source = struct
     let b = Bytes.create len in
     Bigstring.To_bytes.unsafe_blit ~src:t.buffer ~dst:b ~src_pos:!pos ~dst_pos:0 ~len;
     Bytes.unsafe_to_string ~no_mutation_while_string_reachable:b
-  ;;
 
   let[@inline always] index t ch =
     let idx = Bigstring.unsafe_find t.buffer ch ~pos:t.pos ~len:(length t) in
     if idx < 0 then -1 else idx - t.pos
-  ;;
 
   let[@inline always] consume_eol t =
     if length t < 2 then raise_notrace Partial;
@@ -81,14 +76,12 @@ module Source = struct
          Bigstring.get t.buffer t.pos = '\r' && Bigstring.get t.buffer (t.pos + 1) = '\n')
     then unsafe_advance t 2
     else raise_notrace (Fail (Error.of_string "Expected EOL"))
-  ;;
 
   let[@inline always] consume_space t =
     if length t < 1 then raise_notrace Partial;
     if Char.(Bigstring.get t.buffer t.pos = ' ')
     then unsafe_advance t 1
     else raise_notrace (Fail (Error.of_string "Expected space"))
-  ;;
 
   let[@inline always] parse_reason_phrase t =
     let pos = index t '\r' in
@@ -100,7 +93,6 @@ module Source = struct
       let phrase = to_string t ~pos:0 ~len:pos in
       unsafe_advance t pos;
       phrase)
-  ;;
 
   let parse_header tchar_map source =
     let pos = index source ':' in
@@ -119,7 +111,6 @@ module Source = struct
     let v = to_string_trim source ~pos:0 ~len:pos in
     unsafe_advance source pos;
     key, v
-  ;;
 end
 
 let[@inline always] ( .![] ) source idx = Source.unsafe_get source idx
@@ -127,7 +118,6 @@ let invalid_method = Fail (Error.of_string "Invalid Method")
 
 let invalid_status_code =
   Fail (Error.of_string "Status codes must be three digit numbers")
-;;
 
 let status source =
   if Source.length source < 3 then raise_notrace Partial;
@@ -139,7 +129,6 @@ let status source =
       code
     | Error err -> raise_notrace (Fail err))
   else raise_notrace invalid_status_code
-;;
 
 let meth source =
   let pos = Source.index source ' ' in
@@ -184,7 +173,6 @@ let meth source =
   in
   Source.unsafe_advance source (pos + 1);
   meth
-;;
 
 let rec headers source =
   if (not (Source.is_empty source)) && Char.(Source.unsafe_get source 0 = '\r')
@@ -195,7 +183,6 @@ let rec headers source =
     let header = Source.parse_header tchar_map source in
     Source.consume_eol source;
     header :: headers source)
-;;
 
 let chunk_length source =
   let length = ref 0 in
@@ -264,7 +251,6 @@ let chunk_length source =
   | `Chunk_too_big -> raise_notrace (Fail (Error.of_string "Chunk size is too large"))
   | `Invalid_char ch ->
     raise_notrace (Fail (Error.create "Invalid chunk_length character" ch sexp_of_char))
-;;
 
 let version source =
   if Source.length source < 8 then raise_notrace Partial;
@@ -280,7 +266,6 @@ let version source =
     Source.unsafe_advance source 8;
     Version.Http_1_1)
   else raise_notrace (Fail (Error.of_string "Invalid HTTP Version"))
-;;
 
 let token source =
   let pos = Source.index source ' ' in
@@ -288,7 +273,6 @@ let token source =
   let res = Source.to_string source ~pos:0 ~len:pos in
   Source.unsafe_advance source (pos + 1);
   res
-;;
 
 let request source =
   let meth = meth source in
@@ -297,7 +281,6 @@ let request source =
   Source.consume_eol source;
   let headers = Headers.of_rev_list (headers source) in
   Request.create ~version ~headers meth path
-;;
 
 let response source =
   let version = version source in
@@ -308,7 +291,6 @@ let response source =
   Source.consume_eol source;
   let headers = Headers.of_rev_list (headers source) in
   Response.create ~version ~headers ~reason_phrase status
-;;
 
 let take len source =
   let available = Source.length source in
@@ -317,7 +299,6 @@ let take len source =
   let payload = Source.to_string source ~pos:0 ~len:to_consume in
   Source.unsafe_advance source to_consume;
   payload
-;;
 
 type chunk_kind =
   | Start_chunk
@@ -352,7 +333,6 @@ let chunk chunk_kind source =
       Source.consume_eol source;
       Chunk_complete chunk)
     else Partial_chunk (chunk, len - current_chunk_length)
-;;
 
 type error =
   | Partial
@@ -373,7 +353,6 @@ let run_parser ?(pos = 0) ?len buf p =
   | v ->
     let consumed = source.pos - pos in
     Ok (v, consumed)
-;;
 
 let parse_request ?pos ?len buf = run_parser ?pos ?len buf request
 let parse_response ?pos ?len buf = run_parser ?pos ?len buf response

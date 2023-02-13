@@ -19,4 +19,3 @@ let of_pipe ?buf_len info pipe_writer =
     Pipe.close pipe_writer
   in
   output_channel, flushed
-;;

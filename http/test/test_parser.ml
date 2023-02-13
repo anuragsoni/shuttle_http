@@ -16,7 +16,6 @@ let req =
    __utma=xxxxxxxxx.xxxxxxxxxx.xxxxxxxxxx.xxxxxxxxxx.xxxxxxxxxx.x; \
    __utmz=xxxxxxxxx.xxxxxxxxxx.x.x.utmccn=(referral)|utmcsr=reader.livedoor.com|utmcct=/reader/|utmcmd=referral\r\n\
    \r\n"
-;;
 
 type 'a success =
   { consumed : int
@@ -29,7 +28,6 @@ let parse_or_error parser ?pos ?len buf =
   | Ok (value, consumed) -> Ok { value; consumed }
   | Error Parser.Partial -> Or_error.errorf "Partial"
   | Error (Fail error) -> Error (Error.tag error ~tag:"Parse error")
-;;
 
 let%test_unit "Can parse HTTP methods" =
   let methods = Meth.all in
@@ -44,7 +42,6 @@ let%test_unit "Can parse HTTP methods" =
     ~expect:
       (List.map methods ~f:(fun m ->
          Ok { value = m; consumed = String.length (Meth.to_string m) + 1 }))
-;;
 
 let%expect_test "can parse a single request" =
   print_s
@@ -70,14 +67,12 @@ let%expect_test "can parse a single request" =
           (Cookie
            "wp_ozh_wsa_visits=2; wp_ozh_wsa_visit_lasttime=xxxxxxxxxx; __utma=xxxxxxxxx.xxxxxxxxxx.xxxxxxxxxx.xxxxxxxxxx.xxxxxxxxxx.x; __utmz=xxxxxxxxx.xxxxxxxxxx.x.x.utmccn=(referral)|utmcsr=reader.livedoor.com|utmcct=/reader/|utmcmd=referral")))
         (body Empty))))) |}]
-;;
 
 let%expect_test "reject headers with space before colon" =
   let req = "GET / HTTP/1.1\r\nHost : www.kittyhell.com\r\nKeep-Alive: 115\r\n\r\n" in
   print_s
     ([%sexp_of: Request.t success Or_error.t] (parse_or_error Parser.parse_request req));
   [%expect {| (Error ("Parse error" "Invalid Header Key")) |}]
-;;
 
 let more_requests =
   "GET / HTTP/1.1\r\n\
@@ -99,7 +94,6 @@ let more_requests =
    Connection: keep-alive\r\n\
    Referer: http://www.reddit.com/\r\n\
    \r\n"
-;;
 
 let%expect_test "can parse request at offset" =
   print_s
@@ -119,21 +113,18 @@ let%expect_test "can parse request at offset" =
           (Accept-Encoding "gzip, deflate") (Connection keep-alive)
           (Referer http://www.reddit.com/)))
         (body Empty))))) |}]
-;;
 
 let%expect_test "can report a partial parse" =
   print_s
     ([%sexp_of: Request.t success Or_error.t]
        (parse_or_error Parser.parse_request ~len:50 req));
   [%expect {| (Error Partial) |}]
-;;
 
 let%expect_test "can validate http version" =
   let req = "GET / HTTP/1.4\r\nHost: www.kittyhell.com\r\nKeep-Alive: 115\r\n\r\n" in
   print_s
     ([%sexp_of: Request.t success Or_error.t] (parse_or_error Parser.parse_request req));
   [%expect {| (Error ("Parse error" "Invalid HTTP Version")) |}]
-;;
 
 let%expect_test "parse result indicates location of start of body" =
   let req =
@@ -149,7 +140,6 @@ let%expect_test "parse result indicates location of start of body" =
   let { consumed; _ } = Or_error.ok_exn (parse_or_error Parser.parse_request req) in
   print_endline (String.subo req ~pos:consumed);
   [%expect {| foobar |}]
-;;
 
 let%expect_test "can parse chunk lengths" =
   List.iter
@@ -183,7 +173,6 @@ let%expect_test "can parse chunk lengths" =
     input: "abc\n12", parse_result: (Error ("Parse error" ("Invalid chunk_length character" "\n")))
     input: "121", parse_result: (Error Partial)
     input: "121\r", parse_result: (Error Partial) |}]
-;;
 
 open Base_quickcheck
 
@@ -202,7 +191,6 @@ let parse_chunk_length () =
         [%test_eq: int * int] res (num, String.length (Printf.sprintf "%x" num) + 2)
       | Error (Parser.Fail _) -> ()
       | Error _ -> assert false)
-;;
 
 let chunk_length_parse_case_insensitive () =
   let run_test num str =
@@ -221,7 +209,6 @@ let chunk_length_parse_case_insensitive () =
       let payload = Printf.sprintf "%x\r\n" num in
       run_test num (String.uppercase payload);
       run_test num (String.lowercase payload))
-;;
 
 let%expect_test "unexpected exception in to_string_trim caught via afl-fuzz" =
   let payloads =
@@ -244,7 +231,6 @@ let%expect_test "unexpected exception in to_string_trim caught via afl-fuzz" =
     (3) (Error Partial)
     (4) (Error Partial)
     (5) (Error Partial) |}]
-;;
 
 let%expect_test "can parse a single response" =
   let response = "HTTP/1.1 200 OK\r\nContent-Length: 21\r\nFoo: bar\r\n\r\n" in
@@ -259,7 +245,6 @@ let%expect_test "can parse a single response" =
         ((version Http_1_1) (status Ok) (reason_phrase OK)
          (headers ((Content-Length 21) (Foo bar))) (body Empty)))))
      49) |}]
-;;
 
 let%expect_test "Response parser catches invalid status code" =
   let response = "HTTP/1.1 20 OK\r\nContent-Length: 21\r\nFoo: bar\r\n\r\n" in
@@ -278,7 +263,6 @@ let%expect_test "Response parser catches invalid status code" =
     ([%sexp_of: Response.t success Or_error.t]
        (parse_or_error Parser.parse_response response));
   [%expect {| (Error ("Parse error" "Invalid status code 001")) |}]
-;;
 
 let%expect_test "Response parser catches spaces in header names" =
   let response = "HTTP/1.1 200 OK\r\nContent-Length  : 21\r\nFoo: bar\r\n\r\n" in
@@ -286,4 +270,3 @@ let%expect_test "Response parser catches spaces in header names" =
     ([%sexp_of: Response.t success Or_error.t]
        (parse_or_error Parser.parse_response response));
   [%expect {| (Error ("Parse error" "Invalid Header Key")) |}]
-;;

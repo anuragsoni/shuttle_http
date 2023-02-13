@@ -21,7 +21,6 @@ module Address = struct
   let hostname = function
     | Host_and_port host_and_port -> Some (Host_and_port.host host_and_port)
     | _ -> None
-  ;;
 end
 
 let write_request writer request =
@@ -86,7 +85,6 @@ let write_request writer request =
       Output_channel.write writer "0\r\n\r\n";
       Output_channel.flush writer)
     else Output_channel.flush writer
-;;
 
 module Ssl = struct
   type t =
@@ -133,7 +131,6 @@ module Ssl = struct
     ; session
     ; verify_certificate
     }
-  ;;
 end
 
 let host_matches ssl_hostname hostname =
@@ -162,7 +159,6 @@ let host_matches ssl_hostname hostname =
         |> Re2.create_exn ~options:{ Re2.Options.default with case_sensitive = true }
       in
       Re2.matches pattern hostname)
-;;
 
 let default_ssl_verify_certificate ssl_conn hostname =
   match Shuttle_ssl.peer_certificate ssl_conn with
@@ -195,7 +191,6 @@ let default_ssl_verify_certificate ssl_conn hostname =
              "SSL Certificate validation failed."
                ~hostname_requested:hostname
                ~certificate_hostnames:(names : string list)])
-;;
 
 exception Remote_connection_closed
 exception Request_aborted
@@ -281,7 +276,6 @@ module Connection = struct
                Ivar.fill ivar (Ok t);
                closed t));
         Ivar.read ivar)
-  ;;
 
   let call t request =
     let ivar = Ivar.create () in
@@ -332,7 +326,6 @@ module Connection = struct
         Throttle.kill t;
         raise Request_aborted);
     Ivar.read ivar
-  ;;
 end
 
 module T = struct
@@ -340,12 +333,10 @@ module T = struct
 
   let create ?interrupt ?connect_timeout ?ssl address =
     Connection.create ?interrupt ?connect_timeout ?ssl address
-  ;;
 
   let close t =
     Connection.close t;
     Connection.closed t
-  ;;
 
   let closed t = Connection.closed t
   let close_finished t = closed t
@@ -370,7 +361,6 @@ module Persistent = struct
       ?random_state
       ~connect:(fun address -> Connection.create ?ssl address)
       address
-  ;;
 
   let closed t = Persistent_connection.close_finished t
   let is_closed t = Persistent_connection.is_closed t
@@ -380,7 +370,6 @@ module Persistent = struct
     match%bind Persistent_connection.connected_or_failed_to_connect t with
     | Ok conn -> Connection.call conn request
     | Error err -> Error.raise err
-  ;;
 end
 
 module Oneshot = struct
@@ -390,5 +379,4 @@ module Oneshot = struct
         (Connection.create ?ssl ?connect_timeout ?interrupt address)
     in
     Connection.call conn request
-  ;;
 end

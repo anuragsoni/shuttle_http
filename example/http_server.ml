@@ -8,7 +8,6 @@ let service request =
   | "/", `GET -> return (Response.create ~body:(Body.string "Hello World") `Ok)
   | ("/echo" | "/"), _ -> return (Response.create `Method_not_allowed)
   | _ -> return (Response.create `Not_found)
-;;
 
 let run port =
   let server =
@@ -18,11 +17,9 @@ let run port =
     !"Server listening on: %s"
     (Socket.Address.to_string (Tcp.Server.listening_on_address server));
   Tcp.Server.close_finished_and_handlers_determined server
-;;
 
 let () =
   Command.async
     ~summary:"Start an echo server"
     (Command.Param.return (fun () -> run 8080))
   |> Command_unix.run
-;;
