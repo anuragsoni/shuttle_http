@@ -8,7 +8,6 @@ authors: ["Anurag Soni"]
 license: "MIT"
 tags: ["http-server" "http-client" "http" "http1.1" "async"]
 homepage: "https://github.com/anuragsoni/shuttle"
-doc: "https://anuragsoni.github.io/shuttle/"
 bug-reports: "https://github.com/anuragsoni/shuttle/issues"
 depends: [
   "dune" {>= "2.8"}

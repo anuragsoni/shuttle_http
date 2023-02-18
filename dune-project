@@ -9,8 +9,6 @@
 
 (maintainers "Anurag Soni <anurag@sonianurag.com>")
 
-(documentation "https://anuragsoni.github.io/shuttle/")
-
 (authors "Anurag Soni")
 
 (license MIT)

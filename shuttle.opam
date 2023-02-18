@@ -6,7 +6,6 @@ authors: ["Anurag Soni"]
 license: "MIT"
 tags: ["async" "reader" "writer"]
 homepage: "https://github.com/anuragsoni/shuttle"
-doc: "https://anuragsoni.github.io/shuttle/"
 bug-reports: "https://github.com/anuragsoni/shuttle/issues"
 depends: [
   "dune" {>= "2.8"}
