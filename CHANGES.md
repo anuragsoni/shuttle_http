@@ -1,4 +1,4 @@
-# next
+# 0.9.2
 
 * Allow creating ssl encrypted servers
 
