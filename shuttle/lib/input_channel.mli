@@ -4,12 +4,6 @@ open Async_unix
 
 type t [@@deriving sexp_of]
 
-type slice = private
-  { buf : Bigstring.t
-  ; pos : int
-  ; len : int
-  }
-
 val create : ?buf_len:int -> ?time_source:[> read ] Time_source.T1.t -> Fd.t -> t
 val time_source : t -> Time_source.t
 val buffer_size : t -> int
@@ -21,7 +15,7 @@ val refill : t -> [> `Ok | `Eof ] Deferred.t
 exception Timeout
 
 val refill_with_timeout : t -> Time_ns.Span.t -> [> `Ok | `Eof ] Deferred.t
-val view : t -> slice
+val view : t -> Slice.t
 val consume : t -> int -> unit
 
 (** [drain t] reads chunks of data from the reader and discards them. *)

@@ -6,12 +6,6 @@ module Output_channel = Output_channel0
 let buffer_size t = Bytebuffer.capacity t.buf
 let time_source t = t.time_source
 
-type slice = Bytebuffer.Slice.t = private
-  { buf : Bigstring.t
-  ; pos : int
-  ; len : int
-  }
-
 let of_pipe ?buf_len info reader =
   Unix.pipe info
   >>| fun (`Reader rd, `Writer wr) ->

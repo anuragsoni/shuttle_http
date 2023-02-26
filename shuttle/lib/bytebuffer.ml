@@ -133,16 +133,6 @@ let add_bigstring t ?pos ?len str =
 
 let add_bytebuffer t buf = add_bigstring t ~pos:buf.pos_read ~len:(length buf) buf.buf
 let to_string t = Bigstring.To_string.sub t.buf ~pos:t.pos_read ~len:(length t)
-
-module Slice = struct
-  type t =
-    { buf : (Bigstring.t[@sexp.opaque])
-    ; pos : int
-    ; len : int
-    }
-  [@@deriving sexp_of]
-end
-
 let unsafe_peek t = { Slice.buf = t.buf; pos = t.pos_read; len = length t }
 
 let slice ?(pos = 0) ?len t =

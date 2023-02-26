@@ -80,15 +80,5 @@ val add_bytebuffer : t -> t -> unit
 val to_string : t -> string
 
 val unsafe_index : t -> char -> int
-
-module Slice : sig
-  type t = private
-    { buf : Bigstring.t
-    ; pos : int
-    ; len : int
-    }
-  [@@deriving sexp_of]
-end
-
 val unsafe_peek : t -> Slice.t
 val slice : ?pos:int -> ?len:int -> t -> Slice.t
