@@ -4,6 +4,7 @@ open Shuttle_http
 
 let httpbin_address =
   Client.Address.of_host_and_port (Host_and_port.create ~host:"httpbin.org" ~port:443)
+;;
 
 let response_body_to_string response =
   let stream_to_string stream =
@@ -19,6 +20,7 @@ let response_body_to_string response =
   | Body.Empty -> return ""
   | Body.Fixed str -> return str
   | Body.Stream stream -> stream_to_string stream
+;;
 
 let one_shot_client () =
   let%bind response =
@@ -30,6 +32,7 @@ let one_shot_client () =
   printf "Response status: %d\n" (Response.status response |> Status.to_int);
   let%map body = response_body_to_string response in
   print_endline body
+;;
 
 let persistent_client () =
   let%bind httpbin =
@@ -54,11 +57,14 @@ let persistent_client () =
         ~f:(fun chunk ->
           printf "%s" chunk;
           Deferred.unit))
+;;
 
 let run () =
   Deferred.List.iter ~how:`Sequential [ one_shot_client; persistent_client ] ~f:(fun f ->
     f ())
+;;
 
 let () =
   Command.async ~summary:"Http client example" (Command.Param.return (fun () -> run ()))
   |> Command_unix.run
+;;

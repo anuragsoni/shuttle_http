@@ -35,6 +35,7 @@ let create ?buf_len ?time_source fd =
   ; buf = Bytebuffer.create buf_len
   ; time_source
   }
+;;
 
 let consume t n = Bytebuffer.drop t.buf n
 let is_closed t = t.is_closed
@@ -46,6 +47,7 @@ let close t =
     t.is_closed <- true;
     Fd.close t.fd >>> fun () -> Ivar.fill t.closed ());
   closed t
+;;
 
 exception Timeout
 
@@ -124,6 +126,7 @@ let refill_with_timeout t span =
     | EPIPE | ECONNRESET | EHOSTUNREACH | ENETDOWN | ENETRESET | ENETUNREACH | ETIMEDOUT
       -> return `Eof
     | error -> raise (Unix.Unix_error (error, "read", "")))
+;;
 
 let refill t =
   Bytebuffer.compact t.buf;
@@ -173,6 +176,7 @@ let refill t =
     | EPIPE | ECONNRESET | EHOSTUNREACH | ENETDOWN | ENETRESET | ENETUNREACH | ETIMEDOUT
       -> return `Eof
     | error -> raise (Unix.Unix_error (error, "read", "")))
+;;
 
 let view t = Bytebuffer.unsafe_peek t.buf
 
@@ -190,10 +194,12 @@ let transfer t writer =
   in
   loop ();
   Ivar.read finished
+;;
 
 let pipe t =
   let reader, writer = Pipe.create () in
   (transfer t writer >>> fun () -> close t >>> fun () -> Pipe.close writer);
   reader
+;;
 
 let drain t = Pipe.drain (pipe t)

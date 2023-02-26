@@ -82,16 +82,19 @@ let create ?buf_len ?write_timeout ?time_source fd =
   ; bytes_written = Int63.zero
   ; time_source
   }
+;;
 
 let wakeup_flushes_with_error t error =
   while not (Queue.is_empty t.flushes) do
     Ivar.fill (Queue.dequeue_exn t.flushes).ivar error
   done
+;;
 
 let is_closed t =
   match t.close_state with
   | Open -> false
   | Closed | Start_close -> true
+;;
 
 let flushed_or_fail t =
   if Bytebuffer.length t.buf = 0
@@ -106,11 +109,13 @@ let flushed_or_fail t =
     in
     Queue.enqueue t.flushes flush;
     Ivar.read flush.ivar)
+;;
 
 let flushed t =
   match%bind flushed_or_fail t with
   | Flush_result.Flushed -> Deferred.unit
   | Error | Remote_closed -> Deferred.never ()
+;;
 
 let close_started t = Ivar.read t.close_started
 let close_finished t = Ivar.read t.close_finished
@@ -128,15 +133,18 @@ let close' t =
     >>> fun () ->
     t.close_state <- Closed;
     Fd.close t.fd >>> fun () -> Ivar.fill t.close_finished ()
+;;
 
 let close t =
   close' t;
   close_finished t
+;;
 
 let stop_writer t reason =
   wakeup_flushes_with_error t reason;
   t.writer_state <- Stopped;
   close' t
+;;
 
 let monitor t = t.monitor
 let remote_closed t = Ivar.read t.remote_closed
@@ -149,6 +157,7 @@ let dequeue_flushes t =
   do
     Ivar.fill (Queue.dequeue_exn t.flushes).ivar Flush_result.Flushed
   done
+;;
 
 let write_nonblocking t =
   match Bytebuffer.write_assume_fd_is_nonblocking t.buf (Fd.file_descr_exn t.fd) with
@@ -170,6 +179,7 @@ let write_nonblocking t =
   | exception exn ->
     stop_writer t Flush_result.Error;
     raise exn
+;;
 
 let rec write_everything t =
   if Bytebuffer.length t.buf <= 0
@@ -209,48 +219,57 @@ and wait_and_write_everything t =
         "Shuttle.Output_channel: fd changed"
         , { t : t; ready_to_result = (result : [ `Bad_fd | `Closed ]) }];
     stop_writer t Flush_result.Error
+;;
 
 let is_writing t =
   match t.writer_state with
   | Active -> true
   | Inactive -> false
   | Stopped -> false
+;;
 
 let schedule_flush t =
   if (not (is_writing t)) && Bytebuffer.length t.buf > 0
   then (
     t.writer_state <- Active;
     Scheduler.within ~monitor:t.monitor (fun () -> write_everything t))
+;;
 
 let flush t =
   let flush_result = flushed t in
   schedule_flush t;
   flush_result
+;;
 
 let flush_or_fail t =
   let flush_result = flushed_or_fail t in
   schedule_flush t;
   flush_result
+;;
 
 let ensure_can_write t =
   match t.writer_state with
   | Inactive | Active -> ()
   | Stopped -> raise_s [%sexp "Attempting to write to a closed writer", { t : t }]
+;;
 
 let can_write t =
   match t.writer_state with
   | Inactive | Active -> true
   | Stopped -> false
+;;
 
 let write_bigstring t ?pos ?len buf =
   ensure_can_write t;
   Bytebuffer.add_bigstring t.buf buf ?pos ?len
+;;
 
 let schedule_bigstring t ?pos ?len buf = write_bigstring t ?pos ?len buf
 
 let write t ?pos ?len buf =
   ensure_can_write t;
   Bytebuffer.add_string t.buf buf ?pos ?len
+;;
 
 let write_string t ?pos ?len buf = write t ?pos ?len buf
 let writef t fmt = ksprintf (fun str -> write t str) fmt
@@ -258,6 +277,7 @@ let writef t fmt = ksprintf (fun str -> write t str) fmt
 let write_char t ch =
   ensure_can_write t;
   Bytebuffer.add_char t.buf ch
+;;
 
 let write_from_pipe t reader =
   let finished = Ivar.create () in
@@ -293,8 +313,10 @@ let write_from_pipe t reader =
     (* Close the pipe (both read and write ends) since the channel is closed. This is
        desirable so all future calls to [Pipe.write] fail. *)
     Pipe.close_read reader
+;;
 
 let pipe t =
   let reader, writer = Pipe.create () in
   don't_wait_for (write_from_pipe t reader);
   writer
+;;

@@ -14,18 +14,21 @@ let informational_to_code = function
   | `Switching_protocols -> 101
   | `Processing -> 102
   | `Early_hints -> 103
+;;
 
 let informational_to_string = function
   | `Continue -> "100"
   | `Switching_protocols -> "101"
   | `Processing -> "102"
   | `Early_hints -> "103"
+;;
 
 let informational_to_reason_phrase = function
   | `Continue -> "Continue"
   | `Switching_protocols -> "Switching Protocols"
   | `Processing -> "Processing"
   | `Early_hints -> "Early Hints"
+;;
 
 type success =
   [ `Ok (* [RFC7231, Section 6.3.1] *)
@@ -52,6 +55,7 @@ let success_to_code = function
   | `Multi_status -> 207
   | `Already_reported -> 208
   | `Im_used -> 226
+;;
 
 let success_to_string = function
   | `Ok -> "200"
@@ -64,6 +68,7 @@ let success_to_string = function
   | `Multi_status -> "207"
   | `Already_reported -> "208"
   | `Im_used -> "226"
+;;
 
 let success_to_reason_phrase = function
   | `Ok -> "OK"
@@ -76,6 +81,7 @@ let success_to_reason_phrase = function
   | `Multi_status -> "Multi-Status"
   | `Already_reported -> "Already Reported"
   | `Im_used -> "IM Used"
+;;
 
 type redirection =
   [ `Multiple_choices (* [RFC7231, Section 6.4.1] *)
@@ -98,6 +104,7 @@ let redirection_to_code = function
   | `Use_proxy -> 305
   | `Temporary_redirect -> 307
   | `Permanent_redirect -> 308
+;;
 
 let redirection_to_string = function
   | `Multiple_choices -> "300"
@@ -108,6 +115,7 @@ let redirection_to_string = function
   | `Use_proxy -> "305"
   | `Temporary_redirect -> "307"
   | `Permanent_redirect -> "308"
+;;
 
 let redirection_to_reason_phrase = function
   | `Multiple_choices -> "Multiple Choices"
@@ -118,6 +126,7 @@ let redirection_to_reason_phrase = function
   | `Use_proxy -> "Use Proxy"
   | `Temporary_redirect -> "Temporary Redirect"
   | `Permanent_redirect -> "Permanent Redirect"
+;;
 
 type client_error =
   [ `Bad_request (* [RFC7231, Section 6.5.1] *)
@@ -180,6 +189,7 @@ let client_error_to_code = function
   | `Too_many_requests -> 429
   | `Request_header_fields_too_large -> 431
   | `Unavailable_for_legal_reasons -> 451
+;;
 
 let client_error_to_string = function
   | `Bad_request -> "400"
@@ -210,6 +220,7 @@ let client_error_to_string = function
   | `Too_many_requests -> "429"
   | `Request_header_fields_too_large -> "431"
   | `Unavailable_for_legal_reasons -> "451"
+;;
 
 let client_error_to_reason_phrase = function
   | `Bad_request -> "Bad Request"
@@ -240,6 +251,7 @@ let client_error_to_reason_phrase = function
   | `Too_many_requests -> "Too Many Requests"
   | `Request_header_fields_too_large -> "Request Header Fields Too Large"
   | `Unavailable_for_legal_reasons -> "Unavailable For Legal Reasons"
+;;
 
 type server_error =
   [ `Internal_server_error (* [RFC7231, Section 6.6.1] *)
@@ -268,6 +280,7 @@ let server_error_to_code = function
   | `Loop_detected -> 508
   | `Not_extended -> 510
   | `Network_authentication_required -> 511
+;;
 
 let server_error_to_string = function
   | `Internal_server_error -> "500"
@@ -281,6 +294,7 @@ let server_error_to_string = function
   | `Loop_detected -> "508"
   | `Not_extended -> "510"
   | `Network_authentication_required -> "511"
+;;
 
 let server_error_to_reason_phrase = function
   | `Internal_server_error -> "Internal Server Error"
@@ -294,6 +308,7 @@ let server_error_to_reason_phrase = function
   | `Loop_detected -> "Loop Detected"
   | `Not_extended -> "Not Extended"
   | `Network_authentication_required -> "Network Authentication Required"
+;;
 
 type t =
   [ informational
@@ -310,6 +325,7 @@ let to_int = function
   | #redirection as c -> redirection_to_code c
   | #client_error as c -> client_error_to_code c
   | #server_error as c -> server_error_to_code c
+;;
 
 let to_string = function
   | #informational as c -> informational_to_string c
@@ -317,6 +333,7 @@ let to_string = function
   | #redirection as c -> redirection_to_string c
   | #client_error as c -> client_error_to_string c
   | #server_error as c -> server_error_to_string c
+;;
 
 let to_reason_phrase = function
   | #informational as c -> informational_to_reason_phrase c
@@ -324,6 +341,7 @@ let to_reason_phrase = function
   | #redirection as c -> redirection_to_reason_phrase c
   | #client_error as c -> client_error_to_reason_phrase c
   | #server_error as c -> server_error_to_reason_phrase c
+;;
 
 let of_string : string -> t Or_error.t =
  fun code ->
@@ -390,6 +408,7 @@ let of_string : string -> t Or_error.t =
   | "510" -> Ok `Not_extended
   | "511" -> Ok `Network_authentication_required
   | code -> Or_error.errorf "Invalid status code %s" code
+;;
 
 let of_int : int -> t Or_error.t =
  fun code ->
@@ -456,3 +475,4 @@ let of_int : int -> t Or_error.t =
   | 510 -> Ok `Not_extended
   | 511 -> Ok `Network_authentication_required
   | code -> Or_error.errorf "Invalid status code %d" code
+;;

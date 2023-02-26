@@ -31,6 +31,7 @@ let of_string = function
   | "TRACE" -> Ok `TRACE
   | "PATCH" -> Ok `PATCH
   | meth -> Or_error.error "Invalid HTTP method" meth sexp_of_string
+;;
 
 let to_string = function
   | `GET -> "GET"
@@ -42,15 +43,19 @@ let to_string = function
   | `OPTIONS -> "OPTIONS"
   | `TRACE -> "TRACE"
   | `PATCH -> "PATCH"
+;;
 
 let is_safe = function
   | `GET | `HEAD | `OPTIONS | `TRACE -> true
   | _ -> false
+;;
 
 let is_idempotent = function
   | `PUT | `DELETE -> true
   | t -> is_safe t
+;;
 
 let is_cacheable = function
   | `GET | `HEAD | `POST -> true
   | _ -> false
+;;

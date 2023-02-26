@@ -22,6 +22,7 @@ let run sock =
     let%map.Deferred () = after Time.Span.(of_sec 0.5) in
     Log.Global.printf "Active connections: %d" (Tcp.Server.num_connections server));
   Tcp.Server.close_finished_and_handlers_determined server
+;;
 
 let () =
   Command.async
@@ -30,3 +31,4 @@ let () =
       let%map_open sock = anon ("socket" %: string) in
       fun () -> run sock)
   |> Command_unix.run
+;;

@@ -40,6 +40,7 @@ module Ssl = struct
     ; ca_path
     ; verify_modes
     }
+  ;;
 end
 
 type error_handler = ?exn:Exn.t -> ?request:Request.t -> Status.t -> Response.t Deferred.t
@@ -51,6 +52,7 @@ let default_error_handler ?exn:_ ?request:_ status =
        ~headers:(Headers.of_rev_list [ "Connection", "close"; "Content-Length", "0" ])
        ~body:Body.empty
        status)
+;;
 
 module Config = struct
   type t =
@@ -85,6 +87,7 @@ module Config = struct
     ; error_handler
     ; ssl
     }
+  ;;
 
   let default = create ~max_accepts_per_batch:64 ~backlog:128 ()
 end
@@ -169,6 +172,7 @@ let write_response t res =
       Output_channel.write t.writer "0\r\n\r\n";
       Output_channel.flush t.writer)
     else Output_channel.flush t.writer
+;;
 
 let create
   ?(error_handler = default_error_handler)
@@ -183,6 +187,7 @@ let create
   ; error_handler
   ; read_header_timeout
   }
+;;
 
 let run_server_loop t handler =
   let rec parse_request t =
@@ -265,6 +270,7 @@ let run_server_loop t handler =
     if Ivar.is_empty t.closed
     then write_response t response >>> fun () -> Ivar.fill t.closed ());
   Ivar.read t.closed
+;;
 
 let run_server ~interrupt config reader writer service =
   let server =
@@ -282,6 +288,7 @@ let run_server ~interrupt config reader writer service =
        ])
     (fun () -> close server);
   run_server_loop server service
+;;
 
 let run_inet ?(config = Config.default) addr service =
   let interrupt = Ivar.create () in
@@ -326,6 +333,7 @@ let run_inet ?(config = Config.default) addr service =
   in
   upon (Tcp.Server.close_finished server) (fun () -> Ivar.fill_if_empty interrupt ());
   server
+;;
 
 let run ?(config = Config.default) addr service =
   let interrupt = Ivar.create () in
@@ -370,3 +378,4 @@ let run ?(config = Config.default) addr service =
   in
   upon (Tcp.Server.close_finished server) (fun () -> Ivar.fill_if_empty interrupt ());
   server
+;;

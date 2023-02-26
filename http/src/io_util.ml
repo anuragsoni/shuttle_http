@@ -6,6 +6,7 @@ let keep_alive headers =
   match Headers.find headers "connection" with
   | Some x when String.Caseless.equal x "close" -> false
   | _ -> true
+;;
 
 let get_transfer_encoding headers =
   match List.rev @@ Headers.find_multi headers "Transfer-Encoding" with
@@ -26,6 +27,7 @@ let get_transfer_encoding headers =
        in
        if Int.(len >= 0) then `Fixed len else `Bad_request
      | _ -> `Bad_request)
+;;
 
 let parse_body reader headers =
   match get_transfer_encoding headers with
@@ -79,3 +81,4 @@ let parse_body reader headers =
     in
     Ok (Body.of_pipe `Chunked pipe)
   | `Bad_request -> Or_error.error_s [%sexp "Invalid transfer encoding"]
+;;

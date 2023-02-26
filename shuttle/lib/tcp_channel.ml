@@ -4,6 +4,7 @@ open! Async
 let close_channels reader writer =
   let%bind () = Output_channel.close writer in
   Input_channel.close reader
+;;
 
 let collect_errors writer fn =
   let monitor = Output_channel.monitor writer in
@@ -12,6 +13,7 @@ let collect_errors writer fn =
     [ choice (Monitor.get_next_error monitor) (fun e -> Error e)
     ; choice (Monitor.try_with ~run:`Now ~rest:`Log fn) Fn.id
     ]
+;;
 
 let listen
   ?max_connections
@@ -51,6 +53,7 @@ let listen
       Exn.reraise
         exn
         "Shuttle.Connection: Unhandled exception within tcp connection handler")
+;;
 
 let listen_inet
   ?max_connections
@@ -90,6 +93,7 @@ let listen_inet
       Exn.reraise
         exn
         "Shuttle.Connection: Unhandled exception within tcp connection handler")
+;;
 
 let with_connection
   ?interrupt
@@ -119,6 +123,7 @@ let with_connection
   | Ok v -> v
   | Error exn ->
     Exn.reraise exn "Shuttle.Connection: Unhandled exception in TCP client connection"
+;;
 
 let connect
   ?interrupt
@@ -135,3 +140,4 @@ let connect
   let reader = Input_channel.create ?buf_len ?time_source fd in
   let writer = Output_channel.create ?buf_len ?time_source ?write_timeout fd in
   reader, writer
+;;

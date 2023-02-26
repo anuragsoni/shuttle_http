@@ -17,6 +17,7 @@ let create
   path
   =
   { meth; path; version; headers; body }
+;;
 
 let meth t = t.meth
 let path t = t.path
@@ -27,3 +28,4 @@ let with_body t body = if phys_equal t.body body then t else { t with body }
 
 let with_headers t headers =
   if phys_equal t.headers headers then t else { t with headers }
+;;

@@ -9,6 +9,7 @@ let%test_unit "Http Status can be coverted to int and back" =
     |> List.map ~f:(fun v -> Or_error.ok_exn (Status.of_int v))
   in
   [%test_result: Status.t list] ~expect:a b
+;;
 
 let%test_unit "Status.of_string (Int.to_string (Status.to_int c)) always succeeds" =
   let a = Status.all in
@@ -19,6 +20,7 @@ let%test_unit "Status.of_string (Int.to_string (Status.to_int c)) always succeed
     |> List.map ~f:(fun v -> Or_error.ok_exn (Status.of_string v))
   in
   [%test_result: Status.t list] ~expect:a b
+;;
 
 let%test_unit "Status.of_int (Int.of_string (Status.to_string c)) always succeeds" =
   let a = Status.all in
@@ -29,6 +31,7 @@ let%test_unit "Status.of_int (Int.of_string (Status.to_string c)) always succeed
     |> List.map ~f:(fun v -> Or_error.ok_exn (Status.of_int v))
   in
   [%test_result: Status.t list] ~expect:a b
+;;
 
 let%test_unit "Status.of_int (Status.to_int c) always succeeds" =
   Quickcheck.test
@@ -38,3 +41,4 @@ let%test_unit "Status.of_int (Status.to_int c) always succeeds" =
     [%test_result: Status.t Or_error.t]
       ~expect:(Ok status)
       (Status.of_int (Status.to_int status)))
+;;
