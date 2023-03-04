@@ -4,7 +4,7 @@ open! Shuttle
 open Io_util
 module Logger = Log.Make_global ()
 
-module Ssl = struct
+module Ssl_options = struct
   type t =
     { certificate_file : string
     ; key_file : string
@@ -63,12 +63,12 @@ module Config = struct
     ; write_timeout : Time_ns.Span.t option
     ; read_header_timeout : Time_ns.Span.t option
     ; error_handler : error_handler
-    ; ssl : Ssl.t option
+    ; ssl : Ssl_options.t option
     }
   [@@deriving sexp_of]
 
   let create
-    ?(buf_len = 0x4000)
+    ?(buf_len = 0x2000)
     ?max_connections
     ?max_accepts_per_batch
     ?backlog
@@ -308,11 +308,11 @@ let run_inet ?(config = Config.default) addr service =
       addr
       (fun addr reader writer ->
         match config.ssl with
-        | Some ssl ->
-          Shuttle_ssl.upgrade_server_connection
+        | Some (ssl : Ssl_options.t) ->
+          Ssl.upgrade_server_connection
             reader
             writer
-            ~crt_file:ssl.Ssl.certificate_file
+            ~crt_file:ssl.certificate_file
             ~key_file:ssl.key_file
             ?version:ssl.version
             ?options:ssl.options
@@ -353,11 +353,11 @@ let run ?(config = Config.default) addr service =
       addr
       (fun addr reader writer ->
         match config.ssl with
-        | Some ssl ->
-          Shuttle_ssl.upgrade_server_connection
+        | Some (ssl : Ssl_options.t) ->
+          Ssl.upgrade_server_connection
             reader
             writer
-            ~crt_file:ssl.Ssl.certificate_file
+            ~crt_file:ssl.certificate_file
             ~key_file:ssl.key_file
             ?version:ssl.version
             ?options:ssl.options
