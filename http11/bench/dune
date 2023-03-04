@@ -1,0 +1,11 @@
+(executable
+ (name parser_bench)
+ (modules parser_bench)
+ (libraries core_bench core_unix.command_unix shuttle_http))
+
+(executable
+ (name http_server_bench)
+ (modules http_server_bench)
+ (preprocess
+  (pps ppx_jane))
+ (libraries shuttle_http core_unix.command_unix))

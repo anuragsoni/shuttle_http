@@ -1,42 +1,177 @@
-# Shuttle
+# [Shuttle_http](https://github.com/anuragsoni/shuttle/tree/main/http)
 
-Reasonably performant buffered channels<sup>[1](#channel)</sup> for async.
+Shuttle_http is a HTTP/1.1 implementation for OCaml that uses [async](https://opensource.janestreet.com/async/) to provide asynchronous servers and clients.
 
-## Overview
+This is a relatively low-level library that attempts to provide building blocks for writing http servers and clients. The goal for this library is to be a building block for other libraries and applications.
 
-There are multiple options for performing I/O using [async](https://github.com/janestreet/async_unix).
-The Reader and Writer modules provide a high level API for buffered I/O, and are typically the go-to option for
-applications that use async for I/O. These modules maintain their own internal buffer, and offer
-users a simple interface that lets them interact with the underlying file descriptor without having
-to write custom (and often error prone) buffer management logic.
+## Getting Started
 
-The Reader/Writer modules provide convinence, but they might not be suitable in scenarios where one wants
-slightly more control over when write operations are scheduled, or when the overhead of the reader/writer is not desirable<sup>[2](#overhead)</sup>.
-In such scenarios, it is possible to drop down to async's [Fd](https://github.com/janestreet/async_unix/blob/4deb094dd60c22229f63b1e8467f0f7e0f18069d/src/fd.mli)
-module and schedule reads and writes manually. This approach will give full control over how I/O operations are scheduled, but will come at a cost of more complexity
-as the user is now responsible for buffer management, and proper handling of syscall responses.
+You can install the library using opam.
 
-Shuttle aims to provide a middle ground for a subset of use-cases handled by Reader/Writer. It covers fewer use-cases when
-compared to Reader/Writer, only supports file descriptors that support non-blocking system calls, and doesn't aim to support the full
-feature set of the reader/writes modules. In return, it allows for a high level api that pairs the ease of use of reader/writer modules with
-performance and latency curves that are closer to implementations with manual buffer management.
+```sh
+opam install shuttle_http
+```
 
-### Supported Platforms
+Once installed, you'll need to add `shuttle_http` as a dependency in your project's dune file. ex:
 
-Currently only linux, macOS and bsd based systems.
+```scheme
+(executable
+  (name foo)
+  (libraries shuttle_http))
+```
 
-## How to Install
+API Documentation can be viewed online on the [OCaml package registry](https://ocaml.org/p/shuttle_http/0.9.1/doc/index.html).
 
-`opam install shuttle` for the current published release, and `opam pin add shuttle --dev-repo` for the development version.
+### Getting Started with Servers
 
-## Companion projects
+Shuttle_http is built on top of `Core` and `Async`. Core is intended to be used as a replacement of the OCaml standard library, and Async is a library that implements a non-preemptive user-level threads and provides a high level api for asynchronous execution. The rest of this doc assumed the following modules have been opened:
 
-* [shuttle_ssl](./shuttle_ssl/): Async_ssl support for shuttle
-* [shuttle_http](./http/): Http 1.1 server and client support built on top of shuttle.
+```ocaml
+open! Core
+open! Async
+open! Shuttle_http
+```
 
-*Notes*:
+#### Defining a Service
 
-* <a name="channel">1</a>: Channel is a high-level construct for performing I/O.
-* <a name="overhead">2</a>: As always, make your own measurements. Also weigh in the fact that reader/writer modules in async are mature, battle tested and cover more use-cases.
-* <a name="fork">3</a>: The implementation started as a fork [async_rpc's](https://github.com/janestreet/async/blob/7e71341ab2b962c56b98f293a3bec6098eafd1b0/async_rpc/src/rpc_transport_low_latency.ml) low latency transport.
-* <a name="benchmark">4</a>: A shuttle based http server benchmark can be found at <https://github.com/ocaml-multicore/retro-httpaf-bench/pull/16>
+A Service defines how a server responds to incoming requests. It is an asynchronous function that accepts a HTTP request and returns
+a deferred HTTP Response.
+
+```ocaml
+let hello_service (_ : Request.t) =
+  return (Response.create ~body:(Body.string "Hello World") `Ok)
+;;
+```
+
+This service will respond to all requests with a 200 status code and a body with the content "Hello World". Shuttle_http will automatically populate the Content-Length header in the response.
+
+#### Running a Server
+
+We will need to launch a server that will accept `hello_service` and start a running TCP server.
+
+```ocaml
+let main port =
+  let server =
+    Server.run_inet (Tcp.Where_to_listen.of_port port) (fun _addr -> service)
+  in
+  Log.Global.info
+    !"Server listening on: %s"
+    (Socket.Address.to_string (Tcp.Server.listening_on_address server));
+  Tcp.Server.close_finished_and_handlers_determined server
+;;
+```
+
+To launch our server, we will leverage async's `Command.async`, which will use the `main` function we defined, start the Async scheduler before `main` is run, and will stop the scheduler once `main` returns.
+
+```ocaml
+let () =
+  Command.async
+    ~summary:"Start an echo server"
+    (Command.Param.return (fun () -> main 8080))
+  |> Command_unix.run
+;;
+```
+
+#### Echo Server
+
+Our `hello_service` doesn't really do much, we'll now see examples of servers that do a little more work than always responding with the same payload for every request. This example will show how to echo the body received in an incoming request back to the client. We'll also need to do some routing and since `shuttle_http` doesn't ship with a router we'll rely on pattern matching:
+
+```ocaml
+let service request =
+  match Request.path request, Request.meth request with
+  | "/echo", `POST -> return (Response.create ~body:(Request.body request) `Ok)
+  | "/", `GET -> return (Response.create ~body:(Body.string "Hello World") `Ok)
+  | ("/echo" | "/"), _ -> return (Response.create `Method_not_allowed)
+  | _ -> return (Response.create `Not_found)
+;;
+```
+
+This is a more involved service, we use pattern matching to dispatch our service on a combination of request path and http method. If we receive a `POST` request on the `/echo` path, we return a new response that uses the same body stream as the incoming request.
+Shuttle_http will ensure that the incoming request body is streamed incrementally and echoed back out to the client.
+
+### Getting Started with Clients
+
+We'll use `httpbin.org` has a target for all the examples related to HTTP clients. We'll need to create a new `address` entity that points to httpbin:
+
+```ocaml
+let httpbin_address =
+  Client.Address.of_host_and_port (Host_and_port.create ~host:"httpbin.org" ~port:443)
+;;
+```
+
+If the incoming response's body fits entirely in the client's buffer Shuttle_http will represent the body as a fixed sized string, otherwise the body is read as an asynchronous stream so the response can be processed without having to wait for the entire body to arrive over the write.
+
+We'll write a utility function that will convert a streaming response body to a string:
+
+```ocaml
+let response_body_to_string response =
+  let stream_to_string stream =
+    let buffer = Buffer.create 128 in
+    let%map () =
+      Body.Stream.iter stream ~f:(fun chunk ->
+        Buffer.add_string buffer chunk;
+        Deferred.unit)
+    in
+    Buffer.contents buffer
+  in
+  match Response.body response with
+  | Body.Empty -> return ""
+  | Body.Fixed str -> return str
+  | Body.Stream stream -> stream_to_string stream
+;;
+```
+
+Shuttle_http offers a few different flavors of HTTP clients. The first one we'll see is a OneShot client. OneShot clients open a new TCP
+connection, send a HTTP Request, wait to receive a Response and then shut-down the TCP connection once the entire response has been consumed.
+
+#### Oneshot clients
+
+```ocaml
+let one_shot_client () =
+  let%bind response =
+    Client.Oneshot.call
+      ~ssl:(Client.Ssl_config.create ())
+      httpbin_address
+      (Request.create `GET "/get")
+  in
+  printf "Response status: %d\n" (Response.status response |> Status.to_int);
+  let%map body = response_body_to_string response in
+  print_endline body
+;;
+```
+
+This client sends a request to `httpbin` using a TLS encrypted connection, and logs the response.
+
+#### Clients supporting keep-alive
+
+```ocaml
+let persistent_client () =
+  let%bind httpbin =
+    Deferred.Or_error.ok_exn (Client.create ~ssl:(Client.Ssl_config.create ()) httpbin_address)
+  in
+  Monitor.protect
+    ~finally:(fun () -> Client.close httpbin)
+    (fun () ->
+      let%bind response = Client.call httpbin (Request.create `GET "/stream/20") in
+      printf !"Headers: %{sexp: Headers.t}" (Response.headers response);
+      let%bind () =
+        Body.Stream.iter
+          (Body.to_stream (Response.body response))
+          ~f:(fun chunk ->
+            printf "%s" chunk;
+            Deferred.unit)
+      in
+      let%bind response = Client.call httpbin (Request.create `GET "/get") in
+      printf !"Headers: %{sexp: Headers.t}" (Response.headers response);
+      Body.Stream.iter
+        (Body.to_stream (Response.body response))
+        ~f:(fun chunk ->
+          printf "%s" chunk;
+          Deferred.unit))
+;;
+```
+
+This example uses a client that supports keep-alive. The client object needs to be forward to every `Client.call` as it maintains internal state to ensure that the same tcp connection will be re-used for multiple requests. The client only send a new request once the previous response has been fully consumed.
+
+Persistent clients are nice as they avoid paying the price of establishing a new TCP connection for subsequent requests. The drawback is that users need to be remember to close the client once they are done with it to avoid leaking file handles. `Monitor.protect` can be a good option
+when using persistent clients as it'll provide a consistent cleanup stage via its `finally` callback which can be used to close the client object.
