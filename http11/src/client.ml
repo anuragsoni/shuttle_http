@@ -315,7 +315,7 @@ module Connection = struct
                 let response = Response.with_body response body in
                 if not
                      (keep_alive (Response.headers response)
-                     && keep_alive (Request.headers request))
+                      && keep_alive (Request.headers request))
                 then close t;
                 Ivar.fill ivar response;
                 (match Response.body response with
@@ -323,14 +323,14 @@ module Connection = struct
                  | Body.Stream stream ->
                    let%map () = Body.Stream.closed stream in
                    `Finished ()))))
-      >>| function
-      | `Ok () -> ()
-      | `Raised exn ->
-        Throttle.kill t;
-        raise exn
-      | `Aborted ->
-        Throttle.kill t;
-        raise Request_aborted);
+       >>| function
+       | `Ok () -> ()
+       | `Raised exn ->
+         Throttle.kill t;
+         raise exn
+       | `Aborted ->
+         Throttle.kill t;
+         raise Request_aborted);
     Ivar.read ivar
   ;;
 end

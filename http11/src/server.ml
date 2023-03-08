@@ -249,8 +249,8 @@ let run_server_loop t handler =
         else parse_request t
       | Body.Stream stream ->
         (if Body.Stream.read_started stream
-        then Body.Stream.closed stream
-        else Body.Stream.drain stream)
+         then Body.Stream.closed stream
+         else Body.Stream.drain stream)
         >>> fun () ->
         if Time_ns.Span.is_positive t.read_header_timeout
         then parse_request_with_timeout t t.read_header_timeout

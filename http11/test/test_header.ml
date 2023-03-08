@@ -7,9 +7,9 @@ let%expect_test "header operations" =
   printf
     !"%{sexp: Headers.t}\n"
     (Headers.empty
-    |> Headers.add ~key:"foo" ~data:"bar"
-    |> Headers.add ~key:"foo" ~data:"baz"
-    |> Headers.add_unless_exists ~key:"foo" ~data:"this won't be added");
+     |> Headers.add ~key:"foo" ~data:"bar"
+     |> Headers.add ~key:"foo" ~data:"baz"
+     |> Headers.add_unless_exists ~key:"foo" ~data:"this won't be added");
   [%expect {| ((foo baz) (foo bar)) |}];
   let headers =
     Headers.of_rev_list [ "foo", "bar"; "hello", "world"; "foo", "second foo" ]
