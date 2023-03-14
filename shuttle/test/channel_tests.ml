@@ -20,7 +20,7 @@ let%expect_test "create a pipe from an input_channel" =
     (write_chunks_to_chan
        wr
        [ "Hello, World!"; " This is a line\nWith some more data as part of this chunk\n" ]
-    >>= fun () -> Output_channel.close wr);
+     >>= fun () -> Output_channel.close wr);
   let%map () =
     Pipe.iter_without_pushback pipe ~f:(fun payload -> Writer.write stdout payload)
   in
@@ -44,7 +44,7 @@ let%expect_test "create a pipe from an output channel" =
        ~how:`Sequential
        [ "Hello!!"; " This is another chunk.\n"; "Pushing to writer\n" ]
        ~f:(fun msg -> Pipe.write pipe_w msg)
-    >>= fun () -> Output_channel.close wr);
+     >>= fun () -> Output_channel.close wr);
   let%map () =
     Pipe.iter_without_pushback pipe_r ~f:(fun msg -> Writer.write stdout msg)
   in

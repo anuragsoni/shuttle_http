@@ -24,7 +24,7 @@ type t =
 [@@deriving sexp_of]
 
 let create size =
-  if size <= 0
+  if size < 0
   then raise_s [%message "Buffer size cannot be negative" ~requested_size:(size : int)];
   let buf = Bigstring.create size in
   { buf; pos_read = 0; pos_fill = 0 }
