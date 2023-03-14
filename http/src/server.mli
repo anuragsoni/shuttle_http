@@ -1,12 +1,13 @@
 open! Core
 open! Async
+open! Shuttle
 
 (** [error_handler] can be used to customize how the server deals with any unhandled
     exceptions. A default implementation is provided that will respond with a status code
     and an empty response body. *)
 type error_handler = ?exn:exn -> ?request:Request.t -> Status.t -> Response.t Deferred.t
 
-module Ssl_options : sig
+module Ssl : sig
   type t [@@deriving sexp_of]
 
   (** ssl options that should be used when creating a https server. *)
@@ -64,7 +65,7 @@ module Config : sig
     -> ?write_timeout:Time_ns.Span.t
     -> ?read_header_timeout:Time_ns.Span.t
     -> ?error_handler:error_handler
-    -> ?ssl:Ssl_options.t
+    -> ?ssl:Ssl.t
     -> unit
     -> t
 end

@@ -25,7 +25,7 @@ let response_body_to_string response =
 let one_shot_client () =
   let%bind response =
     Client.Oneshot.call
-      ~ssl:(Client.Ssl_options.create ())
+      ~ssl:(Client.Ssl.create ())
       httpbin_address
       (Request.create `GET "/get")
   in
@@ -36,8 +36,7 @@ let one_shot_client () =
 
 let persistent_client () =
   let%bind httpbin =
-    Deferred.Or_error.ok_exn
-      (Client.create ~ssl:(Client.Ssl_options.create ()) httpbin_address)
+    Deferred.Or_error.ok_exn (Client.create ~ssl:(Client.Ssl.create ()) httpbin_address)
   in
   Monitor.protect
     ~finally:(fun () -> Client.close httpbin)

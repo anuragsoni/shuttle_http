@@ -1,5 +1,6 @@
 open! Core
 open! Async
+open! Shuttle
 
 let keep_alive headers =
   match Headers.find headers "connection" with

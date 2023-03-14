@@ -1,5 +1,6 @@
 open! Core
 open! Async
+open! Shuttle
 open! Shuttle_http
 
 let handler request =

@@ -88,7 +88,7 @@ let write_request writer request =
     else Output_channel.flush writer
 ;;
 
-module Ssl_options = struct
+module Ssl = struct
   type t =
     { version : Async_ssl.Version.t option
     ; options : Async_ssl.Opt.t list option
@@ -101,7 +101,7 @@ module Ssl_options = struct
     ; key_file : string option
     ; verify_modes : Async_ssl.Verify_mode.t list option
     ; session : (Async_ssl.Ssl.Session.t[@sexp.opaque]) option
-    ; verify_certificate : (Async_ssl.Ssl.Connection.t -> unit Or_error.t) option
+    ; verify_certificate : (Shuttle_ssl.ssl_connection -> unit Or_error.t) option
     }
   [@@deriving sexp_of]
 
@@ -165,7 +165,7 @@ let host_matches ssl_hostname hostname =
 ;;
 
 let default_ssl_verify_certificate ssl_conn hostname =
-  match Async_ssl.Ssl.Connection.peer_certificate ssl_conn with
+  match Shuttle_ssl.peer_certificate ssl_conn with
   | None -> Or_error.errorf "Missing ssl peer certificate"
   | Some (Error e) -> Error e
   | Some (Ok cert) ->
@@ -236,17 +236,17 @@ module Connection = struct
         let%bind () = Output_channel.close conn.writer in
         Input_channel.close conn.reader);
       Deferred.Or_error.return t
-    | Some (ssl : Ssl_options.t) ->
+    | Some ssl ->
       let ssl =
-        match ssl.hostname with
+        match ssl.Ssl.hostname with
         | Some _ -> ssl
         | None -> { ssl with hostname = Address.hostname address }
       in
       Deferred.Or_error.try_with_join ~run:`Now (fun () ->
         let ivar = Ivar.create () in
         don't_wait_for
-          (Ssl.upgrade_client_connection
-             ?version:ssl.version
+          (Shuttle_ssl.upgrade_client_connection
+             ?version:ssl.Ssl.version
              ?options:ssl.options
              ?name:ssl.name
              ?hostname:ssl.hostname

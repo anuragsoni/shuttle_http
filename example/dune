@@ -1,5 +1,5 @@
 (executables
- (names http_server http_client)
+ (names echo redis_bench_async redis_bench_shuttle http_server http_client)
  (preprocess
   (pps ppx_jane))
  (libraries
@@ -8,4 +8,6 @@
   core_unix.filename_unix
   core_unix.command_unix
   async
+  shuttle
+  shuttle_ssl
   shuttle_http))

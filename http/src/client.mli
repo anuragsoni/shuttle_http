@@ -1,5 +1,6 @@
 open! Core
 open! Async
+open! Shuttle
 
 module Address : sig
   type t [@@deriving sexp, equal, compare, hash]
@@ -11,7 +12,7 @@ module Address : sig
   val of_unix_domain_socket : Filename.t -> t
 end
 
-module Ssl_options : sig
+module Ssl : sig
   type t [@@deriving sexp_of]
 
   (** ssl options that should be used when using a client over an encrypted connection.
@@ -31,7 +32,7 @@ module Ssl_options : sig
     -> ?key_file:string
     -> ?verify_modes:Async_ssl.Verify_mode.t list
     -> ?session:Async_ssl.Ssl.Session.t
-    -> ?verify_certificate:(Async_ssl.Ssl.Connection.t -> unit Or_error.t)
+    -> ?verify_certificate:(Shuttle_ssl.ssl_connection -> unit Or_error.t)
     -> unit
     -> t
 end
@@ -53,7 +54,7 @@ type t [@@deriving sexp_of]
 val create
   :  ?interrupt:unit Deferred.t
   -> ?connect_timeout:Time.Span.t
-  -> ?ssl:Ssl_options.t
+  -> ?ssl:Ssl.t
   -> Address.t
   -> t Deferred.Or_error.t
 
@@ -90,11 +91,11 @@ module Oneshot : sig
       ensure the hostnames on the peer's ssl certificate matches the hostname provided by
       the caller. To disable this check or to customize how the ssl certificate is
       validated users can provide their own implementation of [verify_certificate] when
-      creating the {{!Shuttle_http.Client.Ssl_options.t} ssl} options. *)
+      creating the {{!Shuttle_http.Client.Ssl.t} ssl} options. *)
   val call
     :  ?interrupt:unit Deferred.t
     -> ?connect_timeout:Time.Span.t
-    -> ?ssl:Ssl_options.t
+    -> ?ssl:Ssl.t
     -> Address.t
     -> Request.t
     -> Response.t Deferred.t
@@ -116,7 +117,7 @@ module Persistent : sig
     :  ?random_state:[ `Non_random | `State of Random.State.t ]
     -> ?retry_delay:(unit -> Time_ns.Span.t)
     -> ?time_source:Time_source.t
-    -> ?ssl:Ssl_options.t
+    -> ?ssl:Ssl.t
     -> server_name:string
     -> (unit -> Address.t Deferred.Or_error.t)
     -> t
