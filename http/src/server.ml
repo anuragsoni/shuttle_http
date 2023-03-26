@@ -290,6 +290,26 @@ let run_server ~interrupt config reader writer service =
   run_server_loop server service
 ;;
 
+let run_server_loop (config : Config.t) interrupt reader writer service =
+  match config.ssl with
+  | Some ssl ->
+    Shuttle_ssl.upgrade_server_connection
+      reader
+      writer
+      ~crt_file:ssl.Ssl.certificate_file
+      ~key_file:ssl.key_file
+      ?version:ssl.version
+      ?options:ssl.options
+      ?name:ssl.name
+      ?allowed_ciphers:ssl.allowed_ciphers
+      ?ca_file:ssl.ca_file
+      ?ca_path:ssl.ca_path
+      ?verify_modes:ssl.verify_modes
+      ~f:(fun _conn reader writer ->
+      run_server ~interrupt:(Ivar.read interrupt) config reader writer service)
+  | None -> run_server ~interrupt:(Ivar.read interrupt) config reader writer service
+;;
+
 let run_inet ?(config = Config.default) addr service =
   let interrupt = Ivar.create () in
   let server =
@@ -307,29 +327,7 @@ let run_inet ?(config = Config.default) addr service =
             Ivar.fill_if_empty interrupt ()))
       addr
       (fun addr reader writer ->
-        match config.ssl with
-        | Some ssl ->
-          Shuttle_ssl.upgrade_server_connection
-            reader
-            writer
-            ~crt_file:ssl.Ssl.certificate_file
-            ~key_file:ssl.key_file
-            ?version:ssl.version
-            ?options:ssl.options
-            ?name:ssl.name
-            ?allowed_ciphers:ssl.allowed_ciphers
-            ?ca_file:ssl.ca_file
-            ?ca_path:ssl.ca_path
-            ?verify_modes:ssl.verify_modes
-            ~f:(fun _conn reader writer ->
-            run_server
-              ~interrupt:(Ivar.read interrupt)
-              config
-              reader
-              writer
-              (service addr))
-        | None ->
-          run_server ~interrupt:(Ivar.read interrupt) config reader writer (service addr))
+        run_server_loop config interrupt reader writer (service addr))
   in
   upon (Tcp.Server.close_finished server) (fun () -> Ivar.fill_if_empty interrupt ());
   server
@@ -352,29 +350,7 @@ let run ?(config = Config.default) addr service =
             Ivar.fill_if_empty interrupt ()))
       addr
       (fun addr reader writer ->
-        match config.ssl with
-        | Some ssl ->
-          Shuttle_ssl.upgrade_server_connection
-            reader
-            writer
-            ~crt_file:ssl.Ssl.certificate_file
-            ~key_file:ssl.key_file
-            ?version:ssl.version
-            ?options:ssl.options
-            ?name:ssl.name
-            ?allowed_ciphers:ssl.allowed_ciphers
-            ?ca_file:ssl.ca_file
-            ?ca_path:ssl.ca_path
-            ?verify_modes:ssl.verify_modes
-            ~f:(fun _conn reader writer ->
-            run_server
-              ~interrupt:(Ivar.read interrupt)
-              config
-              reader
-              writer
-              (service addr))
-        | None ->
-          run_server ~interrupt:(Ivar.read interrupt) config reader writer (service addr))
+        run_server_loop config interrupt reader writer (service addr))
   in
   upon (Tcp.Server.close_finished server) (fun () -> Ivar.fill_if_empty interrupt ());
   server
