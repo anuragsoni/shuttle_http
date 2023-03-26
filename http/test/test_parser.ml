@@ -233,6 +233,7 @@ let%expect_test "unexpected exception in to_string_trim caught via afl-fuzz" =
     ]
   in
   List.iteri payloads ~f:(fun idx payload ->
+    let payload = In_channel.read_all payload in
     printf
       !"(%d) %{sexp: Request.t success Or_error.t}\n"
       (idx + 1)
@@ -240,10 +241,17 @@ let%expect_test "unexpected exception in to_string_trim caught via afl-fuzz" =
   [%expect
     {|
     (1) (Error Partial)
-    (2) (Error Partial)
-    (3) (Error Partial)
+    (2) (Error ("Parse error" "Invalid Header Key"))
+    (3) (Ok
+     ((consumed 114)
+      (value
+       ((meth GET) (path "") (version Http_1_1)
+        (headers
+         ((Host wwwom) (Ut M) (Ace j.3) (ncoding gzie) (Aarset S) (Ke 115)
+          (Ut M) (Acj j.3) (ncoding "")))
+        (body Empty)))))
     (4) (Error Partial)
-    (5) (Error Partial) |}]
+    (5) (Error ("Parse error" "Expected EOL")) |}]
 ;;
 
 let%expect_test "can parse a single response" =
