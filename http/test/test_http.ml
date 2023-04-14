@@ -488,30 +488,33 @@ let%expect_test "Persistent clients will re-connect if connection is closed" =
 ;;
 
 let%expect_test "Request goes past max buffer size" =
-  Monitor.try_with (fun () ->
-    Helper.with_server ~buf_len:32 ~max_buffer_size:32 handler ~f:(fun port ->
-      Helper.with_client port ~f:(fun r w ->
-        let test_post_req_with_fixed_body =
-          "POST /hello HTTP/1.1\r\n\
-           Host: www.example.com   \r\n\
-           Content-Length: 5\r\n\
-           Connection: close\r\n\
-           \r\n\
-           Hello\r\n"
-        in
-        Helper.send_request_and_log_response r w test_post_req_with_fixed_body)))
-  >>= function
-  | Ok () ->
-    printf "got result";
-    Deferred.unit
-  | Error exn ->
-    (match Monitor.extract_exn exn with
-     | Bytebuffer.Maximum_buffer_size_exceeded { new_length_requested; current_length } ->
-       printf
-         "Current length: %d, New length requested: %d"
-         current_length
-         new_length_requested;
-       [%expect {| Current length: 32, New length requested: 34 |}];
-       Deferred.unit
-     | exn -> raise exn)
+  let%map () =
+    Monitor.try_with (fun () ->
+      Helper.with_server ~buf_len:32 ~max_buffer_size:32 handler ~f:(fun port ->
+        Helper.with_client port ~f:(fun r w ->
+          let test_post_req_with_fixed_body =
+            "POST /hello HTTP/1.1\r\n\
+             Host: www.example.com   \r\n\
+             Content-Length: 5\r\n\
+             Connection: close\r\n\
+             \r\n\
+             Hello\r\n"
+          in
+          Helper.send_request_and_log_response r w test_post_req_with_fixed_body)))
+    >>= function
+    | Ok () ->
+      printf "got result";
+      Deferred.unit
+    | Error exn ->
+      (match Monitor.extract_exn exn with
+       | Bytebuffer.Maximum_buffer_size_exceeded { new_length_requested; current_length }
+         ->
+         printf
+           "Current length: %d, New length requested: %d"
+           current_length
+           new_length_requested;
+         Deferred.unit
+       | exn -> raise exn)
+  in
+  [%expect {| Current length: 32, New length requested: 34 |}]
 ;;
