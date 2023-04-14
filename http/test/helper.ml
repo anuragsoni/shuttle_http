@@ -22,11 +22,17 @@ let with_client port ~f =
     ~finally:(fun () -> Output_channel.close w >>= fun () -> Input_channel.close r)
 ;;
 
-let with_server ?error_handler ?read_header_timeout handler ~f =
+let with_server ?buf_len ?max_buffer_size ?error_handler ?read_header_timeout handler ~f =
   let open Shuttle_http in
   let server =
     Server.run_inet
-      ~config:(Server.Config.create ?error_handler ?read_header_timeout ())
+      ~config:
+        (Server.Config.create
+           ?buf_len
+           ?max_buffer_size
+           ?error_handler
+           ?read_header_timeout
+           ())
       Tcp.Where_to_listen.of_port_chosen_by_os
       (fun _addr -> handler)
   in

@@ -4,9 +4,16 @@ open Async_unix
 
 type t [@@deriving sexp_of]
 
-val create : ?buf_len:int -> ?time_source:[> read ] Time_source.T1.t -> Fd.t -> t
+val create
+  :  ?max_buffer_size:int
+  -> ?buf_len:int
+  -> ?time_source:[> read ] Time_source.T1.t
+  -> Fd.t
+  -> t
+
 val time_source : t -> Time_source.t
 val buffer_size : t -> int
+val max_buffer_size : t -> int
 val is_closed : t -> bool
 val closed : t -> unit Deferred.t
 val close : t -> unit Deferred.t
@@ -32,4 +39,9 @@ val pipe : t -> string Pipe.Reader.t
     finished. *)
 val transfer : t -> string Pipe.Writer.t -> unit Deferred.t
 
-val of_pipe : ?buf_len:int -> Info.t -> string Pipe.Reader.t -> t Deferred.t
+val of_pipe
+  :  ?max_buffer_size:int
+  -> ?buf_len:int
+  -> Info.t
+  -> string Pipe.Reader.t
+  -> t Deferred.t

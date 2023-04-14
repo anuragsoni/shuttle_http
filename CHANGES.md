@@ -1,6 +1,10 @@
+# 0.9.3
+
+* Allow setting an upper bound on buffer size.
+
 # 0.9.2
 
-* Allow creating ssl encrypted servers
+* Allow creating ssl encrypted http servers.
 
 # 0.9.1
 

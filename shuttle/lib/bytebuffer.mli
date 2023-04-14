@@ -4,10 +4,16 @@ open! Core
 
 type t [@@deriving sexp_of]
 
+exception
+  Maximum_buffer_size_exceeded of
+    { current_length : int
+    ; new_length_requested : int
+    }
+
 (** [create ?max_buffer_size size] returns a new empty bytebuffer. The bytebuffer will be
     resized automatically, up-to max_buffer_size, if attempting to add more than [size]
     characters to the bytebuffer. [max_buffer_size] defaults to [Int.max_value]. *)
-val create : int -> t
+val create : ?max_buffer_size:int -> int -> t
 
 val compact : t -> unit
 val available_to_write : t -> int
@@ -18,6 +24,9 @@ val length : t -> int
 
 (** [capacity] is the size of the underlying bigstring. *)
 val capacity : t -> int
+
+(** [max_buffer_size] is the maximum size that the underlying buffer can grow upto. *)
+val max_buffer_size : t -> int
 
 (** [drop n] removes [n] bytes from the beginning of the bytebuffer. This is usually
     called after a user processes some data from the buffer using a view into the internal

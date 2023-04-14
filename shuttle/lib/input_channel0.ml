@@ -12,7 +12,7 @@ type t =
   }
 [@@deriving sexp_of]
 
-let create ?buf_len ?time_source fd =
+let create ?max_buffer_size ?buf_len ?time_source fd =
   Fd.with_file_descr_exn fd ignore ~nonblocking:true;
   let time_source =
     match time_source with
@@ -32,7 +32,7 @@ let create ?buf_len ?time_source fd =
   { fd
   ; is_closed = false
   ; closed = Ivar.create ()
-  ; buf = Bytebuffer.create buf_len
+  ; buf = Bytebuffer.create ?max_buffer_size buf_len
   ; time_source
   }
 ;;

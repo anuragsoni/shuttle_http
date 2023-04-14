@@ -74,6 +74,7 @@ let upgrade_client_connection
   | Ok conn ->
     let%bind input_channel =
       Input_channel.of_pipe
+        ~max_buffer_size:(Input_channel.max_buffer_size input_channel)
         ~buf_len:(Input_channel.buffer_size input_channel)
         (Info.of_string "shuttle_ssl.ssl_reader")
         app_reader
@@ -81,6 +82,7 @@ let upgrade_client_connection
     upon (Input_channel.closed input_channel) (fun () -> Pipe.close_read app_reader);
     let%bind output_channel, flushed =
       Output_channel.of_pipe
+        ~max_buffer_size:(Input_channel.max_buffer_size input_channel)
         ~buf_len:(Input_channel.buffer_size input_channel)
         (Info.of_string "shuttle_ssl.ssl_writer")
         app_writer
@@ -144,6 +146,7 @@ let upgrade_server_connection
   | Ok conn ->
     let%bind input_channel =
       Input_channel.of_pipe
+        ~max_buffer_size:(Input_channel.max_buffer_size input_channel)
         ~buf_len:(Input_channel.buffer_size input_channel)
         (Info.of_string "shuttle_ssl.ssl_reader")
         app_reader
@@ -151,6 +154,7 @@ let upgrade_server_connection
     upon (Input_channel.closed input_channel) (fun () -> Pipe.close_read app_reader);
     let%bind output_channel, flushed =
       Output_channel.of_pipe
+        ~max_buffer_size:(Input_channel.max_buffer_size input_channel)
         ~buf_len:(Input_channel.buffer_size input_channel)
         (Info.of_string "shuttle_ssl.ssl_writer")
         app_writer
