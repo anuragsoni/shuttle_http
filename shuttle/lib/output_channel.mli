@@ -10,7 +10,8 @@ type t [@@deriving sexp_of]
     The writer doesn't flush automatically and the user is responsible for calling
     [flush], which triggers a write system call if needed. *)
 val create
-  :  ?buf_len:int
+  :  ?max_buffer_size:int
+  -> ?buf_len:int
   -> ?write_timeout:Time_ns.Span.t
   -> ?time_source:[> read ] Time_source.T1.t
   -> Fd.t
@@ -21,6 +22,7 @@ val create
 val write_timeout : t -> Time_ns.Span.t
 
 val buffer_size : t -> int
+val max_buffer_size : t -> int
 val time_source : t -> Time_source.t
 
 (** [monitor] returns the async monitor used by [Output_channel] for performing all write
@@ -104,7 +106,8 @@ val flush_or_fail : t -> Flush_result.t Deferred.t
 val pipe : t -> string Pipe.Writer.t
 
 val of_pipe
-  :  ?buf_len:int
+  :  ?max_buffer_size:int
+  -> ?buf_len:int
   -> Info.t
   -> string Pipe.Writer.t
   -> (t * unit Deferred.t) Deferred.t

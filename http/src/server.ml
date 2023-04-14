@@ -57,6 +57,7 @@ let default_error_handler ?exn:_ ?request:_ status =
 module Config = struct
   type t =
     { buf_len : int
+    ; max_buffer_size : int option
     ; max_connections : int option
     ; max_accepts_per_batch : int option
     ; backlog : int option
@@ -69,6 +70,7 @@ module Config = struct
 
   let create
     ?(buf_len = 0x4000)
+    ?max_buffer_size
     ?max_connections
     ?max_accepts_per_batch
     ?backlog
@@ -79,6 +81,7 @@ module Config = struct
     ()
     =
     { buf_len
+    ; max_buffer_size
     ; max_connections
     ; max_accepts_per_batch
     ; backlog
@@ -315,6 +318,7 @@ let run_inet ?(config = Config.default) addr service =
   let server =
     Tcp_channel.listen_inet
       ~buf_len:config.buf_len
+      ?max_buffer_size:config.max_buffer_size
       ?max_connections:config.max_connections
       ?max_accepts_per_batch:config.max_accepts_per_batch
       ?backlog:config.backlog
@@ -322,9 +326,8 @@ let run_inet ?(config = Config.default) addr service =
       ~on_handler_error:
         (`Call
           (fun _addr exn ->
-            Logger.error_s
-              [%message "Unhandled exception in Http server" ~exn:(exn : Exn.t)];
-            Ivar.fill_if_empty interrupt ()))
+            Ivar.fill_if_empty interrupt ();
+            raise exn))
       addr
       (fun addr reader writer ->
         run_server_loop config interrupt reader writer (service addr))
@@ -338,6 +341,7 @@ let run ?(config = Config.default) addr service =
   let%map server =
     Tcp_channel.listen
       ~buf_len:config.buf_len
+      ?max_buffer_size:config.max_buffer_size
       ?max_connections:config.max_connections
       ?max_accepts_per_batch:config.max_accepts_per_batch
       ?backlog:config.backlog
@@ -345,9 +349,8 @@ let run ?(config = Config.default) addr service =
       ~on_handler_error:
         (`Call
           (fun _addr exn ->
-            Logger.error_s
-              [%message "Unhandled exception in Http server" ~exn:(exn : Exn.t)];
-            Ivar.fill_if_empty interrupt ()))
+            Ivar.fill_if_empty interrupt ();
+            raise exn))
       addr
       (fun addr reader writer ->
         run_server_loop config interrupt reader writer (service addr))

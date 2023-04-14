@@ -59,6 +59,7 @@ module Config : sig
         send an HTTP response with a status code and an empty body. *)
   val create
     :  ?buf_len:int
+    -> ?max_buffer_size:int
     -> ?max_connections:int
     -> ?max_accepts_per_batch:int
     -> ?backlog:int

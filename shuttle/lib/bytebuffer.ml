@@ -20,14 +20,33 @@ type t =
   { mutable buf : (Bigstring.t[@sexp.opaque])
   ; mutable pos_read : int
   ; mutable pos_fill : int
+  ; max_buffer_size : int
   }
 [@@deriving sexp_of]
 
-let create size =
+exception
+  Maximum_buffer_size_exceeded of
+    { current_length : int
+    ; new_length_requested : int
+    }
+
+let create ?max_buffer_size size =
   if size < 0
   then raise_s [%message "Buffer size cannot be negative" ~requested_size:(size : int)];
+  let max_buffer_size =
+    match max_buffer_size with
+    | None -> Int.max_value
+    | Some s -> s
+  in
+  if size > max_buffer_size
+  then
+    raise_s
+      [%message
+        "Invalid buffer size"
+          ~requested_size:(size : int)
+          ~max_buffer_size:(max_buffer_size : int)];
   let buf = Bigstring.create size in
-  { buf; pos_read = 0; pos_fill = 0 }
+  { buf; pos_read = 0; pos_fill = 0; max_buffer_size }
 ;;
 
 let compact t =
@@ -46,6 +65,7 @@ let compact t =
 
 let length t = t.pos_fill - t.pos_read
 let capacity t = Bigstring.length t.buf
+let max_buffer_size t = t.max_buffer_size
 let available_to_write t = Bigstring.length t.buf - t.pos_fill
 
 let drop t len =
@@ -94,8 +114,13 @@ let ensure_space t len =
   if available_to_write t < len
   then (
     let new_length = Bigstring.length t.buf + len in
+    if new_length > t.max_buffer_size
+    then
+      raise
+        (Maximum_buffer_size_exceeded
+           { new_length_requested = new_length; current_length = length t });
     let curr_len = t.pos_fill - t.pos_read in
-    let len = Int.ceil_pow2 new_length in
+    let len = Int.min t.max_buffer_size (Int.ceil_pow2 new_length) in
     let new_buf = Bigstring.create len in
     Bigstring.unsafe_blit
       ~src:t.buf
