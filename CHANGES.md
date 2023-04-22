@@ -1,4 +1,4 @@
-# 0.9.3
+# 0.9.4
 
 * Allow setting an upper bound on buffer size.
 
