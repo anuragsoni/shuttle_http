@@ -4,7 +4,5 @@ module Meth = Meth
 module Parser = Parser
 module Request = Request
 module Response = Response
-module Server = Server
 module Status = Status
 module Version = Version
-module Client = Client
