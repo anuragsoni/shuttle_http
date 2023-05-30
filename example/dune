@@ -1,5 +1,5 @@
 (executables
- (names echo redis_bench_async redis_bench_shuttle)
+ (names echo redis_bench_async redis_bench_shuttle http_server)
  (preprocess
   (pps ppx_jane))
  (libraries
@@ -10,4 +10,5 @@
   async
   shuttle
   shuttle_ssl
-  shuttle_http))
+  shuttle_http
+  eio_main))

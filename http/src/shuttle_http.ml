@@ -6,3 +6,4 @@ module Request = Request
 module Response = Response
 module Status = Status
 module Version = Version
+module Server = Server
