@@ -178,17 +178,7 @@ let%expect_test "Client can send streaming bodies" =
         (Client.Address.of_host_and_port (Host_and_port.create ~host:"localhost" ~port))
         (Request.create ~body `POST "/echo")
     in
-    let%map body =
-      let buf = Buffer.create 32 in
-      let%map () =
-        Body.Stream.iter
-          (Body.to_stream (Response.body response))
-          ~f:(fun v ->
-            Buffer.add_string buf v;
-            Deferred.unit)
-      in
-      Buffer.contents buf
-    in
+    let%map body = Body.Stream.to_string (Body.to_stream (Response.body response)) in
     print_s
       [%sexp
         { status = (Response.status response : Status.t)

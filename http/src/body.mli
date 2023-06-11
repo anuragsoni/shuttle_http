@@ -41,6 +41,10 @@ module Stream : sig
       cycle of the server loop, or if they should wait for the body to be closed by the
       user. *)
   val read_started : t -> bool
+
+  (** [to_string] consumes the entire stream and converts it into a string. [to_string]
+      consumes the entire stream so it can only be called once. *)
+  val to_string : t -> string Deferred.t
 end
 
 type t = private

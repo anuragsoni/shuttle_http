@@ -33,6 +33,16 @@ module Stream = struct
     Pipe.drain t.reader
   ;;
 
+  let to_string t =
+    if t.read_started then raise_s [%message "to_string: Only one consumer can read from a stream"];
+    t.read_started <- true;
+    let%map rope =
+      Pipe.fold_without_pushback t.reader ~init:Rope.empty ~f:(fun rope str ->
+        Rope.(rope ^ of_string str))
+    in
+    Rope.to_string rope
+  ;;
+
   let closed t = Pipe.closed t.reader
 end
 
