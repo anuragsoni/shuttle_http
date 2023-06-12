@@ -19,10 +19,22 @@ module Stream = struct
     Pipe.iter t.reader ~f
   ;;
 
+  let iter_without_pushback t ~f =
+    if t.read_started then raise_s [%message "Only one consumer can read from a stream"];
+    t.read_started <- true;
+    Pipe.iter_without_pushback t.reader ~f
+  ;;
+
   let fold t ~init ~f =
     if t.read_started then raise_s [%message "Only one consumer can read from a stream"];
     t.read_started <- true;
     Pipe.fold t.reader ~init ~f
+  ;;
+
+  let fold_without_pushback t ~init ~f =
+    if t.read_started then raise_s [%message "Only one consumer can read from a stream"];
+    t.read_started <- true;
+    Pipe.fold_without_pushback t.reader ~init ~f
   ;;
 
   let read_started t = t.read_started
@@ -34,7 +46,8 @@ module Stream = struct
   ;;
 
   let to_string t =
-    if t.read_started then raise_s [%message "to_string: Only one consumer can read from a stream"];
+    if t.read_started
+    then raise_s [%message "to_string: Only one consumer can read from a stream"];
     t.read_started <- true;
     let%map rope =
       Pipe.fold_without_pushback t.reader ~init:Rope.empty ~f:(fun rope str ->

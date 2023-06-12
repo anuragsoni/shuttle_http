@@ -320,3 +320,5 @@ let pipe t =
   don't_wait_for (write_from_pipe t reader);
   writer
 ;;
+
+let fd t = t.fd

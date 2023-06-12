@@ -1,6 +1,0 @@
-(library
- (name shuttle)
- (public_name shuttle)
- (preprocess
-  (pps ppx_jane))
- (libraries core core_unix async))

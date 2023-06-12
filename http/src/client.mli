@@ -1,6 +1,5 @@
 open! Core
 open! Async
-open! Shuttle
 
 module Address : sig
   type t [@@deriving sexp, equal, compare, hash]
@@ -32,7 +31,7 @@ module Ssl : sig
     -> ?key_file:string
     -> ?verify_modes:Async_ssl.Verify_mode.t list
     -> ?session:Async_ssl.Ssl.Session.t
-    -> ?verify_certificate:(Shuttle_ssl.ssl_connection -> unit Or_error.t)
+    -> ?verify_certificate:(Async_ssl.Ssl.Connection.t -> unit Or_error.t)
     -> unit
     -> t
 end

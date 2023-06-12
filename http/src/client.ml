@@ -2,6 +2,7 @@ open Core
 open Async
 open Shuttle
 open Io_util
+module Ssl_conn = Ssl
 
 module Address = struct
   module T = struct
@@ -101,7 +102,7 @@ module Ssl = struct
     ; key_file : string option
     ; verify_modes : Async_ssl.Verify_mode.t list option
     ; session : (Async_ssl.Ssl.Session.t[@sexp.opaque]) option
-    ; verify_certificate : (Shuttle_ssl.ssl_connection -> unit Or_error.t) option
+    ; verify_certificate : (Async_ssl.Ssl.Connection.t -> unit Or_error.t) option
     }
   [@@deriving sexp_of]
 
@@ -165,7 +166,7 @@ let host_matches ssl_hostname hostname =
 ;;
 
 let default_ssl_verify_certificate ssl_conn hostname =
-  match Shuttle_ssl.peer_certificate ssl_conn with
+  match Async_ssl.Ssl.Connection.peer_certificate ssl_conn with
   | None -> Or_error.errorf "Missing ssl peer certificate"
   | Some (Error e) -> Error e
   | Some (Ok cert) ->
@@ -245,7 +246,7 @@ module Connection = struct
       Deferred.Or_error.try_with_join ~run:`Now (fun () ->
         let ivar = Ivar.create () in
         don't_wait_for
-          (Shuttle_ssl.upgrade_client_connection
+          (Ssl_conn.upgrade_client_connection
              ?version:ssl.Ssl.version
              ?options:ssl.options
              ?name:ssl.name

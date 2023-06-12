@@ -1,8 +1,8 @@
 open! Core
 open! Async
-open! Shuttle
 open Io_util
 module Logger = Log.Make_global ()
+module Ssl_conn = Ssl
 
 module Ssl = struct
   type t =
@@ -296,7 +296,7 @@ let run_server ~interrupt config reader writer service =
 let run_server_loop (config : Config.t) interrupt reader writer service =
   match config.ssl with
   | Some ssl ->
-    Shuttle_ssl.upgrade_server_connection
+    Ssl_conn.upgrade_server_connection
       reader
       writer
       ~crt_file:ssl.Ssl.certificate_file

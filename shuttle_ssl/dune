@@ -1,5 +1,0 @@
-(library
- (public_name shuttle_ssl)
- (preprocess
-  (pps ppx_jane))
- (libraries async async_ssl core shuttle))

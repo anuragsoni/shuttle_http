@@ -49,6 +49,9 @@ let close t =
   closed t
 ;;
 
+let unread_bytes t = Bytebuffer.length t.buf
+let fd t = t.fd
+
 exception Timeout
 
 let refill_with_timeout t span =

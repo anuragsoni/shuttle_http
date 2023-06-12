@@ -17,6 +17,8 @@ val create
   -> Fd.t
   -> t
 
+val fd : t -> Fd.t
+
 (** [write_timeout] is the maximum amount of time the writer will wait when attempting to
     write data to the underlying file descriptor. *)
 val write_timeout : t -> Time_ns.Span.t

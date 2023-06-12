@@ -18,6 +18,7 @@ val is_closed : t -> bool
 val closed : t -> unit Deferred.t
 val close : t -> unit Deferred.t
 val refill : t -> [> `Ok | `Eof ] Deferred.t
+val unread_bytes : t -> int
 
 exception Timeout
 
@@ -45,3 +46,5 @@ val of_pipe
   -> Info.t
   -> string Pipe.Reader.t
   -> t Deferred.t
+
+val fd : t -> Fd.t
