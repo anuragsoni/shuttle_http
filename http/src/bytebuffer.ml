@@ -73,20 +73,6 @@ let drop t len =
   t.pos_read <- t.pos_read + len
 ;;
 
-let read t fd =
-  let count =
-    Bigstring_unix.read fd t.buf ~pos:t.pos_fill ~len:(Bigstring.length t.buf - t.pos_fill)
-  in
-  if count > 0 then t.pos_fill <- t.pos_fill + count;
-  count
-;;
-
-let write t fd =
-  let count = Bigstring_unix.write fd t.buf ~pos:t.pos_read ~len:(length t) in
-  if count > 0 then t.pos_read <- t.pos_read + count;
-  count
-;;
-
 let read_assume_fd_is_nonblocking t fd =
   let res =
     Bigstring_unix.read_assume_fd_is_nonblocking
@@ -161,30 +147,9 @@ let add_string t ?pos ?len str =
     str
 ;;
 
-let add_bytes t ?pos ?len str =
-  add_gen t ?pos ?len ~total_length:(Bytes.length str) ~blit:Bigstring.From_bytes.blit str
-;;
-
 let add_bigstring t ?pos ?len str =
   add_gen t ?pos ?len ~total_length:(Bigstring.length str) ~blit:Bigstring.blit str
 ;;
 
-let add_bytebuffer t buf = add_bigstring t ~pos:buf.pos_read ~len:(length buf) buf.buf
 let to_string t = Bigstring.To_string.sub t.buf ~pos:t.pos_read ~len:(length t)
 let unsafe_peek t = { Slice.buf = t.buf; pos = t.pos_read; len = length t }
-
-let slice ?(pos = 0) ?len t =
-  let total_length = length t in
-  let len =
-    match len with
-    | None -> total_length - pos
-    | Some l -> l
-  in
-  Ordered_collection_common.check_pos_len_exn ~pos ~len ~total_length;
-  { Slice.buf = t.buf; pos = pos + t.pos_read; len }
-;;
-
-let unsafe_index t ch =
-  let idx = Bigstring.unsafe_find t.buf ch ~pos:t.pos_read ~len:(length t) in
-  if idx < 0 then -1 else idx - t.pos_read
-;;

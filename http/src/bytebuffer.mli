@@ -35,20 +35,6 @@ val max_buffer_size : t -> int
     Raises [invalid_arg] if [n] is greater than the buffer's length. *)
 val drop : t -> int -> unit
 
-(** [read buf fd] reads bytes from the file descriptor [fd] and appends them to the end of
-    the bytebuffer. Returns the number of bytes actually read.
-
-    Raises [Bigstring_unix.IOError] in the case of input errors, or on EOF. *)
-val read : t -> Core_unix.File_descr.t -> int
-
-(** [write buf fd] reads data from the beginning of the buffer and writes them to the file
-    descriptor [fd].
-
-    Returns the number of bytes actually written.
-
-    Raises [Core_unix.Unix_error] in case of i/o errors. *)
-val write : t -> Core_unix.File_descr.t -> int
-
 (** [read_assume_fd_is_nonblocking buf fd] is similar to [read] but it performs the read
     without yielding to other OCaml-threads. This function should only be called for
     non-blocking file-descriptors.
@@ -76,18 +62,10 @@ val add_char : t -> char -> unit
 (** [add_string] appends the string at the end of the bytebuffer. *)
 val add_string : t -> ?pos:int -> ?len:int -> string -> unit
 
-(** [add_bytes] appends the bytes at the end of the bytebuffer. *)
-val add_bytes : t -> ?pos:int -> ?len:int -> bytes -> unit
-
 (** [add_bigstring] appends the bigstring at the end of the bytebuffer. *)
 val add_bigstring : t -> ?pos:int -> ?len:int -> Core.Bigstring.t -> unit
-
-(** [add_bytebuffer] appends the contents of the buffer at the end of the bytebuffer. *)
-val add_bytebuffer : t -> t -> unit
 
 (** [to_string] returns a copy of the current contents of the bytebuffer.*)
 val to_string : t -> string
 
-val unsafe_index : t -> char -> int
 val unsafe_peek : t -> Slice.t
-val slice : ?pos:int -> ?len:int -> t -> Slice.t
