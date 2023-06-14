@@ -16,23 +16,23 @@ type chunk_parser_result =
 (** Attempts to parse a buffer into a HTTP request. If successful, it returns the parsed
     request and an offset value that indicates the starting point of unconsumed content
     left in the buffer. *)
-val parse_request : ?pos:int -> ?len:int -> Bigstring.t -> (Request.t * int, error) result
+val parse_request : ?pos:int -> ?len:int -> bytes -> (Request.t * int, error) result
 
 val parse_response
   :  ?pos:int
   -> ?len:int
-  -> Bigstring.t
+  -> bytes
   -> (Response.t * int, error) result
 
-val parse_chunk_length : ?pos:int -> ?len:int -> Bigstring.t -> (int * int, error) result
+val parse_chunk_length : ?pos:int -> ?len:int -> bytes -> (int * int, error) result
 
 val parse_chunk
   :  ?pos:int
   -> ?len:int
-  -> Bigstring.t
+  -> bytes
   -> chunk_kind
   -> (chunk_parser_result * int, error) result
 
 module Private : sig
-  val parse_method : ?pos:int -> ?len:int -> Bigstring.t -> (Meth.t * int, error) result
+  val parse_method : ?pos:int -> ?len:int -> bytes -> (Meth.t * int, error) result
 end

@@ -29,24 +29,19 @@ let tchar_map =
 
 module Source = struct
   type t =
-    { buffer : Bigstring.t
+    { buffer : Bytes.t
     ; mutable pos : int
     ; upper_bound : int
     }
 
-  let[@inline always] unsafe_get t idx = Bigstring.get t.buffer (t.pos + idx)
+  let[@inline always] unsafe_get t idx = Bytes.unsafe_get t.buffer (t.pos + idx)
   let[@inline always] unsafe_advance t count = t.pos <- t.pos + count
   let[@inline always] length t = t.upper_bound - t.pos
   let[@inline always] is_empty t = t.pos = t.upper_bound
 
   let[@inline always] to_string t ~pos ~len =
     let b = Bytes.create len in
-    Bigstring.To_bytes.unsafe_blit
-      ~src:t.buffer
-      ~dst:b
-      ~src_pos:(t.pos + pos)
-      ~dst_pos:0
-      ~len;
+    Bytes.unsafe_blit ~src:t.buffer ~dst:b ~src_pos:(t.pos + pos) ~dst_pos:0 ~len;
     Bytes.unsafe_to_string ~no_mutation_while_string_reachable:b
   ;;
 
@@ -58,34 +53,38 @@ module Source = struct
   let[@inline always] to_string_trim t ~pos ~len =
     let last = ref (t.pos + len - 1) in
     let pos = ref (t.pos + pos) in
-    while is_space (Bigstring.get t.buffer !pos) && !pos < !last do
+    while is_space (Bytes.unsafe_get t.buffer !pos) && !pos < !last do
       incr pos
     done;
-    while is_space (Bigstring.get t.buffer !last) && !last > !pos do
+    while is_space (Bytes.unsafe_get t.buffer !last) && !last > !pos do
       decr last
     done;
     let len = !last - !pos + 1 in
     let b = Bytes.create len in
-    Bigstring.To_bytes.unsafe_blit ~src:t.buffer ~dst:b ~src_pos:!pos ~dst_pos:0 ~len;
+    Bytes.unsafe_blit ~src:t.buffer ~dst:b ~src_pos:!pos ~dst_pos:0 ~len;
     Bytes.unsafe_to_string ~no_mutation_while_string_reachable:b
   ;;
 
+  external unsafe_find : bytes -> char -> pos:int -> len:int -> int = "bytes_memchr"
+    [@@noalloc]
+
   let[@inline always] index t ch =
-    let idx = Bigstring.unsafe_find t.buffer ch ~pos:t.pos ~len:(length t) in
+    let idx = unsafe_find t.buffer ch ~pos:t.pos ~len:(length t) in
     if idx < 0 then -1 else idx - t.pos
   ;;
 
   let[@inline always] consume_eol t =
     if length t < 2 then raise_notrace Partial;
     if Char.(
-         Bigstring.get t.buffer t.pos = '\r' && Bigstring.get t.buffer (t.pos + 1) = '\n')
+         Bytes.unsafe_get t.buffer t.pos = '\r'
+         && Bytes.unsafe_get t.buffer (t.pos + 1) = '\n')
     then unsafe_advance t 2
     else raise_notrace (Fail (Error.of_string "Expected EOL"))
   ;;
 
   let[@inline always] consume_space t =
     if length t < 1 then raise_notrace Partial;
-    if Char.(Bigstring.get t.buffer t.pos = ' ')
+    if Char.(Bytes.unsafe_get t.buffer t.pos = ' ')
     then unsafe_advance t 1
     else raise_notrace (Fail (Error.of_string "Expected space"))
   ;;
@@ -359,7 +358,7 @@ type error =
   | Fail of Error.t
 
 let run_parser ?(pos = 0) ?len buf p =
-  let total_length = Bigstring.length buf in
+  let total_length = Bytes.length buf in
   let len =
     match len with
     | Some v -> v

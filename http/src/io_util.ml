@@ -36,7 +36,7 @@ let parse_body reader headers =
     let view = Input_channel.view reader in
     if view.len >= len
     then (
-      let chunk = Bigstring.to_string view.buf ~pos:view.pos ~len in
+      let chunk = Bytes.To_string.sub view.buf ~pos:view.pos ~len in
       Input_channel.consume reader len;
       Ok (Body.string chunk))
     else (
@@ -47,7 +47,7 @@ let parse_body reader headers =
             if view.len > 0
             then (
               let to_read = min len view.len in
-              let chunk = Bigstring.to_string view.buf ~pos:view.pos ~len:to_read in
+              let chunk = Bytes.To_string.sub view.buf ~pos:view.pos ~len:to_read in
               Input_channel.consume reader to_read;
               let%map () = Pipe.write_if_open writer chunk in
               if to_read = len then `Finished () else `Repeat (len - to_read))

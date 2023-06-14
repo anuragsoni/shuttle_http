@@ -25,7 +25,7 @@ type 'a success =
 [@@deriving sexp_of, compare]
 
 let parse_or_error parser ?pos ?len buf =
-  match parser ?pos ?len (Bigstring.of_string buf) with
+  match parser ?pos ?len (Bytes.of_string buf) with
   | Ok (value, consumed) -> Ok { value; consumed }
   | Error Parser.Partial -> Or_error.errorf "Partial"
   | Error (Fail error) -> Error (Error.tag error ~tag:"Parse error")
@@ -194,7 +194,7 @@ let parse_chunk_length () =
     end)
     ~f:(fun num ->
       let payload =
-        let s = Bigstring.of_string (Printf.sprintf "%x\r\n" num) in
+        let s = Bytes.of_string (Printf.sprintf "%x\r\n" num) in
         s
       in
       match Parser.parse_chunk_length payload with
@@ -206,7 +206,7 @@ let parse_chunk_length () =
 
 let chunk_length_parse_case_insensitive () =
   let run_test num str =
-    let buf = Bigstring.of_string str in
+    let buf = Bytes.of_string str in
     match Parser.parse_chunk_length buf with
     | Ok res ->
       [%test_eq: int * int] res (num, String.length (Printf.sprintf "%x" num) + 2)

@@ -4,6 +4,7 @@ open Core
    https://github.com/seanmonstar/httparse/blob/5c385a9b1751f0734db24af731d1926e1d2bc731/benches/parse.rs#L13
    https://github.com/rust-bakery/parser_benchmarks/blob/29b8b49759587d0bb44a75575c004a8b990939de/http/httparse/src/main.rs *)
 let req =
+ Bytes.of_string
   "GET /wp-content/uploads/2010/03/hello-kitty-darth-vader-pink.jpg HTTP/1.1\r\n\
    Host: www.kittyhell.com\r\n\
    User-Agent: Mozilla/5.0 (Macintosh; U; Intel Mac OS X 10.6; ja-JP-mac; rv:1.9.2.3) \
@@ -20,12 +21,10 @@ let req =
    \r\n"
 ;;
 
-let req = Bigstring.of_string req
-
 open Core_bench
 
 let hex_str = "fffffffe"
-let hex_chunk_size = Bigstring.of_string (Printf.sprintf "%s\r\n" hex_str)
+let hex_chunk_size = Bytes.of_string (Printf.sprintf "%s\r\n" hex_str)
 
 let tests =
   [ Bench.Test.create ~name:"H1 (httparse example)" (fun () ->

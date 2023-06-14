@@ -1,7 +1,7 @@
 open Core
 
 type t =
-  { buf : Bigstring.t
+  { buf : (bytes [@sexp.opaque])
   ; pos : int
   ; len : int
   }
