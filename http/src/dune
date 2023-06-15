@@ -2,4 +2,4 @@
  (public_name shuttle_http)
  (preprocess
   (pps ppx_jane))
- (libraries core async re2 async_ssl))
+ (libraries core async re2 async_ssl jane_rope))
