@@ -1,6 +1,5 @@
 open! Core
 open! Async
-open! Shuttle
 
 (** [error_handler] can be used to customize how the server deals with any unhandled
     exceptions. A default implementation is provided that will respond with a status code

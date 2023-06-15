@@ -1,6 +1,5 @@
 open Core
 open Async
-open Shuttle
 open Io_util
 module Ssl_conn = Ssl
 
