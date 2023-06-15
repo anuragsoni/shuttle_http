@@ -22,8 +22,13 @@
  (description
   "Shuttle_http is a low level library for implementing HTTP/1.1 web services and clients in OCaml.")
  (depends
-  (async_ssl (>= v0.15.0))
+  (core
+   (>= v0.16.0))
+  (async
+   (>= v0.16.0))
+  (async_ssl
+   (>= v0.16.0))
   (re2
-   (>= v0.15.0))
+   (>= v0.16.0))
   (ppx_jane :with-test)
   (core_unix :with-test)))

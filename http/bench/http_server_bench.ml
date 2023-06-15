@@ -40,7 +40,7 @@ let run port =
     !"Server listening on: %s"
     (Socket.Address.to_string (Tcp.Server.listening_on_address server));
   Deferred.forever () (fun () ->
-    let%map.Deferred () = after Time.Span.(of_sec 0.5) in
+    let%map.Deferred () = after Time_float.Span.(of_sec 0.5) in
     Log.Global.printf "Active connections: %d" (Tcp.Server.num_connections server));
   Tcp.Server.close_finished_and_handlers_determined server
 ;;

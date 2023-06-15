@@ -52,7 +52,7 @@ type t [@@deriving sexp_of]
     and hostname validation is configured if using an SSL connection. *)
 val create
   :  ?interrupt:unit Deferred.t
-  -> ?connect_timeout:Time.Span.t
+  -> ?connect_timeout:Time_float.Span.t
   -> ?ssl:Ssl.t
   -> Address.t
   -> t Deferred.Or_error.t
@@ -93,7 +93,7 @@ module Oneshot : sig
       creating the {{!Shuttle_http.Client.Ssl.t} ssl} options. *)
   val call
     :  ?interrupt:unit Deferred.t
-    -> ?connect_timeout:Time.Span.t
+    -> ?connect_timeout:Time_float.Span.t
     -> ?ssl:Ssl.t
     -> Address.t
     -> Request.t

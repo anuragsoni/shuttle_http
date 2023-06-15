@@ -14,7 +14,7 @@ let pipe_of_channels input_channel output_channel =
   let ssl_to_net = Output_channel.pipe output_channel in
   upon (Pipe.closed ssl_to_net) (fun () ->
     choose
-      [ choice (after (Time.Span.of_sec 30.)) (fun () -> ())
+      [ choice (after (Time_float.Span.of_sec 30.)) (fun () -> ())
       ; choice (Pipe.downstream_flushed ssl_to_net) (fun (_ : Pipe.Flushed_result.t) ->
           ())
       ]

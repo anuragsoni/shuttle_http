@@ -153,7 +153,7 @@ let%expect_test "Servers will respond with a timeout if they can't parse request
          Hello\r\n"
       in
       let%map () =
-        let%bind () = after (Time.Span.of_ms 101.) in
+        let%bind () = after (Time_float.Span.of_ms 101.) in
         Helper.send_request_and_log_response r w test_post_req_with_fixed_body
       in
       [%expect {| "HTTP/1.1 408 \r\nConnection: close\r\nContent-Length: 0\r\n\r\n" |}]))

@@ -11,8 +11,10 @@ homepage: "https://github.com/anuragsoni/shuttle"
 bug-reports: "https://github.com/anuragsoni/shuttle/issues"
 depends: [
   "dune" {>= "2.8"}
-  "async_ssl" {>= "v0.15.0"}
-  "re2" {>= "v0.15.0"}
+  "core" {>= "v0.16.0"}
+  "async" {>= "v0.16.0"}
+  "async_ssl" {>= "v0.16.0"}
+  "re2" {>= "v0.16.0"}
   "ppx_jane" {with-test}
   "core_unix" {with-test}
   "odoc" {with-doc}

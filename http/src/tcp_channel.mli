@@ -40,7 +40,7 @@ val listen_inet
     user provided handler. *)
 val with_connection
   :  ?interrupt:unit Deferred.t
-  -> ?connect_timeout:Time.Span.t
+  -> ?connect_timeout:Time_float.Span.t
   -> ?max_buffer_size:int
   -> ?buf_len:int
   -> ?write_timeout:Time_ns.Span.t
@@ -51,7 +51,7 @@ val with_connection
 
 val connect
   :  ?interrupt:unit Deferred.t
-  -> ?connect_timeout:Time.Span.t
+  -> ?connect_timeout:Time_float.Span.t
   -> ?max_buffer_size:int
   -> ?buf_len:int
   -> ?write_timeout:Time_ns.Span.t
