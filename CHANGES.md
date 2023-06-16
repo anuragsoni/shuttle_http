@@ -1,3 +1,9 @@
+# 0.10.0
+
+* Adapt to changes in async_kernel 0.16
+* Only support OCaml 4.14 or newer
+* Only support HTTP codec in the library
+
 # 0.9.4
 
 * Allow setting an upper bound on buffer size.

@@ -5,14 +5,13 @@
 (generate_opam_files true)
 
 (source
- (github anuragsoni/shuttle))
+ (github anuragsoni/shuttle_http))
 
 (maintainers "Anurag Soni <anurag@sonianurag.com>")
 
 (authors "Anurag Soni")
 
 (license MIT)
-
 
 (package
  (name shuttle_http)
