@@ -42,7 +42,7 @@ let persistent_client () =
     ~finally:(fun () -> Client.close httpbin)
     (fun () ->
       let%bind response = Client.call httpbin (Request.create `GET "/stream/20") in
-      printf !"Headers: %{sexp: Headers.t}" (Response.headers response);
+      printf !"Headers: %{sexp: (string * string) list}" (Response.headers response);
       let%bind () =
         Body.Stream.iter
           (Body.to_stream (Response.body response))
@@ -51,7 +51,7 @@ let persistent_client () =
             Deferred.unit)
       in
       let%bind response = Client.call httpbin (Request.create `GET "/get") in
-      printf !"Headers: %{sexp: Headers.t}" (Response.headers response);
+      printf !"Headers: %{sexp: (string * string) list}" (Response.headers response);
       Body.Stream.iter
         (Body.to_stream (Response.body response))
         ~f:(fun chunk ->

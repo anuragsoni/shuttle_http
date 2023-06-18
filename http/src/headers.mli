@@ -1,6 +1,6 @@
 open! Core
 
-type t [@@deriving sexp]
+type t = (string * string) list [@@deriving sexp]
 
 val of_rev_list : (string * string) list -> t
 val of_list : (string * string) list -> t

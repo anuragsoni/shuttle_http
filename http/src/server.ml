@@ -49,7 +49,7 @@ type error_handler = ?exn:Exn.t -> ?request:Request.t -> Status.t -> Response.t 
 let default_error_handler ?exn:_ ?request:_ status =
   return
     (Response.create
-       ~headers:(Headers.of_rev_list [ "Connection", "close"; "Content-Length", "0" ])
+       ~headers:[ "Connection", "close"; "Content-Length", "0" ]
        ~body:Body.empty
        status)
 ;;
@@ -116,39 +116,26 @@ let write_response t res =
   Output_channel.write t.writer (Status.to_string (Response.status res));
   Output_channel.write_char t.writer ' ';
   Output_channel.write t.writer "\r\n";
-  let headers = Response.headers res in
-  let headers, is_chunked =
+  let res, is_chunked =
     match Response.body res with
-    | Body.Empty ->
-      Headers.add_unless_exists headers ~key:"Content-Length" ~data:"0", false
-    | Body.Fixed x ->
-      ( Headers.add_unless_exists
-          headers
-          ~key:"Content-Length"
-          ~data:(Int.to_string (String.length x))
-      , false )
+    | Body.Empty -> Response.add_transfer_encoding res (`Fixed 0), false
+    | Body.Fixed x -> Response.add_transfer_encoding res (`Fixed (String.length x)), false
     | Body.Stream stream ->
       (* Schedule a close operation for the response stream for whenever the server is
          closed. This should ensure that any resource held by the stream will get cleaned
          up. *)
       upon (closed t) (fun () -> Body.Stream.close stream);
       (match Body.Stream.encoding stream with
-       | `Chunked ->
-         Headers.add_unless_exists headers ~key:"Transfer-Encoding" ~data:"chunked", true
-       | `Fixed len ->
-         ( Headers.add_unless_exists
-             headers
-             ~key:"Content-Length"
-             ~data:(Int.to_string len)
-         , false ))
+       | `Chunked -> Response.add_transfer_encoding res `Chunked, true
+       | `Fixed _ as encoding -> Response.add_transfer_encoding res encoding, false)
   in
-  Headers.iter
+  Response.iter_headers
     ~f:(fun ~key ~data ->
       Output_channel.write t.writer key;
       Output_channel.write t.writer ": ";
       Output_channel.write t.writer data;
       Output_channel.write t.writer "\r\n")
-    headers;
+    res;
   Output_channel.write t.writer "\r\n";
   match Response.body res with
   | Body.Empty -> Output_channel.flush t.writer
@@ -227,7 +214,7 @@ let run_server_loop t handler =
       Input_channel.consume t.reader consumed;
       create_request_body_reader t req
   and create_request_body_reader t req =
-    match parse_body t.reader (Request.headers req) with
+    match parse_body t.reader (Request.transfer_encoding req) with
     | Error e ->
       t.error_handler ~exn:(Error.to_exn e) ~request:req `Bad_request
       >>> fun response -> write_response t response >>> fun () -> Ivar.fill t.closed ()
@@ -238,9 +225,7 @@ let run_server_loop t handler =
       then write_response_and_continue t req (Deferred.value_exn promise)
       else promise >>> fun response -> write_response_and_continue t req response
   and write_response_and_continue t req response =
-    let is_keep_alive =
-      keep_alive (Request.headers req) && keep_alive (Response.headers response)
-    in
+    let is_keep_alive = Request.keep_alive req && Response.keep_alive response in
     write_response t response
     >>> fun () ->
     if is_keep_alive

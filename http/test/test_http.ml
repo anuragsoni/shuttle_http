@@ -9,7 +9,7 @@ let handler request =
   | "/no-keep-alive" ->
     return
       (Response.create
-         ~headers:(Headers.of_list [ "Connection", "close" ])
+         ~headers:[ "Connection", "close" ]
          ~body:(Body.string "This connection will be closed")
          `Ok)
   | _ -> return (Response.create ~body:(Body.string "Hello World") `Ok)
@@ -38,8 +38,7 @@ let%expect_test "Simple http endpoint with http client" =
       Client.Oneshot.call
         (Client.Address.of_host_and_port (Host_and_port.create ~host:"localhost" ~port))
         (Request.create
-           ~headers:
-             (Headers.of_rev_list [ "Host", "www.example.com   "; "Connection", "close" ])
+           ~headers:[ "Host", "www.example.com   "; "Connection", "close" ]
            ~body:(Body.string "Hello")
            `POST
            "/hello")
@@ -181,7 +180,7 @@ let%expect_test "Client can send streaming bodies" =
     print_s
       [%sexp
         { status = (Response.status response : Status.t)
-        ; headers = (Response.headers response : Headers.t)
+        ; headers = (Response.headers response : (string * string) list)
         ; reason_phrase = (Response.reason_phrase response : string)
         }];
     printf "\nBody: %S" body;
@@ -218,7 +217,7 @@ let%expect_test "Keep-alives in clients" =
         print_s
           [%sexp
             { status = (Response.status response : Status.t)
-            ; headers = (Response.headers response : Headers.t)
+            ; headers = (Response.headers response : (string * string) list)
             ; reason_phrase = (Response.reason_phrase response : string)
             }];
         let%bind body = body_to_string response in
@@ -236,7 +235,7 @@ let%expect_test "Keep-alives in clients" =
         print_s
           [%sexp
             { status = (Response.status response : Status.t)
-            ; headers = (Response.headers response : Headers.t)
+            ; headers = (Response.headers response : (string * string) list)
             ; reason_phrase = (Response.reason_phrase response : string)
             }];
         let%map body = body_to_string response in
@@ -289,7 +288,7 @@ let%expect_test "No requests can be sent if a client is closed" =
         print_s
           [%sexp
             { status = (Response.status response : Status.t)
-            ; headers = (Response.headers response : Headers.t)
+            ; headers = (Response.headers response : (string * string) list)
             ; reason_phrase = (Response.reason_phrase response : string)
             }];
         let%bind body = body_to_string response in
@@ -335,14 +334,12 @@ let%expect_test "Clients are automatically closed if Connection:close header is 
       ~finally:(fun () -> Client.close client)
       (fun () ->
         let%bind response =
-          Client.call
-            client
-            (Request.create ~headers:(Headers.of_list [ "Connection", "close" ]) `GET "/")
+          Client.call client (Request.create ~headers:[ "Connection", "close" ] `GET "/")
         in
         print_s
           [%sexp
             { status = (Response.status response : Status.t)
-            ; headers = (Response.headers response : Headers.t)
+            ; headers = (Response.headers response : (string * string) list)
             ; reason_phrase = (Response.reason_phrase response : string)
             }];
         let%bind body = body_to_string response in
@@ -390,7 +387,7 @@ let%expect_test "Clients are automatically closed if Connection:close header is 
         print_s
           [%sexp
             { status = (Response.status response : Status.t)
-            ; headers = (Response.headers response : Headers.t)
+            ; headers = (Response.headers response : (string * string) list)
             ; reason_phrase = (Response.reason_phrase response : string)
             }];
         let%bind body = body_to_string response in
@@ -443,7 +440,7 @@ let%expect_test "Persistent clients will re-connect if connection is closed" =
         print_s
           [%sexp
             { status = (Response.status response : Status.t)
-            ; headers = (Response.headers response : Headers.t)
+            ; headers = (Response.headers response : (string * string) list)
             ; reason_phrase = (Response.reason_phrase response : string)
             }];
         let%bind body = body_to_string response in
@@ -464,7 +461,7 @@ let%expect_test "Persistent clients will re-connect if connection is closed" =
         print_s
           [%sexp
             { status = (Response.status response : Status.t)
-            ; headers = (Response.headers response : Headers.t)
+            ; headers = (Response.headers response : (string * string) list)
             ; reason_phrase = (Response.reason_phrase response : string)
             }];
         let%map body = body_to_string response in

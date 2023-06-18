@@ -1,35 +1,8 @@
 open! Core
 open! Async
 
-let keep_alive headers =
-  match Headers.find headers "connection" with
-  | Some x when String.Caseless.equal x "close" -> false
-  | _ -> true
-;;
-
-let get_transfer_encoding headers =
-  match List.rev @@ Headers.find_multi headers "Transfer-Encoding" with
-  | x :: _ when String.Caseless.equal x "chunked" -> `Chunked
-  | _x :: _ -> `Bad_request
-  | [] ->
-    (match
-       List.dedup_and_sort
-         ~compare:String.Caseless.compare
-         (Headers.find_multi headers "Content-Length")
-     with
-     | [] -> `Fixed 0
-     (* TODO: check for exceptions when converting to int *)
-     | [ x ] ->
-       let len =
-         try Int.of_string x with
-         | _ -> -1
-       in
-       if Int.(len >= 0) then `Fixed len else `Bad_request
-     | _ -> `Bad_request)
-;;
-
-let parse_body reader headers =
-  match get_transfer_encoding headers with
+let parse_body reader transfer_encoding =
+  match transfer_encoding with
   | `Fixed 0 -> Ok Body.empty
   | `Fixed len ->
     let view = Input_channel.view reader in
@@ -79,5 +52,5 @@ let parse_body reader headers =
                `Repeat (Parser.Continue_chunk to_consume))))
     in
     Ok (Body.of_pipe `Chunked pipe)
-  | `Bad_request -> Or_error.error_s [%sexp "Invalid transfer encoding"]
+  | `Bad_request | `Bad_response -> Or_error.error_s [%sexp "Invalid transfer encoding"]
 ;;

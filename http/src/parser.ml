@@ -295,7 +295,7 @@ let request source =
   let path = token source in
   let version = version source in
   Source.consume_eol source;
-  let headers = Headers.of_rev_list (headers source) in
+  let headers = headers source in
   Request.create ~version ~headers meth path
 ;;
 
@@ -306,7 +306,7 @@ let response source =
   Source.consume_space source;
   let reason_phrase = Source.parse_reason_phrase source in
   Source.consume_eol source;
-  let headers = Headers.of_rev_list (headers source) in
+  let headers = headers source in
   Response.create ~version ~headers ~reason_phrase status
 ;;
 

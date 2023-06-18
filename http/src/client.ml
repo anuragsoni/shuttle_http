@@ -31,35 +31,23 @@ let write_request writer request =
   Output_channel.write_char writer ' ';
   Output_channel.write writer (Version.to_string (Request.version request));
   Output_channel.write writer "\r\n";
-  let headers = Request.headers request in
-  let headers, is_chunked =
+  let request, is_chunked =
     match Request.body request with
-    | Body.Empty ->
-      Headers.add_unless_exists headers ~key:"Content-Length" ~data:"0", false
+    | Body.Empty -> Request.add_transfer_encoding request (`Fixed 0), false
     | Body.Fixed x ->
-      ( Headers.add_unless_exists
-          headers
-          ~key:"Content-Length"
-          ~data:(Int.to_string (String.length x))
-      , false )
+      Request.add_transfer_encoding request (`Fixed (String.length x)), false
     | Body.Stream stream ->
       (match Body.Stream.encoding stream with
-       | `Chunked ->
-         Headers.add_unless_exists headers ~key:"Transfer-Encoding" ~data:"chunked", true
-       | `Fixed len ->
-         ( Headers.add_unless_exists
-             headers
-             ~key:"Content-Length"
-             ~data:(Int.to_string len)
-         , false ))
+       | `Chunked -> Request.add_transfer_encoding request `Chunked, true
+       | `Fixed _ as encoding -> Request.add_transfer_encoding request encoding, false)
   in
-  Headers.iter
+  Request.iter_headers
     ~f:(fun ~key ~data ->
       Output_channel.write writer key;
       Output_channel.write writer ": ";
       Output_channel.write writer data;
       Output_channel.write writer "\r\n")
-    headers;
+    request;
   Output_channel.write writer "\r\n";
   match Request.body request with
   | Body.Empty -> Output_channel.flush writer
@@ -291,11 +279,9 @@ module Connection = struct
            match conn.address with
            | Address.Host_and_port host_and_port ->
              request
-             |> Request.headers
-             |> Headers.add_unless_exists
+             |> Request.add_header_unless_exists
                   ~key:"Host"
                   ~data:(Host_and_port.host host_and_port)
-             |> Request.with_headers request
            | Unix_domain _ -> request
          in
          let%bind () = write_request conn.writer request in
@@ -309,13 +295,11 @@ module Connection = struct
            | Error (Fail error) -> Error.raise error
            | Ok (response, consumed) ->
              Input_channel.consume conn.reader consumed;
-             (match parse_body conn.reader (Response.headers response) with
+             (match parse_body conn.reader (Response.transfer_encoding response) with
               | Error error -> Error.raise error
               | Ok body ->
                 let response = Response.with_body response body in
-                if not
-                     (keep_alive (Response.headers response)
-                      && keep_alive (Request.headers request))
+                if not (Response.keep_alive response && Request.keep_alive request)
                 then close t;
                 Ivar.fill ivar response;
                 (match Response.body response with
