@@ -87,3 +87,4 @@ let remove_header t key =
 ;;
 
 let header_multi t name = Headers.find_multi t.headers name
+let header t name = Headers.find t.headers name
