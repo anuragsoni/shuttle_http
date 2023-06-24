@@ -1,3 +1,7 @@
+# 0.10.1
+
+* Accept a `(string * string) list` as http headers.
+
 # 0.10.0
 
 * Adapt to changes in async_kernel 0.16
