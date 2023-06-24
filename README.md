@@ -99,26 +99,6 @@ let httpbin_address =
 
 If the incoming response's body fits entirely in the client's buffer Shuttle_http will represent the body as a fixed sized string, otherwise the body is read as an asynchronous stream so the response can be processed without having to wait for the entire body to arrive over the write.
 
-We'll write a utility function that will convert a streaming response body to a string:
-
-```ocaml
-let response_body_to_string response =
-  let stream_to_string stream =
-    let buffer = Buffer.create 128 in
-    let%map () =
-      Body.Stream.iter stream ~f:(fun chunk ->
-        Buffer.add_string buffer chunk;
-        Deferred.unit)
-    in
-    Buffer.contents buffer
-  in
-  match Response.body response with
-  | Body.Empty -> return ""
-  | Body.Fixed str -> return str
-  | Body.Stream stream -> stream_to_string stream
-;;
-```
-
 Shuttle_http offers a few different flavors of HTTP clients. The first one we'll see is a OneShot client. OneShot clients open a new TCP
 connection, send a HTTP Request, wait to receive a Response and then shut-down the TCP connection once the entire response has been consumed.
 
@@ -133,7 +113,7 @@ let one_shot_client () =
       (Request.create `GET "/get")
   in
   printf "Response status: %d\n" (Response.status response |> Status.to_int);
-  let%map body = response_body_to_string response in
+  let%map body = Body.to_string (Response.body response) in
   print_endline body
 ;;
 ```

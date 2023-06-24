@@ -75,3 +75,9 @@ let to_stream = function
   | Fixed x -> Stream.of_pipe (`Fixed (String.length x)) (Pipe.singleton x)
   | Stream x -> x
 ;;
+
+let to_string = function
+  | Empty -> return ""
+  | Fixed s -> return s
+  | Stream x -> Stream.to_string x
+;;

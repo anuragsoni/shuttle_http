@@ -1,6 +1,7 @@
 # 0.10.1
 
 * Accept a `(string * string) list` as http headers.
+* Add a `Body.to_string` for reading entire bodies as string.
 
 # 0.10.0
 

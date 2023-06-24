@@ -199,17 +199,6 @@ let%expect_test "Keep-alives in clients" =
            (Client.Address.of_host_and_port
               (Host_and_port.create ~host:"localhost" ~port)))
     in
-    let body_to_string response =
-      let buf = Buffer.create 32 in
-      let%map () =
-        Body.Stream.iter
-          (Body.to_stream (Response.body response))
-          ~f:(fun v ->
-            Buffer.add_string buf v;
-            Deferred.unit)
-      in
-      Buffer.contents buf
-    in
     Monitor.protect
       ~finally:(fun () -> Client.close client)
       (fun () ->
@@ -220,7 +209,7 @@ let%expect_test "Keep-alives in clients" =
             ; headers = (Response.headers response : (string * string) list)
             ; reason_phrase = (Response.reason_phrase response : string)
             }];
-        let%bind body = body_to_string response in
+        let%bind body = Body.to_string (Response.body response) in
         printf "\nBody: %S" body;
         [%expect
           {|
@@ -238,7 +227,7 @@ let%expect_test "Keep-alives in clients" =
             ; headers = (Response.headers response : (string * string) list)
             ; reason_phrase = (Response.reason_phrase response : string)
             }];
-        let%map body = body_to_string response in
+        let%map body = Body.to_string (Response.body response) in
         printf "\nBody: %S" body;
         [%expect
           {|
@@ -270,17 +259,6 @@ let%expect_test "No requests can be sent if a client is closed" =
            (Client.Address.of_host_and_port
               (Host_and_port.create ~host:"localhost" ~port)))
     in
-    let body_to_string response =
-      let buf = Buffer.create 32 in
-      let%map () =
-        Body.Stream.iter
-          (Body.to_stream (Response.body response))
-          ~f:(fun v ->
-            Buffer.add_string buf v;
-            Deferred.unit)
-      in
-      Buffer.contents buf
-    in
     Monitor.protect
       ~finally:(fun () -> Client.close client)
       (fun () ->
@@ -291,7 +269,7 @@ let%expect_test "No requests can be sent if a client is closed" =
             ; headers = (Response.headers response : (string * string) list)
             ; reason_phrase = (Response.reason_phrase response : string)
             }];
-        let%bind body = body_to_string response in
+        let%bind body = Body.to_string (Response.body response) in
         printf "\nBody: %S" body;
         [%expect
           {|
@@ -319,17 +297,6 @@ let%expect_test "Clients are automatically closed if Connection:close header is 
            (Client.Address.of_host_and_port
               (Host_and_port.create ~host:"localhost" ~port)))
     in
-    let body_to_string response =
-      let buf = Buffer.create 32 in
-      let%map () =
-        Body.Stream.iter
-          (Body.to_stream (Response.body response))
-          ~f:(fun v ->
-            Buffer.add_string buf v;
-            Deferred.unit)
-      in
-      Buffer.contents buf
-    in
     Monitor.protect
       ~finally:(fun () -> Client.close client)
       (fun () ->
@@ -342,7 +309,7 @@ let%expect_test "Clients are automatically closed if Connection:close header is 
             ; headers = (Response.headers response : (string * string) list)
             ; reason_phrase = (Response.reason_phrase response : string)
             }];
-        let%bind body = body_to_string response in
+        let%bind body = Body.to_string (Response.body response) in
         printf "\nBody: %S" body;
         [%expect
           {|
@@ -369,17 +336,6 @@ let%expect_test "Clients are automatically closed if Connection:close header is 
            (Client.Address.of_host_and_port
               (Host_and_port.create ~host:"localhost" ~port)))
     in
-    let body_to_string response =
-      let buf = Buffer.create 32 in
-      let%map () =
-        Body.Stream.iter
-          (Body.to_stream (Response.body response))
-          ~f:(fun v ->
-            Buffer.add_string buf v;
-            Deferred.unit)
-      in
-      Buffer.contents buf
-    in
     Monitor.protect
       ~finally:(fun () -> Client.close client)
       (fun () ->
@@ -390,7 +346,7 @@ let%expect_test "Clients are automatically closed if Connection:close header is 
             ; headers = (Response.headers response : (string * string) list)
             ; reason_phrase = (Response.reason_phrase response : string)
             }];
-        let%bind body = body_to_string response in
+        let%bind body = Body.to_string (Response.body response) in
         printf "\nBody: %S" body;
         [%expect
           {|
@@ -420,17 +376,6 @@ let%expect_test "Persistent clients will re-connect if connection is closed" =
             (Client.Address.of_host_and_port
                (Host_and_port.create ~host:"localhost" ~port)))
     in
-    let body_to_string response =
-      let buf = Buffer.create 32 in
-      let%map () =
-        Body.Stream.iter
-          (Body.to_stream (Response.body response))
-          ~f:(fun v ->
-            Buffer.add_string buf v;
-            Deferred.unit)
-      in
-      Buffer.contents buf
-    in
     Monitor.protect
       ~finally:(fun () -> Client.Persistent.close client)
       (fun () ->
@@ -443,7 +388,7 @@ let%expect_test "Persistent clients will re-connect if connection is closed" =
             ; headers = (Response.headers response : (string * string) list)
             ; reason_phrase = (Response.reason_phrase response : string)
             }];
-        let%bind body = body_to_string response in
+        let%bind body = Body.to_string (Response.body response) in
         printf "\nBody: %S" body;
         [%expect
           {|
@@ -464,7 +409,7 @@ let%expect_test "Persistent clients will re-connect if connection is closed" =
             ; headers = (Response.headers response : (string * string) list)
             ; reason_phrase = (Response.reason_phrase response : string)
             }];
-        let%map body = body_to_string response in
+        let%map body = Body.to_string (Response.body response) in
         printf "\nBody: %S" body;
         [%expect
           {|

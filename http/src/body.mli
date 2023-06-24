@@ -71,3 +71,7 @@ val stream : Stream.t -> t
 
 (** [to_stream] converts a HTTP body to a stream. *)
 val to_stream : t -> Stream.t
+
+(** [to_string] returns a deferred that will be fulfilled with the entire body converted
+    to a string. *)
+val to_string : t -> string Deferred.t
