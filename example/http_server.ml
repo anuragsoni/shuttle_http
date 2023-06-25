@@ -20,9 +20,13 @@ let run port =
   Tcp.Server.close_finished_and_handlers_determined server
 ;;
 
-let () =
+let command =
   Command.async
-    ~summary:"Start an echo server"
-    (Command.Param.return (fun () -> run 8080))
-  |> Command_unix.run
+    ~summary:"Http-server demo"
+    (let%map_open.Command port =
+       flag "-p" ~doc:"int Port number to listen on" (optional_with_default 8080 int)
+     in
+     fun () -> run port)
 ;;
+
+let () = Command_unix.run command
