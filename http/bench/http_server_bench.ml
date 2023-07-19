@@ -30,11 +30,10 @@ let text =
    the well, and noticed that they were filled with cupboards......"
 ;;
 
-let service _request = return (Response.create ~body:(Body.string text) `Ok)
-
 let run port =
   let server =
-    Server.run_inet (Tcp.Where_to_listen.of_port port) (fun _addr -> service)
+    Server.run_inet (Tcp.Where_to_listen.of_port port) (fun _context _request ->
+      return (Response.create ~body:(Body.string text) `Ok))
   in
   Log.Global.info
     !"Server listening on: %s"

@@ -2,7 +2,8 @@ open! Core
 open! Async
 open Shuttle_http
 
-let service request =
+let service context request =
+  Log.Global.info "Peer address: %s" (Socket.Address.to_string (Server.peer_addr context));
   match Request.path request, Request.meth request with
   | "/echo", `POST -> return (Response.create ~body:(Request.body request) `Ok)
   | "/", `GET -> return (Response.create ~body:(Body.string "Hello World") `Ok)
@@ -11,9 +12,7 @@ let service request =
 ;;
 
 let run port =
-  let server =
-    Server.run_inet (Tcp.Where_to_listen.of_port port) (fun _addr -> service)
-  in
+  let server = Server.run_inet (Tcp.Where_to_listen.of_port port) service in
   Log.Global.info
     !"Server listening on: %s"
     (Socket.Address.to_string (Tcp.Server.listening_on_address server));

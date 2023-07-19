@@ -95,20 +95,35 @@ module Config = struct
   let default = create ~max_accepts_per_batch:64 ~backlog:128 ()
 end
 
-type service = Request.t -> Response.t Deferred.t [@@deriving sexp_of]
-
-type t =
+type 'a t =
   { closed : unit Ivar.t
   ; monitor : Monitor.t
   ; reader : Input_channel.t
   ; writer : Output_channel.t
   ; error_handler : error_handler
   ; read_header_timeout : Time_ns.Span.t
+  ; ssl : Async_ssl.Ssl.Connection.t option
+  ; addr : 'a
   }
 [@@deriving sexp_of]
 
+type 'addr service = 'addr t -> Request.t -> Response.t Deferred.t [@@deriving sexp_of]
+
 let closed t = Ivar.read t.closed
 let close t = if Ivar.is_empty t.closed then Ivar.fill t.closed ()
+let is_ssl t = Option.is_some t.ssl
+
+let ssl_peer_certificate t =
+  let%bind.Option ssl = t.ssl in
+  Async_ssl.Ssl.Connection.peer_certificate ssl
+;;
+
+let ssl_version t =
+  let%map.Option ssl = t.ssl in
+  Async_ssl.Ssl.Connection.version ssl
+;;
+
+let peer_addr t = t.addr
 
 let write_response t res =
   Output_channel.write t.writer (Version.to_string (Response.version res));
@@ -167,6 +182,8 @@ let write_response t res =
 let create
   ?(error_handler = default_error_handler)
   ?(read_header_timeout = Time_ns.Span.minute)
+  ?ssl
+  addr
   reader
   writer
   =
@@ -176,6 +193,8 @@ let create
   ; writer
   ; error_handler
   ; read_header_timeout
+  ; ssl
+  ; addr
   }
 ;;
 
@@ -220,7 +239,7 @@ let run_server_loop t handler =
       >>> fun response -> write_response t response >>> fun () -> Ivar.fill t.closed ()
     | Ok req_body ->
       let req = Request.with_body req req_body in
-      let promise = handler req in
+      let promise = handler t req in
       if Deferred.is_determined promise
       then write_response_and_continue t req (Deferred.value_exn promise)
       else promise >>> fun response -> write_response_and_continue t req response
@@ -260,11 +279,13 @@ let run_server_loop t handler =
   Ivar.read t.closed
 ;;
 
-let run_server ~interrupt config reader writer service =
+let run_server ?ssl ~addr ~interrupt config reader writer service =
   let server =
     create
+      ?ssl
       ~error_handler:config.Config.error_handler
       ?read_header_timeout:config.read_header_timeout
+      addr
       reader
       writer
   in
@@ -278,7 +299,7 @@ let run_server ~interrupt config reader writer service =
   run_server_loop server service
 ;;
 
-let run_server_loop (config : Config.t) interrupt reader writer service =
+let run_server_loop (config : Config.t) addr interrupt reader writer service =
   match config.ssl with
   | Some ssl ->
     Ssl_conn.upgrade_server_connection
@@ -293,9 +314,16 @@ let run_server_loop (config : Config.t) interrupt reader writer service =
       ?ca_file:ssl.ca_file
       ?ca_path:ssl.ca_path
       ?verify_modes:ssl.verify_modes
-      ~f:(fun _conn reader writer ->
-      run_server ~interrupt:(Ivar.read interrupt) config reader writer service)
-  | None -> run_server ~interrupt:(Ivar.read interrupt) config reader writer service
+      ~f:(fun ssl_conn reader writer ->
+      run_server
+        ~addr
+        ~ssl:ssl_conn
+        ~interrupt:(Ivar.read interrupt)
+        config
+        reader
+        writer
+        service)
+  | None -> run_server ~addr ~interrupt:(Ivar.read interrupt) config reader writer service
 ;;
 
 let run_inet ?(config = Config.default) addr service =
@@ -315,7 +343,7 @@ let run_inet ?(config = Config.default) addr service =
             raise exn))
       addr
       (fun addr reader writer ->
-        run_server_loop config interrupt reader writer (service addr))
+        run_server_loop config addr interrupt reader writer service)
   in
   upon (Tcp.Server.close_finished server) (fun () -> Ivar.fill_if_empty interrupt ());
   server
@@ -338,7 +366,7 @@ let run ?(config = Config.default) addr service =
             raise exn))
       addr
       (fun addr reader writer ->
-        run_server_loop config interrupt reader writer (service addr))
+        run_server_loop config addr interrupt reader writer service)
   in
   upon (Tcp.Server.close_finished server) (fun () -> Ivar.fill_if_empty interrupt ());
   server

@@ -27,7 +27,7 @@ We saw how to define services that respond with data that's entirely in memory. 
 {[
 open Shuttle_http
 
-let my_service (address : Socket.Address.Inet.t) (request : Request.t) =
+let my_service (context : Server.t) (request : Request.t) =
   let%map reader =
     (* This an example to show a stream that works with an external resource. *)
     Reader.open_file "<some file path>"

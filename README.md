@@ -50,7 +50,7 @@ We will need to launch a server that will accept `hello_service` and start a run
 ```ocaml
 let main port =
   let server =
-    Server.run_inet (Tcp.Where_to_listen.of_port port) (fun _addr -> service)
+    Server.run_inet (Tcp.Where_to_listen.of_port port) (fun _context -> service)
   in
   Log.Global.info
     !"Server listening on: %s"

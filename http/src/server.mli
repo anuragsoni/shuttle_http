@@ -70,16 +70,23 @@ module Config : sig
     -> t
 end
 
+type 'addr t [@@deriving sexp_of]
+
+val peer_addr : 'addr t -> 'addr
+val is_ssl : 'addr t -> bool
+val ssl_peer_certificate : 'addr t -> Async_ssl.Ssl.Certificate.t Or_error.t option
+val ssl_version : 'addr t -> Async_ssl.Ssl.Version.t option
+
 (** A user provided [service] that is invoked for every request/response cycle for a HTTP
     connection. *)
-type service = Request.t -> Response.t Deferred.t
+type 'addr service = 'addr t -> Request.t -> Response.t Deferred.t
 
 (** [run_inet ?config addr service] runs a http server where each request will be
     forwarded to the user provided service. *)
 val run_inet
   :  ?config:Config.t
   -> Tcp.Where_to_listen.inet
-  -> (Socket.Address.Inet.t -> service)
+  -> Socket.Address.Inet.t service
   -> Tcp.Server.inet
 
 (** [run ?config addr service] runs a http server where each request will be forwarded to
@@ -87,5 +94,5 @@ val run_inet
 val run
   :  ?config:Config.t
   -> ('address, 'listening_on) Tcp.Where_to_listen.t
-  -> ('address -> service)
+  -> 'address service
   -> ('address, 'listening_on) Tcp.Server.t Deferred.t
