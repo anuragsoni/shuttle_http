@@ -38,7 +38,7 @@ let%test_unit "Status.of_int (Status.to_int c) always succeeds" =
     ~sexp_of:[%sexp_of: Status.t]
     Status.quickcheck_generator
     ~f:(fun status ->
-    [%test_result: Status.t Or_error.t]
-      ~expect:(Ok status)
-      (Status.of_int (Status.to_int status)))
+      [%test_result: Status.t Or_error.t]
+        ~expect:(Ok status)
+        (Status.of_int (Status.to_int status)))
 ;;

@@ -315,14 +315,14 @@ let run_server_loop (config : Config.t) addr interrupt reader writer service =
       ?ca_path:ssl.ca_path
       ?verify_modes:ssl.verify_modes
       ~f:(fun ssl_conn reader writer ->
-      run_server
-        ~addr
-        ~ssl:ssl_conn
-        ~interrupt:(Ivar.read interrupt)
-        config
-        reader
-        writer
-        service)
+        run_server
+          ~addr
+          ~ssl:ssl_conn
+          ~interrupt:(Ivar.read interrupt)
+          config
+          reader
+          writer
+          service)
   | None -> run_server ~addr ~interrupt:(Ivar.read interrupt) config reader writer service
 ;;
 

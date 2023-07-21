@@ -142,20 +142,20 @@ let%expect_test "Servers will respond with a timeout if they can't parse request
     ~read_header_timeout:(Time_ns.Span.of_ms 100.)
     handler
     ~f:(fun port ->
-    Helper.with_client port ~f:(fun r w ->
-      let test_post_req_with_fixed_body =
-        "POST /hello HTTP/1.1\r\n\
-         Host: www.example.com   \r\n\
-         Content-Length: 5\r\n\
-         Connection: close\r\n\
-         \r\n\
-         Hello\r\n"
-      in
-      let%map () =
-        let%bind () = after (Time_float.Span.of_ms 101.) in
-        Helper.send_request_and_log_response r w test_post_req_with_fixed_body
-      in
-      [%expect {| "HTTP/1.1 408 \r\nConnection: close\r\nContent-Length: 0\r\n\r\n" |}]))
+      Helper.with_client port ~f:(fun r w ->
+        let test_post_req_with_fixed_body =
+          "POST /hello HTTP/1.1\r\n\
+           Host: www.example.com   \r\n\
+           Content-Length: 5\r\n\
+           Connection: close\r\n\
+           \r\n\
+           Hello\r\n"
+        in
+        let%map () =
+          let%bind () = after (Time_float.Span.of_ms 101.) in
+          Helper.send_request_and_log_response r w test_post_req_with_fixed_body
+        in
+        [%expect {| "HTTP/1.1 408 \r\nConnection: close\r\nContent-Length: 0\r\n\r\n" |}]))
 ;;
 
 let%expect_test "Client can send streaming bodies" =

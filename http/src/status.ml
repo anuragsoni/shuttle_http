@@ -344,7 +344,7 @@ let to_reason_phrase = function
 ;;
 
 let of_string : string -> t Or_error.t =
- fun code ->
+  fun code ->
   match code with
   | "100" -> Ok `Continue
   | "101" -> Ok `Switching_protocols
@@ -411,7 +411,7 @@ let of_string : string -> t Or_error.t =
 ;;
 
 let of_int : int -> t Or_error.t =
- fun code ->
+  fun code ->
   match code with
   | 100 -> Ok `Continue
   | 101 -> Ok `Switching_protocols

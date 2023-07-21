@@ -90,7 +90,9 @@ let%test_unit "Adding a header to headers always results in a non_empty headers"
     ~sexp_of:[%sexp_of: Headers.t * (string * string)]
     gen
     ~f:(fun (headers, (key, data)) ->
-    [%test_result: bool] ~expect:false (Headers.is_empty (Headers.add headers ~key ~data)))
+      [%test_result: bool]
+        ~expect:false
+        (Headers.is_empty (Headers.add headers ~key ~data)))
 ;;
 
 let%test_unit "Headers.to_rev_list (Headers.of_rev_list xs) = xs" =
@@ -98,9 +100,9 @@ let%test_unit "Headers.to_rev_list (Headers.of_rev_list xs) = xs" =
     ~sexp_of:[%sexp_of: (string * string) list]
     (Base_quickcheck.Generator.list header_generator)
     ~f:(fun keys ->
-    [%test_result: (string * string) list]
-      ~expect:keys
-      (Headers.to_rev_list (Headers.of_rev_list keys)))
+      [%test_result: (string * string) list]
+        ~expect:keys
+        (Headers.to_rev_list (Headers.of_rev_list keys)))
 ;;
 
 let%test_unit "Headers.to_list (Headers.of_list xs) = xs" =
@@ -108,9 +110,9 @@ let%test_unit "Headers.to_list (Headers.of_list xs) = xs" =
     ~sexp_of:[%sexp_of: (string * string) list]
     (Base_quickcheck.Generator.list header_generator)
     ~f:(fun keys ->
-    [%test_result: (string * string) list]
-      ~expect:keys
-      (Headers.to_list (Headers.of_list keys)))
+      [%test_result: (string * string) list]
+        ~expect:keys
+        (Headers.to_list (Headers.of_list keys)))
 ;;
 
 let%test_unit "Headers.to_list (Headers.of_rev_list xs) = List.rev xs" =
@@ -118,9 +120,9 @@ let%test_unit "Headers.to_list (Headers.of_rev_list xs) = List.rev xs" =
     ~sexp_of:[%sexp_of: (string * string) list]
     (Base_quickcheck.Generator.list header_generator)
     ~f:(fun keys ->
-    [%test_result: (string * string) list]
-      ~expect:(List.rev keys)
-      (Headers.to_list (Headers.of_rev_list keys)))
+      [%test_result: (string * string) list]
+        ~expect:(List.rev keys)
+        (Headers.to_list (Headers.of_rev_list keys)))
 ;;
 
 let%test_unit "Header lookups perform case insensitive comparisons" =

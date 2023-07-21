@@ -37,22 +37,24 @@ let listen
     ~on_handler_error
     where_to_listen
     (fun addr socket ->
-    let fd = Socket.fd socket in
-    let input_channel = Input_channel.create ?max_buffer_size ?buf_len ?time_source fd in
-    let output_channel =
-      Output_channel.create ?max_buffer_size ?buf_len ?write_timeout ?time_source fd
-    in
-    let%bind res =
-      Deferred.any
-        [ collect_errors output_channel (fun () ->
-            handler addr input_channel output_channel)
-        ; Output_channel.remote_closed output_channel |> Deferred.ok
-        ]
-    in
-    let%bind () = close_channels input_channel output_channel in
-    match res with
-    | Ok () -> Deferred.unit
-    | Error exn -> raise exn)
+      let fd = Socket.fd socket in
+      let input_channel =
+        Input_channel.create ?max_buffer_size ?buf_len ?time_source fd
+      in
+      let output_channel =
+        Output_channel.create ?max_buffer_size ?buf_len ?write_timeout ?time_source fd
+      in
+      let%bind res =
+        Deferred.any
+          [ collect_errors output_channel (fun () ->
+              handler addr input_channel output_channel)
+          ; Output_channel.remote_closed output_channel |> Deferred.ok
+          ]
+      in
+      let%bind () = close_channels input_channel output_channel in
+      match res with
+      | Ok () -> Deferred.unit
+      | Error exn -> raise exn)
 ;;
 
 let listen_inet
@@ -77,22 +79,24 @@ let listen_inet
     ~on_handler_error
     where_to_listen
     (fun addr socket ->
-    let fd = Socket.fd socket in
-    let input_channel = Input_channel.create ?max_buffer_size ?buf_len ?time_source fd in
-    let output_channel =
-      Output_channel.create ?max_buffer_size ?buf_len ?write_timeout ?time_source fd
-    in
-    let%bind res =
-      Deferred.any
-        [ collect_errors output_channel (fun () ->
-            handler addr input_channel output_channel)
-        ; Output_channel.remote_closed output_channel |> Deferred.ok
-        ]
-    in
-    let%bind () = close_channels input_channel output_channel in
-    match res with
-    | Ok () -> Deferred.unit
-    | Error exn -> raise exn)
+      let fd = Socket.fd socket in
+      let input_channel =
+        Input_channel.create ?max_buffer_size ?buf_len ?time_source fd
+      in
+      let output_channel =
+        Output_channel.create ?max_buffer_size ?buf_len ?write_timeout ?time_source fd
+      in
+      let%bind res =
+        Deferred.any
+          [ collect_errors output_channel (fun () ->
+              handler addr input_channel output_channel)
+          ; Output_channel.remote_closed output_channel |> Deferred.ok
+          ]
+      in
+      let%bind () = close_channels input_channel output_channel in
+      match res with
+      | Ok () -> Deferred.unit
+      | Error exn -> raise exn)
 ;;
 
 let with_connection

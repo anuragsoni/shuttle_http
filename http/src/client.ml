@@ -163,8 +163,8 @@ let default_ssl_verify_certificate ssl_conn hostname =
          cert
          |> Async_ssl.Ssl.Certificate.subject
          |> List.find_map ~f:(function
-              | "CN", name -> Some name
-              | _ -> None)
+           | "CN", name -> Some name
+           | _ -> None)
        in
        (match name with
         | None -> Or_error.errorf "Could not find Common Name in ssl certificate"
@@ -248,26 +248,26 @@ module Connection = struct
              reader
              writer
              ~f:(fun conn reader writer ->
-             let verification_result =
-               match ssl.verify_certificate with
-               | None ->
-                 (match ssl.hostname with
-                  | None -> Ok ()
-                  | Some hostname -> default_ssl_verify_certificate conn hostname)
-               | Some v -> v conn
-             in
-             match verification_result with
-             | Error err ->
-               Ivar.fill ivar (Error err);
-               Deferred.unit
-             | Ok () ->
-               let conn = { reader; writer; address } in
-               let t = Sequencer.create conn in
-               Throttle.at_kill t (fun conn ->
-                 let%bind () = Output_channel.close conn.writer in
-                 Input_channel.close conn.reader);
-               Ivar.fill ivar (Ok t);
-               closed t));
+               let verification_result =
+                 match ssl.verify_certificate with
+                 | None ->
+                   (match ssl.hostname with
+                    | None -> Ok ()
+                    | Some hostname -> default_ssl_verify_certificate conn hostname)
+                 | Some v -> v conn
+               in
+               match verification_result with
+               | Error err ->
+                 Ivar.fill ivar (Error err);
+                 Deferred.unit
+               | Ok () ->
+                 let conn = { reader; writer; address } in
+                 let t = Sequencer.create conn in
+                 Throttle.at_kill t (fun conn ->
+                   let%bind () = Output_channel.close conn.writer in
+                   Input_channel.close conn.reader);
+                 Ivar.fill ivar (Ok t);
+                 closed t));
         Ivar.read ivar)
   ;;
 
