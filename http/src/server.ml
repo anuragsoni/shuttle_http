@@ -133,9 +133,9 @@ let write_response t res =
   Output_channel.write t.writer "\r\n";
   let res, is_chunked =
     match Response.body res with
-    | Body.Empty -> Response.add_transfer_encoding res (`Fixed 0), false
-    | Body.Fixed x -> Response.add_transfer_encoding res (`Fixed (String.length x)), false
-    | Body.Stream stream ->
+    | Body0.Empty -> Response.add_transfer_encoding res (`Fixed 0), false
+    | Fixed x -> Response.add_transfer_encoding res (`Fixed (String.length x)), false
+    | Stream stream ->
       (* Schedule a close operation for the response stream for whenever the server is
          closed. This should ensure that any resource held by the stream will get cleaned
          up. *)
@@ -153,11 +153,11 @@ let write_response t res =
     res;
   Output_channel.write t.writer "\r\n";
   match Response.body res with
-  | Body.Empty -> Output_channel.flush t.writer
-  | Body.Fixed x ->
+  | Body0.Empty -> Output_channel.flush t.writer
+  | Fixed x ->
     Output_channel.write t.writer x;
     Output_channel.flush t.writer
-  | Body.Stream stream ->
+  | Stream stream ->
     let%bind () =
       Body.Stream.iter stream ~f:(fun v ->
         if String.is_empty v
@@ -250,11 +250,11 @@ let run_server_loop t handler =
     if is_keep_alive
     then (
       match Request.body req with
-      | Body.Empty | Body.Fixed _ ->
+      | Body0.Empty | Fixed _ ->
         if Time_ns.Span.is_positive t.read_header_timeout
         then parse_request_with_timeout t t.read_header_timeout
         else parse_request t
-      | Body.Stream stream ->
+      | Stream stream ->
         (if Body.Stream.read_started stream
          then Body.Stream.closed stream
          else Body.Stream.drain stream)

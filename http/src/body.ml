@@ -2,7 +2,7 @@ open! Core
 open! Async
 
 module Stream = struct
-  type t =
+  type t = Body0.Stream.t =
     { encoding : [ `Chunked | `Fixed of int ]
     ; reader : string Pipe.Reader.t
     ; mutable read_started : bool
@@ -59,7 +59,7 @@ module Stream = struct
   let closed t = Pipe.closed t.reader
 end
 
-type t =
+type t = Body0.t =
   | Empty
   | Fixed of string
   | Stream of Stream.t

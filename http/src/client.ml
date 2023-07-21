@@ -33,10 +33,9 @@ let write_request writer request =
   Output_channel.write writer "\r\n";
   let request, is_chunked =
     match Request.body request with
-    | Body.Empty -> Request.add_transfer_encoding request (`Fixed 0), false
-    | Body.Fixed x ->
-      Request.add_transfer_encoding request (`Fixed (String.length x)), false
-    | Body.Stream stream ->
+    | Body0.Empty -> Request.add_transfer_encoding request (`Fixed 0), false
+    | Fixed x -> Request.add_transfer_encoding request (`Fixed (String.length x)), false
+    | Stream stream ->
       (match Body.Stream.encoding stream with
        | `Chunked -> Request.add_transfer_encoding request `Chunked, true
        | `Fixed _ as encoding -> Request.add_transfer_encoding request encoding, false)
@@ -50,11 +49,11 @@ let write_request writer request =
     request;
   Output_channel.write writer "\r\n";
   match Request.body request with
-  | Body.Empty -> Output_channel.flush writer
-  | Body.Fixed x ->
+  | Body0.Empty -> Output_channel.flush writer
+  | Fixed x ->
     Output_channel.write writer x;
     Output_channel.flush writer
-  | Body.Stream stream ->
+  | Stream stream ->
     let%bind () =
       Body.Stream.iter stream ~f:(fun v ->
         if String.is_empty v
@@ -303,8 +302,8 @@ module Connection = struct
                 then close t;
                 Ivar.fill ivar response;
                 (match Response.body response with
-                 | Body.Fixed _ | Body.Empty -> return (`Finished ())
-                 | Body.Stream stream ->
+                 | Body0.Fixed _ | Empty -> return (`Finished ())
+                 | Stream stream ->
                    let%map () = Body.Stream.closed stream in
                    `Finished ()))))
        >>| function

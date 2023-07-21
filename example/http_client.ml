@@ -6,22 +6,6 @@ let httpbin_address =
   Client.Address.of_host_and_port (Host_and_port.create ~host:"httpbin.org" ~port:443)
 ;;
 
-let response_body_to_string response =
-  let stream_to_string stream =
-    let buffer = Buffer.create 128 in
-    let%map () =
-      Body.Stream.iter stream ~f:(fun chunk ->
-        Buffer.add_string buffer chunk;
-        Deferred.unit)
-    in
-    Buffer.contents buffer
-  in
-  match Response.body response with
-  | Body.Empty -> return ""
-  | Body.Fixed str -> return str
-  | Body.Stream stream -> stream_to_string stream
-;;
-
 let one_shot_client () =
   let%bind response =
     Client.Oneshot.call
@@ -30,7 +14,7 @@ let one_shot_client () =
       (Request.create `GET "/get")
   in
   printf "Response status: %d\n" (Response.status response |> Status.to_int);
-  let%map body = response_body_to_string response in
+  let%map body = Body.to_string (Response.body response) in
   print_endline body
 ;;
 
