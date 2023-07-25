@@ -131,18 +131,18 @@ let write_response t res =
   Output_channel.write t.writer (Status.to_string (Response.status res));
   Output_channel.write_char t.writer ' ';
   Output_channel.write t.writer "\r\n";
-  let res, is_chunked =
+  let res =
     match Response.body res with
-    | Body0.Empty -> Response.add_transfer_encoding res (`Fixed 0), false
-    | Fixed x -> Response.add_transfer_encoding res (`Fixed (String.length x)), false
+    | Body0.Empty -> Response.add_transfer_encoding res (`Fixed 0)
+    | Fixed x -> Response.add_transfer_encoding res (`Fixed (String.length x))
     | Stream stream ->
       (* Schedule a close operation for the response stream for whenever the server is
          closed. This should ensure that any resource held by the stream will get cleaned
          up. *)
       upon (closed t) (fun () -> Body.Stream.close stream);
       (match Body.Stream.encoding stream with
-       | `Chunked -> Response.add_transfer_encoding res `Chunked, true
-       | `Fixed _ as encoding -> Response.add_transfer_encoding res encoding, false)
+       | `Chunked -> Response.add_transfer_encoding res `Chunked
+       | `Fixed _ as encoding -> Response.add_transfer_encoding res encoding)
   in
   Response.iter_headers
     ~f:(fun ~key ~data ->
@@ -151,32 +151,7 @@ let write_response t res =
       Output_channel.write t.writer data;
       Output_channel.write t.writer "\r\n")
     res;
-  Output_channel.write t.writer "\r\n";
-  match Response.body res with
-  | Body0.Empty -> Output_channel.flush t.writer
-  | Fixed x ->
-    Output_channel.write t.writer x;
-    Output_channel.flush t.writer
-  | Stream stream ->
-    let%bind () =
-      Body.Stream.iter stream ~f:(fun v ->
-        if String.is_empty v
-        then Deferred.unit
-        else if is_chunked
-        then (
-          Output_channel.writef t.writer "%x\r\n" (String.length v);
-          Output_channel.write t.writer v;
-          Output_channel.write t.writer "\r\n";
-          Output_channel.flush t.writer)
-        else (
-          Output_channel.write t.writer v;
-          Output_channel.flush t.writer))
-    in
-    if is_chunked
-    then (
-      Output_channel.write t.writer "0\r\n\r\n";
-      Output_channel.flush t.writer)
-    else Output_channel.flush t.writer
+  Output_channel.write t.writer "\r\n"
 ;;
 
 let create
@@ -209,7 +184,10 @@ let run_server_loop t handler =
       | `Ok -> parse_request t)
     | Error (Fail error) ->
       t.error_handler ~exn:(Error.to_exn error) `Bad_request
-      >>> fun response -> write_response t response >>> fun () -> Ivar.fill t.closed ()
+      >>> fun response ->
+      (write_response t response;
+       Body0.writer (Response.body response) t.writer)
+      >>> fun () -> Ivar.fill t.closed ()
     | Ok (req, consumed) ->
       Input_channel.consume t.reader consumed;
       create_request_body_reader t req
@@ -228,7 +206,10 @@ let run_server_loop t handler =
          parse_request_with_timeout t Time_ns.Span.(span - diff))
     | Error (Fail error) ->
       t.error_handler ~exn:(Error.to_exn error) `Bad_request
-      >>> fun response -> write_response t response >>> fun () -> Ivar.fill t.closed ()
+      >>> fun response ->
+      (write_response t response;
+       Body0.writer (Response.body response) t.writer)
+      >>> fun () -> Ivar.fill t.closed ()
     | Ok (req, consumed) ->
       Input_channel.consume t.reader consumed;
       create_request_body_reader t req
@@ -236,7 +217,10 @@ let run_server_loop t handler =
     match parse_body t.reader (Request.transfer_encoding req) with
     | Error e ->
       t.error_handler ~exn:(Error.to_exn e) ~request:req `Bad_request
-      >>> fun response -> write_response t response >>> fun () -> Ivar.fill t.closed ()
+      >>> fun response ->
+      (write_response t response;
+       Body0.writer (Response.body response) t.writer)
+      >>> fun () -> Ivar.fill t.closed ()
     | Ok req_body ->
       let req = Request.with_body req req_body in
       let promise = handler t req in
@@ -245,7 +229,8 @@ let run_server_loop t handler =
       else promise >>> fun response -> write_response_and_continue t req response
   and write_response_and_continue t req response =
     let is_keep_alive = Request.keep_alive req && Response.keep_alive response in
-    write_response t response
+    (write_response t response;
+     Body0.writer (Response.body response) t.writer)
     >>> fun () ->
     if is_keep_alive
     then (
@@ -275,7 +260,10 @@ let run_server_loop t handler =
      | exn -> t.error_handler ~exn `Internal_server_error)
     >>> fun response ->
     if Ivar.is_empty t.closed
-    then write_response t response >>> fun () -> Ivar.fill t.closed ());
+    then
+      (write_response t response;
+       Body0.writer (Response.body response) t.writer)
+      >>> fun () -> Ivar.fill t.closed ());
   Ivar.read t.closed
 ;;
 
