@@ -273,7 +273,7 @@ module Connection = struct
              (match parse_body conn.reader (Response.transfer_encoding response) with
               | Error error -> Error.raise error
               | Ok body ->
-                let response = Response.with_body response body in
+                let response = Response0.with_body response body in
                 if not (Response.keep_alive response && Request.keep_alive request)
                 then close t;
                 Ivar.fill ivar response;

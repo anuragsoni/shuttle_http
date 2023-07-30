@@ -1,13 +1,5 @@
 open Core
-
-type t =
-  { version : Version.t
-  ; status : Status.t
-  ; reason_phrase : string
-  ; headers : Headers.t
-  ; body : Body.t
-  }
-[@@deriving sexp_of]
+include Response0
 
 let create
   ?(version = Version.Http_1_1)
@@ -17,15 +9,29 @@ let create
   status
   =
   let reason_phrase = Option.value reason_phrase ~default:(Status.to_string status) in
-  { version; status; reason_phrase; headers; body }
+  { version; status; reason_phrase; headers; body = Response body }
+;;
+
+let upgrade ?(headers = []) handler =
+  let reason_phrase = Status.to_reason_phrase `Switching_protocols in
+  { version = Http_1_1
+  ; status = `Switching_protocols
+  ; reason_phrase
+  ; headers
+  ; body = Upgrade handler
+  }
 ;;
 
 let version t = t.version
 let status t = t.status
 let reason_phrase t = t.reason_phrase
 let headers t = t.headers
-let body t = t.body
-let with_body t body = if phys_equal t.body body then t else { t with body }
+
+let body t =
+  match t.body with
+  | Response b -> b
+  | Upgrade _ -> Body.empty
+;;
 
 let transfer_encoding t =
   match List.rev @@ Headers.find_multi t.headers "Transfer-Encoding" with

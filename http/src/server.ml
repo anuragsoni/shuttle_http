@@ -227,27 +227,40 @@ let run_server_loop t handler =
       if Deferred.is_determined promise
       then write_response_and_continue t req (Deferred.value_exn promise)
       else promise >>> fun response -> write_response_and_continue t req response
-  and write_response_and_continue t req response =
+  and write_response_and_continue t req (response : Response0.t) =
     let is_keep_alive = Request.keep_alive req && Response.keep_alive response in
     (write_response t response;
      Body0.writer (Response.body response) t.writer)
     >>> fun () ->
-    if is_keep_alive
-    then (
-      match Request.body req with
-      | Body0.Empty | Fixed _ ->
-        if Time_ns.Span.is_positive t.read_header_timeout
-        then parse_request_with_timeout t t.read_header_timeout
-        else parse_request t
-      | Stream stream ->
-        (if Body.Stream.read_started stream
-         then Body.Stream.closed stream
-         else Body.Stream.drain stream)
-        >>> fun () ->
-        if Time_ns.Span.is_positive t.read_header_timeout
-        then parse_request_with_timeout t t.read_header_timeout
-        else parse_request t)
-    else Ivar.fill t.closed ()
+    match response.body with
+    | Upgrade handler ->
+      let (view : Slice.t) = Input_channel.view t.reader in
+      let unconsumed_data =
+        if view.len = 0
+        then None
+        else Some (Bigstring.to_string view.buf ~pos:view.pos ~len:view.len)
+      in
+      let reader_fd = Input_channel.fd t.reader in
+      let writer_fd = Output_channel.fd t.writer in
+      assert (phys_equal reader_fd writer_fd);
+      handler ?unconsumed_data reader_fd >>> fun () -> Ivar.fill t.closed ()
+    | Response _ ->
+      if is_keep_alive
+      then (
+        match Request.body req with
+        | Body0.Empty | Fixed _ ->
+          if Time_ns.Span.is_positive t.read_header_timeout
+          then parse_request_with_timeout t t.read_header_timeout
+          else parse_request t
+        | Stream stream ->
+          (if Body.Stream.read_started stream
+           then Body.Stream.closed stream
+           else Body.Stream.drain stream)
+          >>> fun () ->
+          if Time_ns.Span.is_positive t.read_header_timeout
+          then parse_request_with_timeout t t.read_header_timeout
+          else parse_request t)
+      else Ivar.fill t.closed ()
   in
   Monitor.detach t.monitor;
   Scheduler.within ~priority:Priority.normal ~monitor:t.monitor (fun () ->

@@ -3,10 +3,10 @@ open! Async
 
 module Stream = struct
   include Body0.Stream
+
   let of_pipe encoding reader = { encoding; reader; read_started = false }
   let close t = Pipe.close_read t.reader
   let encoding t = t.encoding
-
 
   let iter_without_pushback t ~f =
     if t.read_started then raise_s [%message "Only one consumer can read from a stream"];

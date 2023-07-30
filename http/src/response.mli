@@ -1,5 +1,5 @@
 (** [t] Represents a HTTP 1.1 response. *)
-type t [@@deriving sexp_of]
+type t = Response0.t [@@deriving sexp_of]
 
 val create
   :  ?version:Version.t
@@ -7,6 +7,11 @@ val create
   -> ?headers:(string * string) list
   -> ?body:Body.t
   -> Status.t
+  -> t
+
+val upgrade
+  :  ?headers:Headers.t
+  -> (?unconsumed_data:string -> Async_unix.Fd.t -> unit Async_kernel.Deferred.t)
   -> t
 
 (** [version] returns the HTTP version number for the response. *)
@@ -23,10 +28,6 @@ val headers : t -> (string * string) list
 
 (** [body] returns the body payload of this response. *)
 val body : t -> Body.t
-
-(** [with_body] returns a new response where every value is the same as the input response
-    but the body is replaced with the function input. *)
-val with_body : t -> Body.t -> t
 
 (** [transfer_encoding] returns the inferred transfer encoding based on the response's
     http headers. *)

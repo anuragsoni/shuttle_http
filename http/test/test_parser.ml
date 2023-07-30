@@ -265,7 +265,7 @@ let%expect_test "can parse a single response" =
       ((consumed 49)
        (value
         ((version Http_1_1) (status Ok) (reason_phrase OK)
-         (headers ((Content-Length 21) (Foo bar))) (body Empty)))))
+         (headers ((Content-Length 21) (Foo bar))) (body (Response Empty))))))
      49) |}]
 ;;
 
