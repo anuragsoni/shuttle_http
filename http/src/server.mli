@@ -1,5 +1,6 @@
 open! Core
 open! Async
+module Logger : Log.Global_intf
 
 (** [error_handler] can be used to customize how the server deals with any unhandled
     exceptions. A default implementation is provided that will respond with a status code

@@ -31,15 +31,14 @@ let write_request writer request =
   Output_channel.write_char writer ' ';
   Output_channel.write writer (Version.to_string (Request.version request));
   Output_channel.write writer "\r\n";
-  let request, is_chunked =
+  let request =
     match Request.body request with
-    | Body.Empty -> Request.add_transfer_encoding request (`Fixed 0), false
-    | Body.Fixed x ->
-      Request.add_transfer_encoding request (`Fixed (String.length x)), false
-    | Body.Stream stream ->
+    | Body0.Empty -> Request.add_transfer_encoding request (`Fixed 0)
+    | Fixed x -> Request.add_transfer_encoding request (`Fixed (String.length x))
+    | Stream stream ->
       (match Body.Stream.encoding stream with
-       | `Chunked -> Request.add_transfer_encoding request `Chunked, true
-       | `Fixed _ as encoding -> Request.add_transfer_encoding request encoding, false)
+       | `Chunked -> Request.add_transfer_encoding request `Chunked
+       | `Fixed _ as encoding -> Request.add_transfer_encoding request encoding)
   in
   Request.iter_headers
     ~f:(fun ~key ~data ->
@@ -49,31 +48,7 @@ let write_request writer request =
       Output_channel.write writer "\r\n")
     request;
   Output_channel.write writer "\r\n";
-  match Request.body request with
-  | Body.Empty -> Output_channel.flush writer
-  | Body.Fixed x ->
-    Output_channel.write writer x;
-    Output_channel.flush writer
-  | Body.Stream stream ->
-    let%bind () =
-      Body.Stream.iter stream ~f:(fun v ->
-        if String.is_empty v
-        then Deferred.unit
-        else if is_chunked
-        then (
-          Output_channel.writef writer "%x\r\n" (String.length v);
-          Output_channel.write writer v;
-          Output_channel.write writer "\r\n";
-          Output_channel.flush writer)
-        else (
-          Output_channel.write writer v;
-          Output_channel.flush writer))
-    in
-    if is_chunked
-    then (
-      Output_channel.write writer "0\r\n\r\n";
-      Output_channel.flush writer)
-    else Output_channel.flush writer
+  Body0.writer (Request.body request) writer
 ;;
 
 module Ssl = struct
@@ -298,13 +273,13 @@ module Connection = struct
              (match parse_body conn.reader (Response.transfer_encoding response) with
               | Error error -> Error.raise error
               | Ok body ->
-                let response = Response.with_body response body in
+                let response = Response0.with_body response body in
                 if not (Response.keep_alive response && Request.keep_alive request)
                 then close t;
                 Ivar.fill ivar response;
                 (match Response.body response with
-                 | Body.Fixed _ | Body.Empty -> return (`Finished ())
-                 | Body.Stream stream ->
+                 | Body0.Fixed _ | Empty -> return (`Finished ())
+                 | Stream stream ->
                    let%map () = Body.Stream.closed stream in
                    `Finished ()))))
        >>| function

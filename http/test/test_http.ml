@@ -47,7 +47,7 @@ let%expect_test "Simple http endpoint with http client" =
     [%expect
       {|
     ((version Http_1_1) (status Ok) (reason_phrase "")
-     (headers ((Content-Length 11))) (body (Fixed "Hello World"))) |}])
+     (headers ((Content-Length 11))) (body (Response (Fixed "Hello World")))) |}])
 ;;
 
 let%expect_test "Test default error handler" =
