@@ -8,5 +8,4 @@
   core_unix.filename_unix
   core_unix.command_unix
   async
-  shuttle_http
-  async_websocket))
+  shuttle_http))
