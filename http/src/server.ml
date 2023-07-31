@@ -243,7 +243,13 @@ let run_server_loop t handler =
       let reader_fd = Input_channel.fd t.reader in
       let writer_fd = Output_channel.fd t.writer in
       assert (phys_equal reader_fd writer_fd);
-      handler ?unconsumed_data reader_fd >>> fun () -> Ivar.fill t.closed ()
+      Monitor.try_with ~here:[%here] (fun () -> handler ?unconsumed_data reader_fd)
+      >>> fun res ->
+      (match res with
+       | Ok () -> ()
+       | Error exn ->
+         Logger.error "Error while running upgrade handler: %s" (Exn.to_string exn));
+      Ivar.fill t.closed ()
     | Response _ ->
       if is_keep_alive
       then (
