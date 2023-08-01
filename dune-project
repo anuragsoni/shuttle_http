@@ -1,11 +1,11 @@
-(lang dune 2.8)
+(lang dune 3.1)
 
 (name shuttle_http)
 
 (generate_opam_files true)
 
 (source
- (github anuragsoni/shuttle_http))
+ (sourcehut soni/shuttle_http))
 
 (maintainers "Anurag Soni <anurag@sonianurag.com>")
 
