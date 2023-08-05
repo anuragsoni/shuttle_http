@@ -75,9 +75,16 @@ let () =
 Our `hello_service` doesn't really do much, we'll now see examples of servers that do a little more work than always responding with the same payload for every request. This example will show how to echo the body received in an incoming request back to the client. We'll also need to do some routing and since `shuttle_http` doesn't ship with a router we'll rely on pattern matching:
 
 ```ocaml
+let websocket_handler =
+  Shuttle_websocket.create (fun ws ->
+    let rd, wr = Websocket.pipes ws in
+    Pipe.transfer_id rd wr)
+;;
+
 let service request =
   match Request.path request, Request.meth request with
   | "/echo", `POST -> return (Response.create ~body:(Request.body request) `Ok)
+  | "/websocket", `GET -> websocket_handler request
   | "/", `GET -> return (Response.create ~body:(Body.string "Hello World") `Ok)
   | ("/echo" | "/"), _ -> return (Response.create `Method_not_allowed)
   | _ -> return (Response.create `Not_found)
