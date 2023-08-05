@@ -28,7 +28,9 @@ let%expect_test "header operations" =
   [%expect {| () |}];
   printf !"%{sexp: bool}" (Headers.mem headers "FOO");
   [%expect {| true |}];
-  printf !"%{sexp: Headers.t}" (Headers.replace headers ~key:"foo" ~data:"THIS IS A NEW KEY");
+  printf
+    !"%{sexp: Headers.t}"
+    (Headers.replace headers ~key:"foo" ~data:"THIS IS A NEW KEY");
   [%expect {| ((foo "THIS IS A NEW KEY") (hello world)) |}]
 ;;
 
