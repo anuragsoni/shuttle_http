@@ -11,15 +11,15 @@ let create ?(buffer_size = 0x4000) ?opcode handler request =
        let accept_key =
          Websocket.sec_websocket_accept_header_value ~sec_websocket_key:v
        in
-       let handler (upgrade_context : Upgrade_context.t) =
-         match upgrade_context.unconsumed_data with
+       let handler ?unconsumed_data fd =
+         match unconsumed_data with
          | Some payload ->
            raise_s
              [%message
                "Websocket upgrade request contained unconsumed data" ~data:payload]
          | None ->
-           let reader = Reader.create ~buf_len:buffer_size upgrade_context.fd in
-           let writer = Writer.create ~buf_len:buffer_size upgrade_context.fd in
+           let reader = Reader.create ~buf_len:buffer_size fd in
+           let writer = Writer.create ~buf_len:buffer_size fd in
            let ws =
              Websocket.create ?opcode ~role:Websocket.Websocket_role.Server reader writer
            in

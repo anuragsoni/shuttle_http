@@ -3,7 +3,7 @@ open Async
 
 type body =
   | Response of Body.t
-  | Upgrade of (Upgrade_context.t -> unit Deferred.t)
+  | Upgrade of (?unconsumed_data:string -> Fd.t -> unit Deferred.t)
 [@@deriving sexp_of]
 
 type t =

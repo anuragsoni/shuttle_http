@@ -8,4 +8,3 @@ module Server = Server
 module Status = Status
 module Version = Version
 module Client = Client
-module Upgrade_context = Upgrade_context

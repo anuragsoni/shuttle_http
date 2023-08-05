@@ -11,7 +11,7 @@ val create
 
 val upgrade
   :  ?headers:Headers.t
-  -> (Upgrade_context.t -> unit Async_kernel.Deferred.t)
+  -> (?unconsumed_data:string -> Async_unix.Fd.t -> unit Async_kernel.Deferred.t)
   -> t
 
 (** [version] returns the HTTP version number for the response. *)

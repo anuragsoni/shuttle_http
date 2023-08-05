@@ -242,13 +242,7 @@ let run_server_loop t handler =
       let reader_fd = Input_channel.fd t.reader in
       let writer_fd = Output_channel.fd t.writer in
       assert (phys_equal reader_fd writer_fd);
-      Monitor.try_with ~here:[%here] (fun () ->
-        handler
-          { Upgrade_context.unconsumed_data
-          ; ssl = t.ssl
-          ; fd = reader_fd
-          ; parent_connection_closed = closed t
-          })
+      Monitor.try_with ~here:[%here] (fun () -> handler ?unconsumed_data reader_fd)
       >>> fun res ->
       (match res with
        | Ok () -> ()
