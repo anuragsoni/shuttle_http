@@ -41,6 +41,9 @@
  (name shuttle_websocket)
  (tags
   (http-server websocket))
+ (synopsis "Websocket support for HTTP/1.1 servers using Async")
+ (description
+  "Shuttle_websocket is a companion library for shuttle_http that provides a HTTP service that performs websocket negotiation for HTTP/1.1 servers.")
  (depends
   (shuttle_http
    (= :version))
