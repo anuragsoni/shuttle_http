@@ -49,3 +49,8 @@ let remove t name =
   try loop t name false with
   | Stop -> t
 ;;
+
+let replace t ~key ~data =
+  let t = remove t key in
+  add t ~key ~data
+;;

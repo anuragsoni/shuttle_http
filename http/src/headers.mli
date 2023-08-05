@@ -15,3 +15,4 @@ val is_empty : t -> bool
 val add_unless_exists : t -> key:string -> data:string -> t
 val add : t -> key:string -> data:string -> t
 val remove : t -> string -> t
+val replace : t -> key:string -> data:string -> t

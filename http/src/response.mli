@@ -64,3 +64,7 @@ val remove_header : t -> string -> t
 
 (** [header_exists t key] returns if a response header matches the user provided key. *)
 val header_exists : t -> string -> bool
+
+(** [replace_header] removes all response headers that match the user provided key and
+    adds a new entry for the key with the new user provided data. *)
+val replace_header : t -> key:string -> data:string -> t

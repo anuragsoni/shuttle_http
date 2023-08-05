@@ -27,7 +27,9 @@ let%expect_test "header operations" =
   printf !"%{sexp: string option}" (Headers.find headers "BAZ");
   [%expect {| () |}];
   printf !"%{sexp: bool}" (Headers.mem headers "FOO");
-  [%expect {| true |}]
+  [%expect {| true |}];
+  printf !"%{sexp: Headers.t}" (Headers.replace headers ~key:"foo" ~data:"THIS IS A NEW KEY");
+  [%expect {| ((foo "THIS IS A NEW KEY") (hello world)) |}]
 ;;
 
 let tchar_map =

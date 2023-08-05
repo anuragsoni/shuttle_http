@@ -94,3 +94,7 @@ let remove_header t key =
 
 let header_multi t name = Headers.find_multi t.headers name
 let header t name = Headers.find t.headers name
+
+let replace_header t ~key ~data =
+  { t with headers = Headers.replace t.headers ~key ~data }
+;;
