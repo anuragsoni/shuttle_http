@@ -1,0 +1,5 @@
+(library
+ (public_name shuttle_websocket)
+ (preprocess
+  (pps ppx_jane))
+ (libraries core async shuttle_http async_websocket))

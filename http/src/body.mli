@@ -5,7 +5,7 @@ open! Async
     and consume streams, while enforcing the invariant that only one consume can read from
     a stream, and that a stream can only be consumed once. *)
 module Stream : sig
-  type t = Body0.Stream.t [@@deriving sexp_of]
+  type t [@@deriving sexp_of]
 
   (** [of_pipe] is a convenience function that creates a stream from a user provided
       [Async_kernel.Pipe.Reader.t]. The pipe will be closed whenever the streaming body is
@@ -49,7 +49,11 @@ module Stream : sig
   val to_string : t -> string Deferred.t
 end
 
-type t = Body0.t [@@deriving sexp_of]
+type t = private
+  | Empty
+  | Fixed of string
+  | Stream of Stream.t
+[@@deriving sexp_of]
 
 (** [string str] creates a fixed length encoded body from a user provided string. *)
 val string : string -> t

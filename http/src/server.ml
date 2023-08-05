@@ -1,6 +1,5 @@
 open! Core
 open! Async
-open Io_util
 module Logger = Log.Make_global ()
 module Ssl_conn = Ssl
 
@@ -133,7 +132,7 @@ let write_response t res =
   Output_channel.write t.writer "\r\n";
   let res =
     match Response.body res with
-    | Body0.Empty -> Response.add_transfer_encoding res (`Fixed 0)
+    | Body.Empty -> Response.add_transfer_encoding res (`Fixed 0)
     | Fixed x -> Response.add_transfer_encoding res (`Fixed (String.length x))
     | Stream stream ->
       (* Schedule a close operation for the response stream for whenever the server is
@@ -186,7 +185,7 @@ let run_server_loop t handler =
       t.error_handler ~exn:(Error.to_exn error) `Bad_request
       >>> fun response ->
       (write_response t response;
-       Body0.writer (Response.body response) t.writer)
+       Io_util.write_body (Response.body response) t.writer)
       >>> fun () -> Ivar.fill t.closed ()
     | Ok (req, consumed) ->
       Input_channel.consume t.reader consumed;
@@ -208,18 +207,18 @@ let run_server_loop t handler =
       t.error_handler ~exn:(Error.to_exn error) `Bad_request
       >>> fun response ->
       (write_response t response;
-       Body0.writer (Response.body response) t.writer)
+       Io_util.write_body (Response.body response) t.writer)
       >>> fun () -> Ivar.fill t.closed ()
     | Ok (req, consumed) ->
       Input_channel.consume t.reader consumed;
       create_request_body_reader t req
   and create_request_body_reader t req =
-    match parse_body t.reader (Request.transfer_encoding req) with
+    match Io_util.parse_body t.reader (Request.transfer_encoding req) with
     | Error e ->
       t.error_handler ~exn:(Error.to_exn e) ~request:req `Bad_request
       >>> fun response ->
       (write_response t response;
-       Body0.writer (Response.body response) t.writer)
+       Io_util.write_body (Response.body response) t.writer)
       >>> fun () -> Ivar.fill t.closed ()
     | Ok req_body ->
       let req = Request.with_body req req_body in
@@ -230,7 +229,7 @@ let run_server_loop t handler =
   and write_response_and_continue t req (response : Response0.t) =
     let is_keep_alive = Request.keep_alive req && Response.keep_alive response in
     (write_response t response;
-     Body0.writer (Response.body response) t.writer)
+     Io_util.write_body (Response.body response) t.writer)
     >>> fun () ->
     match response.body with
     | Upgrade handler ->
@@ -243,7 +242,13 @@ let run_server_loop t handler =
       let reader_fd = Input_channel.fd t.reader in
       let writer_fd = Output_channel.fd t.writer in
       assert (phys_equal reader_fd writer_fd);
-      Monitor.try_with ~here:[%here] (fun () -> handler ?unconsumed_data reader_fd)
+      Monitor.try_with ~here:[%here] (fun () ->
+        handler
+          { Upgrade_context.unconsumed_data
+          ; ssl = t.ssl
+          ; fd = reader_fd
+          ; parent_connection_closed = closed t
+          })
       >>> fun res ->
       (match res with
        | Ok () -> ()
@@ -254,7 +259,7 @@ let run_server_loop t handler =
       if is_keep_alive
       then (
         match Request.body req with
-        | Body0.Empty | Fixed _ ->
+        | Body.Empty | Fixed _ ->
           if Time_ns.Span.is_positive t.read_header_timeout
           then parse_request_with_timeout t t.read_header_timeout
           else parse_request t
@@ -281,7 +286,7 @@ let run_server_loop t handler =
     if Ivar.is_empty t.closed
     then
       (write_response t response;
-       Body0.writer (Response.body response) t.writer)
+       Io_util.write_body (Response.body response) t.writer)
       >>> fun () -> Ivar.fill t.closed ());
   Ivar.read t.closed
 ;;

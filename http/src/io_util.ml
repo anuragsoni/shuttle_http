@@ -1,6 +1,33 @@
 open! Core
 open! Async
 
+let write_body body writer =
+  match body with
+  | Body.Empty -> Output_channel.flush writer
+  | Fixed x ->
+    Output_channel.write writer x;
+    Output_channel.flush writer
+  | Stream stream ->
+    (match Body.Stream.encoding stream with
+     | `Fixed _ ->
+       Body.Stream.iter stream ~f:(fun v ->
+         Output_channel.write writer v;
+         Output_channel.flush writer)
+     | `Chunked ->
+       let%bind () =
+         Body.Stream.iter stream ~f:(fun v ->
+           if String.is_empty v
+           then Deferred.unit
+           else (
+             Output_channel.writef writer "%x\r\n" (String.length v);
+             Output_channel.write writer v;
+             Output_channel.write writer "\r\n";
+             Output_channel.flush writer))
+       in
+       Output_channel.write writer "0\r\n\r\n";
+       Output_channel.flush writer)
+;;
+
 let parse_body reader transfer_encoding =
   match transfer_encoding with
   | `Fixed 0 -> Ok Body.empty

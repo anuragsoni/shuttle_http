@@ -36,3 +36,12 @@
   (re2
    (>= v0.16.0))
   (core_unix :with-test)))
+
+(package
+ (name shuttle_websocket)
+ (tags
+  (http-server websocket))
+ (depends
+  (shuttle_http
+   (= :version))
+  async_websocket))

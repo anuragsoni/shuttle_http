@@ -2,11 +2,22 @@ open! Core
 open! Async
 
 module Stream = struct
-  include Body0.Stream
+  type t =
+    { encoding : [ `Chunked | `Fixed of int ]
+    ; reader : string Pipe.Reader.t
+    ; mutable read_started : bool
+    }
+  [@@deriving sexp_of]
 
   let of_pipe encoding reader = { encoding; reader; read_started = false }
   let close t = Pipe.close_read t.reader
   let encoding t = t.encoding
+
+  let iter t ~f =
+    if t.read_started then raise_s [%message "Only one consumer can read from a stream"];
+    t.read_started <- true;
+    Pipe.iter t.reader ~f
+  ;;
 
   let iter_without_pushback t ~f =
     if t.read_started then raise_s [%message "Only one consumer can read from a stream"];
@@ -48,7 +59,7 @@ module Stream = struct
   let closed t = Pipe.closed t.reader
 end
 
-type t = Body0.t =
+type t =
   | Empty
   | Fixed of string
   | Stream of Stream.t

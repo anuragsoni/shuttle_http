@@ -1,6 +1,7 @@
 # 0.11.0
 
 * Forward a server context object to all http services. This can be used to lookup peer-socket address and ssl details (if using ssl) for the underlying connection.
+* Add support for websockets
 
 # 0.10.1
 

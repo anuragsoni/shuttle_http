@@ -1,6 +1,5 @@
 open Core
 open Async
-open Io_util
 module Ssl_conn = Ssl
 
 module Address = struct
@@ -33,7 +32,7 @@ let write_request writer request =
   Output_channel.write writer "\r\n";
   let request =
     match Request.body request with
-    | Body0.Empty -> Request.add_transfer_encoding request (`Fixed 0)
+    | Body.Empty -> Request.add_transfer_encoding request (`Fixed 0)
     | Fixed x -> Request.add_transfer_encoding request (`Fixed (String.length x))
     | Stream stream ->
       (match Body.Stream.encoding stream with
@@ -48,7 +47,7 @@ let write_request writer request =
       Output_channel.write writer "\r\n")
     request;
   Output_channel.write writer "\r\n";
-  Body0.writer (Request.body request) writer
+  Io_util.write_body (Request.body request) writer
 ;;
 
 module Ssl = struct
@@ -270,7 +269,9 @@ module Connection = struct
            | Error (Fail error) -> Error.raise error
            | Ok (response, consumed) ->
              Input_channel.consume conn.reader consumed;
-             (match parse_body conn.reader (Response.transfer_encoding response) with
+             (match
+                Io_util.parse_body conn.reader (Response.transfer_encoding response)
+              with
               | Error error -> Error.raise error
               | Ok body ->
                 let response = Response0.with_body response body in
@@ -278,7 +279,7 @@ module Connection = struct
                 then close t;
                 Ivar.fill ivar response;
                 (match Response.body response with
-                 | Body0.Fixed _ | Empty -> return (`Finished ())
+                 | Body.Fixed _ | Empty -> return (`Finished ())
                  | Stream stream ->
                    let%map () = Body.Stream.closed stream in
                    `Finished ()))))
