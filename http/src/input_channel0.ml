@@ -45,7 +45,7 @@ let close t =
   if not t.is_closed
   then (
     t.is_closed <- true;
-    Fd.close t.fd >>> fun () -> Ivar.fill t.closed ());
+    Fd.close t.fd >>> fun () -> Ivar.fill_exn t.closed ());
   closed t
 ;;
 

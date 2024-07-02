@@ -3,7 +3,7 @@ open! Async_kernel
 open Async_unix
 module Unix = Core_unix
 open! Async_kernel_require_explicit_time_source
-module Logger = Log.Make_global ()
+module Logger = Async_log.Global.Make ()
 
 module Flush_result = struct
   type t =
@@ -86,7 +86,7 @@ let create ?max_buffer_size ?buf_len ?write_timeout ?time_source fd =
 
 let wakeup_flushes_with_error t error =
   while not (Queue.is_empty t.flushes) do
-    Ivar.fill (Queue.dequeue_exn t.flushes).ivar error
+    Ivar.fill_exn (Queue.dequeue_exn t.flushes).ivar error
   done
 ;;
 
@@ -125,14 +125,14 @@ let close' t =
   | Closed | Start_close -> ()
   | Open ->
     t.close_state <- Start_close;
-    Ivar.fill t.close_started ();
+    Ivar.fill_exn t.close_started ();
     Deferred.any_unit
       [ Time_source.after t.time_source (Time_ns.Span.of_sec 5.)
       ; Deferred.ignore_m (flushed_or_fail t)
       ]
     >>> fun () ->
     t.close_state <- Closed;
-    Fd.close t.fd >>> fun () -> Ivar.fill t.close_finished ()
+    Fd.close t.fd >>> fun () -> Ivar.fill_exn t.close_finished ()
 ;;
 
 let close t =
@@ -155,7 +155,7 @@ let dequeue_flushes t =
     (not (Queue.is_empty t.flushes))
     && Int63.( <= ) (Queue.peek_exn t.flushes).pos t.bytes_written
   do
-    Ivar.fill (Queue.dequeue_exn t.flushes).ivar Flush_result.Flushed
+    Ivar.fill_exn (Queue.dequeue_exn t.flushes).ivar Flush_result.Flushed
   done
 ;;
 
@@ -187,7 +187,7 @@ let rec write_everything t =
   else (
     match write_nonblocking t with
     | `Eof ->
-      Ivar.fill t.remote_closed ();
+      Ivar.fill_exn t.remote_closed ();
       stop_writer t Flush_result.Remote_closed
     | `Poll_again -> wait_and_write_everything t
     | `Ok n ->
@@ -293,7 +293,7 @@ let write_from_pipe t reader =
     then (
       (* use [read_now'] as [iter] doesn't allow working on chunks of values at a time. *)
       match Pipe.read_now' ~consumer reader with
-      | `Eof -> Ivar.fill finished ()
+      | `Eof -> Ivar.fill_exn finished ()
       | `Nothing_available -> Pipe.values_available reader >>> fun _ -> loop ()
       | `Ok bufs ->
         Queue.iter bufs ~f:(fun buf -> write t buf);

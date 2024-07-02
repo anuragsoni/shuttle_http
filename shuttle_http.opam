@@ -7,21 +7,22 @@ maintainer: ["Anurag Soni <anurag@sonianurag.com>"]
 authors: ["Anurag Soni"]
 license: "MIT"
 tags: ["http-server" "http-client" "http" "http1.1" "async"]
-homepage: "https://sr.ht/~soni/shuttle_http"
-bug-reports: "https://todo.sr.ht/~soni/shuttle_http"
+homepage: "https://github.com/anuragsoni/shuttle_http"
+bug-reports: "https://github.com/anuragsoni/shuttle_http/issues"
 depends: [
   "dune" {>= "3.1"}
-  "async" {>= "v0.16.0"}
-  "async_ssl" {>= "v0.16.0"}
-  "core" {>= "v0.16.0"}
-  "jane_rope" {>= "v0.16.0"}
-  "ocaml" {>= "4.14.0"}
-  "ppx_jane" {>= "v0.16.0"}
-  "re2" {>= "v0.16.0"}
+  "async" {>= "v0.17.0"}
+  "async_log" {>= "v0.17.0"}
+  "async_ssl" {>= "v0.17.0"}
+  "core" {>= "v0.17.0"}
+  "jane_rope" {>= "v0.17.0"}
+  "ocaml" {>= "5.1.0"}
+  "ppx_jane" {>= "v0.17.0"}
+  "re2" {>= "v0.17.0"}
   "core_unix" {with-test}
   "odoc" {with-doc}
 ]
-dev-repo: "git+https://git.sr.ht/~soni/shuttle_http"
+dev-repo: "git+https://github.com/anuragsoni/shuttle_http.git"
 build: [
   ["dune" "subst"] {dev}
   [

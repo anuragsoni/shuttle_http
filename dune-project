@@ -5,7 +5,7 @@
 (generate_opam_files true)
 
 (source
- (sourcehut soni/shuttle_http))
+ (github anuragsoni/shuttle_http))
 
 (maintainers "Anurag Soni <anurag@sonianurag.com>")
 
@@ -22,19 +22,21 @@
   "Shuttle_http is a low level library for implementing HTTP/1.1 web services and clients in OCaml.")
  (depends
   (async
-   (>= v0.16.0))
+   (>= v0.17.0))
+  (async_log
+   (>= v0.17.0))
   (async_ssl
-   (>= v0.16.0))
+   (>= v0.17.0))
   (core
-   (>= v0.16.0))
+   (>= v0.17.0))
   (jane_rope
-   (>= v0.16.0))
+   (>= v0.17.0))
   (ocaml
-   (>= 4.14.0))
+   (>= 5.1.0))
   (ppx_jane
-   (>= v0.16.0))
+   (>= v0.17.0))
   (re2
-   (>= v0.16.0))
+   (>= v0.17.0))
   (core_unix :with-test)))
 
 (package

@@ -1,6 +1,6 @@
 open! Core
 open! Async
-module Logger = Log.Make_global ()
+module Logger = Async_log.Global.Make ()
 module Ssl_conn = Ssl
 
 module Ssl = struct
@@ -109,7 +109,7 @@ type 'a t =
 type 'addr service = 'addr t -> Request.t -> Response.t Deferred.t [@@deriving sexp_of]
 
 let closed t = Ivar.read t.closed
-let close t = if Ivar.is_empty t.closed then Ivar.fill t.closed ()
+let close t = if Ivar.is_empty t.closed then Ivar.fill_exn t.closed ()
 let is_ssl t = Option.is_some t.ssl
 
 let ssl_peer_certificate t =
@@ -179,14 +179,14 @@ let run_server_loop t handler =
     | Error Partial ->
       Input_channel.refill t.reader
       >>> (function
-      | `Eof -> Ivar.fill t.closed ()
-      | `Ok -> parse_request t)
+       | `Eof -> Ivar.fill_exn t.closed ()
+       | `Ok -> parse_request t)
     | Error (Fail error) ->
       t.error_handler ~exn:(Error.to_exn error) `Bad_request
       >>> fun response ->
       (write_response t response;
        Io_util.write_body (Response.body response) t.writer)
-      >>> fun () -> Ivar.fill t.closed ()
+      >>> fun () -> Ivar.fill_exn t.closed ()
     | Ok (req, consumed) ->
       Input_channel.consume t.reader consumed;
       create_request_body_reader t req
@@ -198,7 +198,7 @@ let run_server_loop t handler =
       Input_channel.refill_with_timeout t.reader span
       >>> fun v ->
       (match v with
-       | `Eof -> Ivar.fill t.closed ()
+       | `Eof -> Ivar.fill_exn t.closed ()
        | `Ok ->
          let now' = Time_ns.now () in
          let diff = Time_ns.abs_diff now now' in
@@ -208,7 +208,7 @@ let run_server_loop t handler =
       >>> fun response ->
       (write_response t response;
        Io_util.write_body (Response.body response) t.writer)
-      >>> fun () -> Ivar.fill t.closed ()
+      >>> fun () -> Ivar.fill_exn t.closed ()
     | Ok (req, consumed) ->
       Input_channel.consume t.reader consumed;
       create_request_body_reader t req
@@ -219,7 +219,7 @@ let run_server_loop t handler =
       >>> fun response ->
       (write_response t response;
        Io_util.write_body (Response.body response) t.writer)
-      >>> fun () -> Ivar.fill t.closed ()
+      >>> fun () -> Ivar.fill_exn t.closed ()
     | Ok req_body ->
       let req = Request.with_body req req_body in
       let promise = handler t req in
@@ -248,7 +248,7 @@ let run_server_loop t handler =
        | Ok () -> ()
        | Error exn ->
          Logger.error "Error while running upgrade handler: %s" (Exn.to_string exn));
-      Ivar.fill t.closed ()
+      Ivar.fill_exn t.closed ()
     | Response _ ->
       if is_keep_alive
       then (
@@ -265,7 +265,7 @@ let run_server_loop t handler =
           if Time_ns.Span.is_positive t.read_header_timeout
           then parse_request_with_timeout t t.read_header_timeout
           else parse_request t)
-      else Ivar.fill t.closed ()
+      else Ivar.fill_exn t.closed ()
   in
   Monitor.detach t.monitor;
   Scheduler.within ~priority:Priority.normal ~monitor:t.monitor (fun () ->
@@ -281,7 +281,7 @@ let run_server_loop t handler =
     then
       (write_response t response;
        Io_util.write_body (Response.body response) t.writer)
-      >>> fun () -> Ivar.fill t.closed ());
+      >>> fun () -> Ivar.fill_exn t.closed ());
   Ivar.read t.closed
 ;;
 

@@ -232,7 +232,7 @@ module Connection = struct
                in
                match verification_result with
                | Error err ->
-                 Ivar.fill ivar (Error err);
+                 Ivar.fill_exn ivar (Error err);
                  Deferred.unit
                | Ok () ->
                  let conn = { reader; writer; address } in
@@ -240,7 +240,7 @@ module Connection = struct
                  Throttle.at_kill t (fun conn ->
                    let%bind () = Output_channel.close conn.writer in
                    Input_channel.close conn.reader);
-                 Ivar.fill ivar (Ok t);
+                 Ivar.fill_exn ivar (Ok t);
                  closed t));
         Ivar.read ivar)
   ;;
@@ -277,7 +277,7 @@ module Connection = struct
                 let response = Response0.with_body response body in
                 if not (Response.keep_alive response && Request.keep_alive request)
                 then close t;
-                Ivar.fill ivar response;
+                Ivar.fill_exn ivar response;
                 (match Response.body response with
                  | Body.Fixed _ | Empty -> return (`Finished ())
                  | Stream stream ->
