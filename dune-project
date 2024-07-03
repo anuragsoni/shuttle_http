@@ -49,4 +49,5 @@
  (depends
   (shuttle_http
    (= :version))
-  async_websocket))
+  (async_websocket
+    (>= v0.17.0))))
