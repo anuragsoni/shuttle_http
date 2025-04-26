@@ -16,17 +16,17 @@ let collect_errors writer fn =
 ;;
 
 let listen
-  ?max_connections
-  ?max_accepts_per_batch
-  ?backlog
-  ?socket
-  ?max_buffer_size
-  ?buf_len
-  ?write_timeout
-  ?time_source
-  ~on_handler_error
-  where_to_listen
-  handler
+      ?max_connections
+      ?max_accepts_per_batch
+      ?backlog
+      ?socket
+      ?max_buffer_size
+      ?buf_len
+      ?write_timeout
+      ?time_source
+      ~on_handler_error
+      where_to_listen
+      handler
   =
   Tcp.Server.create_sock
     ?max_connections
@@ -58,17 +58,17 @@ let listen
 ;;
 
 let listen_inet
-  ?max_connections
-  ?max_accepts_per_batch
-  ?backlog
-  ?socket
-  ?max_buffer_size
-  ?buf_len
-  ?write_timeout
-  ?time_source
-  ~on_handler_error
-  where_to_listen
-  handler
+      ?max_connections
+      ?max_accepts_per_batch
+      ?backlog
+      ?socket
+      ?max_buffer_size
+      ?buf_len
+      ?write_timeout
+      ?time_source
+      ~on_handler_error
+      where_to_listen
+      handler
   =
   Tcp.Server.create_sock_inet
     ?max_connections
@@ -100,14 +100,14 @@ let listen_inet
 ;;
 
 let with_connection
-  ?interrupt
-  ?connect_timeout
-  ?max_buffer_size
-  ?buf_len
-  ?write_timeout
-  ?time_source
-  where_to_connect
-  f
+      ?interrupt
+      ?connect_timeout
+      ?max_buffer_size
+      ?buf_len
+      ?write_timeout
+      ?time_source
+      where_to_connect
+      f
   =
   let%bind socket =
     Tcp.connect_sock ?interrupt ?timeout:connect_timeout ?time_source where_to_connect
@@ -133,13 +133,13 @@ let with_connection
 ;;
 
 let connect
-  ?interrupt
-  ?connect_timeout
-  ?max_buffer_size
-  ?buf_len
-  ?write_timeout
-  ?time_source
-  where_to_connect
+      ?interrupt
+      ?connect_timeout
+      ?max_buffer_size
+      ?buf_len
+      ?write_timeout
+      ?time_source
+      where_to_connect
   =
   let%map socket =
     Tcp.connect_sock ?interrupt ?timeout:connect_timeout ?time_source where_to_connect

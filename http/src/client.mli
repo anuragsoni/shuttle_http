@@ -134,6 +134,7 @@ module Persistent : sig
   (** [call] Attempts to perform a HTTP request using the user provided client. If the
       underlying http connection has closed between two calls, and the user hasn't called
       {{!Shuttle_http.Client.Persistent.close} close} on the persistent connection, this
-      function will initiate a new http connection and then perform the http client call. *)
+      function will initiate a new http connection and then perform the http client call.
+  *)
   val call : t -> Request.t -> Response.t Deferred.t
 end

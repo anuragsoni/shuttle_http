@@ -145,8 +145,9 @@ let%test_unit "Header lookups perform case insensitive comparisons" =
       (Headers.mem headers (String.uppercase key)))
 ;;
 
-let%test_unit "Attempting to remove a header name that doesn't exist in header set does \
-               not modify the headers"
+let%test_unit
+    "Attempting to remove a header name that doesn't exist in header set does not modify \
+     the headers"
   =
   let gen =
     let open Base_quickcheck.Generator.Let_syntax in
@@ -162,8 +163,8 @@ let%test_unit "Attempting to remove a header name that doesn't exist in header s
         (Headers.to_rev_list (Headers.remove headers key)))
 ;;
 
-let%test_unit "Removing a header name from a list of headers removes all entries with \
-               the name"
+let%test_unit
+    "Removing a header name from a list of headers removes all entries with the name"
   =
   let gen =
     let open Base_quickcheck.Generator.Let_syntax in

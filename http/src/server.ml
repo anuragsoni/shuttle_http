@@ -18,16 +18,16 @@ module Ssl = struct
   [@@deriving sexp_of, fields]
 
   let create
-    ?version
-    ?options
-    ?name
-    ?allowed_ciphers
-    ?ca_file
-    ?ca_path
-    ?verify_modes
-    ~certificate_file
-    ~key_file
-    ()
+        ?version
+        ?options
+        ?name
+        ?allowed_ciphers
+        ?ca_file
+        ?ca_path
+        ?verify_modes
+        ~certificate_file
+        ~key_file
+        ()
     =
     { certificate_file
     ; key_file
@@ -68,16 +68,16 @@ module Config = struct
   [@@deriving sexp_of]
 
   let create
-    ?(buf_len = 0x4000)
-    ?max_buffer_size
-    ?max_connections
-    ?max_accepts_per_batch
-    ?backlog
-    ?write_timeout
-    ?read_header_timeout
-    ?(error_handler = default_error_handler)
-    ?ssl
-    ()
+        ?(buf_len = 0x4000)
+        ?max_buffer_size
+        ?max_connections
+        ?max_accepts_per_batch
+        ?backlog
+        ?write_timeout
+        ?read_header_timeout
+        ?(error_handler = default_error_handler)
+        ?ssl
+        ()
     =
     { buf_len
     ; max_buffer_size
@@ -154,12 +154,12 @@ let write_response t res =
 ;;
 
 let create
-  ?(error_handler = default_error_handler)
-  ?(read_header_timeout = Time_ns.Span.minute)
-  ?ssl
-  addr
-  reader
-  writer
+      ?(error_handler = default_error_handler)
+      ?(read_header_timeout = Time_ns.Span.minute)
+      ?ssl
+      addr
+      reader
+      writer
   =
   { closed = Ivar.create ()
   ; monitor = Monitor.create ()
@@ -344,12 +344,12 @@ let run_inet ?(config = Config.default) addr service =
       ?write_timeout:config.write_timeout
       ~on_handler_error:
         (`Call
-          (fun _addr exn ->
-            Ivar.fill_if_empty interrupt ();
-            raise exn))
+            (fun _addr exn ->
+              Ivar.fill_if_empty interrupt ();
+              raise exn))
       addr
       (fun addr reader writer ->
-        run_server_loop config addr interrupt reader writer service)
+         run_server_loop config addr interrupt reader writer service)
   in
   upon (Tcp.Server.close_finished server) (fun () -> Ivar.fill_if_empty interrupt ());
   server
@@ -367,12 +367,12 @@ let run ?(config = Config.default) addr service =
       ?write_timeout:config.write_timeout
       ~on_handler_error:
         (`Call
-          (fun _addr exn ->
-            Ivar.fill_if_empty interrupt ();
-            raise exn))
+            (fun _addr exn ->
+              Ivar.fill_if_empty interrupt ();
+              raise exn))
       addr
       (fun addr reader writer ->
-        run_server_loop config addr interrupt reader writer service)
+         run_server_loop config addr interrupt reader writer service)
   in
   upon (Tcp.Server.close_finished server) (fun () -> Ivar.fill_if_empty interrupt ());
   server

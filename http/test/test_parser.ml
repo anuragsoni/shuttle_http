@@ -274,7 +274,8 @@ let%expect_test "Response parser catches invalid status code" =
   print_s
     ([%sexp_of: Response.t success Or_error.t]
        (parse_or_error Parser.parse_response response));
-  [%expect {|
+  [%expect
+    {|
     (Error ("Parse error" "Status codes must be three digit numbers")) |}];
   let response = "HTTP/1.1 999 OK\r\nContent-Length: 21\r\nFoo: bar\r\n\r\n" in
   print_s

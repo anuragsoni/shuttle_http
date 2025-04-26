@@ -20,12 +20,12 @@ module Config = struct
     }
 
   let create
-    ?(buffer_size = 0x4000)
-    ?(error_handler = default_error_handler)
-    ?(response_headers = [])
-    ?opcode
-    ?(subprotocol = fun _ -> None)
-    ()
+        ?(buffer_size = 0x4000)
+        ?(error_handler = default_error_handler)
+        ?(response_headers = [])
+        ?opcode
+        ?(subprotocol = fun _ -> None)
+        ()
     =
     { buffer_size; error_handler; opcode; response_headers; subprotocol }
   ;;

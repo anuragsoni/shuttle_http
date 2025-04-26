@@ -3,7 +3,7 @@ open Core
 module T = struct
   type t =
     [ (* https://datatracker.ietf.org/doc/html/rfc7231#section-4.3 *)
-      `GET
+        `GET
     | `HEAD
     | `POST
     | `PUT
@@ -12,7 +12,7 @@ module T = struct
     | `OPTIONS
     | `TRACE
     | (* https://datatracker.ietf.org/doc/html/rfc5789 *)
-      `PATCH
+        `PATCH
     ]
   [@@deriving sexp, compare, hash, enumerate, quickcheck]
 end

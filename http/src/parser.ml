@@ -77,8 +77,9 @@ module Source = struct
 
   let[@inline always] consume_eol t =
     if length t < 2 then raise_notrace Partial;
-    if Char.(
-         Bigstring.get t.buffer t.pos = '\r' && Bigstring.get t.buffer (t.pos + 1) = '\n')
+    if
+      Char.(
+        Bigstring.get t.buffer t.pos = '\r' && Bigstring.get t.buffer (t.pos + 1) = '\n')
     then unsafe_advance t 2
     else raise_notrace (Fail (Error.of_string "Expected EOL"))
   ;;
@@ -268,14 +269,15 @@ let chunk_length source =
 
 let version source =
   if Source.length source < 8 then raise_notrace Partial;
-  if Char.equal source.![0] 'H'
-     && Char.equal source.![1] 'T'
-     && Char.equal source.![2] 'T'
-     && Char.equal source.![3] 'P'
-     && Char.equal source.![4] '/'
-     && Char.equal source.![5] '1'
-     && Char.equal source.![6] '.'
-     && Char.equal source.![7] '1'
+  if
+    Char.equal source.![0] 'H'
+    && Char.equal source.![1] 'T'
+    && Char.equal source.![2] 'T'
+    && Char.equal source.![3] 'P'
+    && Char.equal source.![4] '/'
+    && Char.equal source.![5] '1'
+    && Char.equal source.![6] '.'
+    && Char.equal source.![7] '1'
   then (
     Source.unsafe_advance source 8;
     Version.Http_1_1)

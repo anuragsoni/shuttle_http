@@ -68,19 +68,19 @@ module Ssl = struct
   [@@deriving sexp_of]
 
   let create
-    ?version
-    ?options
-    ?name
-    ?hostname
-    ?allowed_ciphers
-    ?ca_file
-    ?ca_path
-    ?crt_file
-    ?key_file
-    ?verify_modes
-    ?session
-    ?verify_certificate
-    ()
+        ?version
+        ?options
+        ?name
+        ?hostname
+        ?allowed_ciphers
+        ?ca_file
+        ?ca_path
+        ?crt_file
+        ?key_file
+        ?verify_modes
+        ?session
+        ?verify_certificate
+        ()
     =
     { version
     ; options

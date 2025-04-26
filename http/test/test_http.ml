@@ -135,8 +135,9 @@ let%expect_test "Can catch bad transfer encoding header" =
       [%expect {| "HTTP/1.1 400 \r\nConnection: close\r\nContent-Length: 0\r\n\r\n" |}]))
 ;;
 
-let%expect_test "Servers will respond with a timeout if they can't parse request headers \
-                 in the given timeframe"
+let%expect_test
+    "Servers will respond with a timeout if they can't parse request headers in the \
+     given timeframe"
   =
   Helper.with_server
     ~read_header_timeout:(Time_ns.Span.of_ms 100.)
@@ -202,35 +203,35 @@ let%expect_test "Keep-alives in clients" =
     Monitor.protect
       ~finally:(fun () -> Client.close client)
       (fun () ->
-        let%bind response = Client.call client (Request.create `GET "/") in
-        print_s
-          [%sexp
-            { status = (Response.status response : Status.t)
-            ; headers = (Response.headers response : (string * string) list)
-            ; reason_phrase = (Response.reason_phrase response : string)
-            }];
-        let%bind body = Body.to_string (Response.body response) in
-        printf "\nBody: %S" body;
-        [%expect
-          {|
+         let%bind response = Client.call client (Request.create `GET "/") in
+         print_s
+           [%sexp
+             { status = (Response.status response : Status.t)
+             ; headers = (Response.headers response : (string * string) list)
+             ; reason_phrase = (Response.reason_phrase response : string)
+             }];
+         let%bind body = Body.to_string (Response.body response) in
+         printf "\nBody: %S" body;
+         [%expect
+           {|
     ((status Ok) (headers ((Content-Length 11))) (reason_phrase ""))
 
     Body: "Hello World" |}];
-        let%bind response =
-          Client.call
-            client
-            (Request.create ~body:(Body.string "This is a body") `POST "/echo")
-        in
-        print_s
-          [%sexp
-            { status = (Response.status response : Status.t)
-            ; headers = (Response.headers response : (string * string) list)
-            ; reason_phrase = (Response.reason_phrase response : string)
-            }];
-        let%map body = Body.to_string (Response.body response) in
-        printf "\nBody: %S" body;
-        [%expect
-          {|
+         let%bind response =
+           Client.call
+             client
+             (Request.create ~body:(Body.string "This is a body") `POST "/echo")
+         in
+         print_s
+           [%sexp
+             { status = (Response.status response : Status.t)
+             ; headers = (Response.headers response : (string * string) list)
+             ; reason_phrase = (Response.reason_phrase response : string)
+             }];
+         let%map body = Body.to_string (Response.body response) in
+         printf "\nBody: %S" body;
+         [%expect
+           {|
     ((status Ok) (headers ((Content-Length 14))) (reason_phrase ""))
 
     Body: "This is a body" |}]))
@@ -262,33 +263,33 @@ let%expect_test "No requests can be sent if a client is closed" =
     Monitor.protect
       ~finally:(fun () -> Client.close client)
       (fun () ->
-        let%bind response = Client.call client (Request.create `GET "/") in
-        print_s
-          [%sexp
-            { status = (Response.status response : Status.t)
-            ; headers = (Response.headers response : (string * string) list)
-            ; reason_phrase = (Response.reason_phrase response : string)
-            }];
-        let%bind body = Body.to_string (Response.body response) in
-        printf "\nBody: %S" body;
-        [%expect
-          {|
+         let%bind response = Client.call client (Request.create `GET "/") in
+         print_s
+           [%sexp
+             { status = (Response.status response : Status.t)
+             ; headers = (Response.headers response : (string * string) list)
+             ; reason_phrase = (Response.reason_phrase response : string)
+             }];
+         let%bind body = Body.to_string (Response.body response) in
+         printf "\nBody: %S" body;
+         [%expect
+           {|
     ((status Ok) (headers ((Content-Length 11))) (reason_phrase ""))
 
     Body: "Hello World" |}];
-        let%bind () = Client.close client in
-        let%map msg =
-          ensure_aborted (fun () ->
-            Client.call
-              client
-              (Request.create ~body:(Body.string "This is a body") `POST "/echo"))
-        in
-        printf "%s" msg;
-        [%expect {| Request aborted |}]))
+         let%bind () = Client.close client in
+         let%map msg =
+           ensure_aborted (fun () ->
+             Client.call
+               client
+               (Request.create ~body:(Body.string "This is a body") `POST "/echo"))
+         in
+         printf "%s" msg;
+         [%expect {| Request aborted |}]))
 ;;
 
-let%expect_test "Clients are automatically closed if Connection:close header is present \
-                 in request"
+let%expect_test
+    "Clients are automatically closed if Connection:close header is present in request"
   =
   Helper.with_server handler ~f:(fun port ->
     let%bind client =
@@ -300,34 +301,34 @@ let%expect_test "Clients are automatically closed if Connection:close header is 
     Monitor.protect
       ~finally:(fun () -> Client.close client)
       (fun () ->
-        let%bind response =
-          Client.call client (Request.create ~headers:[ "Connection", "close" ] `GET "/")
-        in
-        print_s
-          [%sexp
-            { status = (Response.status response : Status.t)
-            ; headers = (Response.headers response : (string * string) list)
-            ; reason_phrase = (Response.reason_phrase response : string)
-            }];
-        let%bind body = Body.to_string (Response.body response) in
-        printf "\nBody: %S" body;
-        [%expect
-          {|
+         let%bind response =
+           Client.call client (Request.create ~headers:[ "Connection", "close" ] `GET "/")
+         in
+         print_s
+           [%sexp
+             { status = (Response.status response : Status.t)
+             ; headers = (Response.headers response : (string * string) list)
+             ; reason_phrase = (Response.reason_phrase response : string)
+             }];
+         let%bind body = Body.to_string (Response.body response) in
+         printf "\nBody: %S" body;
+         [%expect
+           {|
     ((status Ok) (headers ((Content-Length 11))) (reason_phrase ""))
 
     Body: "Hello World" |}];
-        let%map msg =
-          ensure_aborted (fun () ->
-            Client.call
-              client
-              (Request.create ~body:(Body.string "This is a body") `POST "/echo"))
-        in
-        printf "%s" msg;
-        [%expect {| Request aborted |}]))
+         let%map msg =
+           ensure_aborted (fun () ->
+             Client.call
+               client
+               (Request.create ~body:(Body.string "This is a body") `POST "/echo"))
+         in
+         printf "%s" msg;
+         [%expect {| Request aborted |}]))
 ;;
 
-let%expect_test "Clients are automatically closed if Connection:close header is present \
-                 in response"
+let%expect_test
+    "Clients are automatically closed if Connection:close header is present in response"
   =
   Helper.with_server handler ~f:(fun port ->
     let%bind client =
@@ -339,29 +340,29 @@ let%expect_test "Clients are automatically closed if Connection:close header is 
     Monitor.protect
       ~finally:(fun () -> Client.close client)
       (fun () ->
-        let%bind response = Client.call client (Request.create `GET "/no-keep-alive") in
-        print_s
-          [%sexp
-            { status = (Response.status response : Status.t)
-            ; headers = (Response.headers response : (string * string) list)
-            ; reason_phrase = (Response.reason_phrase response : string)
-            }];
-        let%bind body = Body.to_string (Response.body response) in
-        printf "\nBody: %S" body;
-        [%expect
-          {|
+         let%bind response = Client.call client (Request.create `GET "/no-keep-alive") in
+         print_s
+           [%sexp
+             { status = (Response.status response : Status.t)
+             ; headers = (Response.headers response : (string * string) list)
+             ; reason_phrase = (Response.reason_phrase response : string)
+             }];
+         let%bind body = Body.to_string (Response.body response) in
+         printf "\nBody: %S" body;
+         [%expect
+           {|
     ((status Ok) (headers ((Content-Length 30) (Connection close)))
      (reason_phrase ""))
 
     Body: "This connection will be closed" |}];
-        let%map msg =
-          ensure_aborted (fun () ->
-            Client.call
-              client
-              (Request.create ~body:(Body.string "This is a body") `POST "/echo"))
-        in
-        printf "%s" msg;
-        [%expect {| Request aborted |}]))
+         let%map msg =
+           ensure_aborted (fun () ->
+             Client.call
+               client
+               (Request.create ~body:(Body.string "This is a body") `POST "/echo"))
+         in
+         printf "%s" msg;
+         [%expect {| Request aborted |}]))
 ;;
 
 let%expect_test "Persistent clients will re-connect if connection is closed" =
@@ -372,47 +373,47 @@ let%expect_test "Persistent clients will re-connect if connection is closed" =
         ~retry_delay:(fun () -> Time_ns.Span.of_sec 0.01)
         ~server_name:"test"
         (fun () ->
-          Deferred.Or_error.return
-            (Client.Address.of_host_and_port
-               (Host_and_port.create ~host:"localhost" ~port)))
+           Deferred.Or_error.return
+             (Client.Address.of_host_and_port
+                (Host_and_port.create ~host:"localhost" ~port)))
     in
     Monitor.protect
       ~finally:(fun () -> Client.Persistent.close client)
       (fun () ->
-        let%bind response =
-          Client.Persistent.call client (Request.create `GET "/no-keep-alive")
-        in
-        print_s
-          [%sexp
-            { status = (Response.status response : Status.t)
-            ; headers = (Response.headers response : (string * string) list)
-            ; reason_phrase = (Response.reason_phrase response : string)
-            }];
-        let%bind body = Body.to_string (Response.body response) in
-        printf "\nBody: %S" body;
-        [%expect
-          {|
+         let%bind response =
+           Client.Persistent.call client (Request.create `GET "/no-keep-alive")
+         in
+         print_s
+           [%sexp
+             { status = (Response.status response : Status.t)
+             ; headers = (Response.headers response : (string * string) list)
+             ; reason_phrase = (Response.reason_phrase response : string)
+             }];
+         let%bind body = Body.to_string (Response.body response) in
+         printf "\nBody: %S" body;
+         [%expect
+           {|
     ((status Ok) (headers ((Content-Length 30) (Connection close)))
      (reason_phrase ""))
 
     Body: "This connection will be closed" |}];
-        (* Since we use persistent it will re-connent and use a fresh connection the next
-           time we use `call` *)
-        let%bind response =
-          Client.Persistent.call
-            client
-            (Request.create ~body:(Body.string "This is a body") `POST "/echo")
-        in
-        print_s
-          [%sexp
-            { status = (Response.status response : Status.t)
-            ; headers = (Response.headers response : (string * string) list)
-            ; reason_phrase = (Response.reason_phrase response : string)
-            }];
-        let%map body = Body.to_string (Response.body response) in
-        printf "\nBody: %S" body;
-        [%expect
-          {|
+         (* Since we use persistent it will re-connent and use a fresh connection the next
+            time we use `call` *)
+         let%bind response =
+           Client.Persistent.call
+             client
+             (Request.create ~body:(Body.string "This is a body") `POST "/echo")
+         in
+         print_s
+           [%sexp
+             { status = (Response.status response : Status.t)
+             ; headers = (Response.headers response : (string * string) list)
+             ; reason_phrase = (Response.reason_phrase response : string)
+             }];
+         let%map body = Body.to_string (Response.body response) in
+         printf "\nBody: %S" body;
+         [%expect
+           {|
           ((status Ok) (headers ((Content-Length 14))) (reason_phrase ""))
 
           Body: "This is a body" |}]))

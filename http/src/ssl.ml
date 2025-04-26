@@ -23,20 +23,20 @@ let pipe_of_channels input_channel output_channel =
 ;;
 
 let upgrade_client_connection
-  ?version
-  ?options
-  ?name
-  ?hostname
-  ?allowed_ciphers
-  ?ca_file
-  ?ca_path
-  ?crt_file
-  ?key_file
-  ?verify_modes
-  ?session
-  ~f
-  input_channel
-  output_channel'
+      ?version
+      ?options
+      ?name
+      ?hostname
+      ?allowed_ciphers
+      ?ca_file
+      ?ca_path
+      ?crt_file
+      ?key_file
+      ?verify_modes
+      ?session
+      ~f
+      input_channel
+      output_channel'
   =
   let net_to_ssl, ssl_to_net = pipe_of_channels input_channel output_channel' in
   let app_to_ssl, app_writer = Pipe.create () in
@@ -99,18 +99,18 @@ let upgrade_client_connection
 ;;
 
 let upgrade_server_connection
-  ?version
-  ?options
-  ?name
-  ?allowed_ciphers
-  ?ca_file
-  ?ca_path
-  ?verify_modes
-  ~crt_file
-  ~key_file
-  ~f
-  input_channel
-  output_channel'
+      ?version
+      ?options
+      ?name
+      ?allowed_ciphers
+      ?ca_file
+      ?ca_path
+      ?verify_modes
+      ~crt_file
+      ~key_file
+      ~f
+      input_channel
+      output_channel'
   =
   let net_to_ssl, ssl_to_net = pipe_of_channels input_channel output_channel' in
   let app_to_ssl, app_writer = Pipe.create () in

@@ -2,11 +2,11 @@ open Core
 include Response0
 
 let create
-  ?(version = Version.Http_1_1)
-  ?reason_phrase
-  ?(headers = [])
-  ?(body = Body.empty)
-  status
+      ?(version = Version.Http_1_1)
+      ?reason_phrase
+      ?(headers = [])
+      ?(body = Body.empty)
+      status
   =
   let reason_phrase = Option.value reason_phrase ~default:(Status.to_string status) in
   { version; status; reason_phrase; headers; body = Response body }

@@ -217,7 +217,7 @@ and wait_and_write_everything t =
       ~level:`Error
       [%sexp
         "Shuttle.Output_channel: fd changed"
-        , { t : t; ready_to_result = (result : [ `Bad_fd | `Closed ]) }];
+      , { t : t; ready_to_result = (result : [ `Bad_fd | `Closed ]) }];
     stop_writer t Flush_result.Error
 ;;
 
